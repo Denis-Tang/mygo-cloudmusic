@@ -87,12 +87,6 @@ func (a *app) shortcuts(c *ui.Context) {
 	})
 	if a.nowPlaying {
 		c.OnShortcut(0, ui.KeyEscape, func() { a.nowPlaying = false })
-		// ⌘ and a number choose Now Playing's tab of that place.
-		if a.pl.Current() != nil {
-			for i, t := range a.npTabs() {
-				c.OnShortcut(ui.Cmd, ui.Key1+ui.Key(i), func() { a.choosePane(t.pane) })
-			}
-		}
 	}
 }
 
@@ -400,18 +394,23 @@ func (a *app) loadHome() {
 		if signedIn {
 			rec, _ = netease.RecommendedPlaylists()
 		}
-		a.post(func() {
-			a.homeLoading = false
-			if err1 != nil && err2 != nil {
-				// Loading the new day's again, what shows stays, to try
-				// once more.
-				if len(a.featured) == 0 && len(a.charts) == 0 {
-					a.homeErr = "无法连接网易云音乐，请检查网络"
+		// The day's songs have albums published after the cutoff
+		// filtered out of them, their times kept.
+		a.filterKept(daily, func(kept []netease.Track) {
+			daily = kept
+			a.post(func() {
+				a.homeLoading = false
+				if err1 != nil && err2 != nil {
+					// Loading the new day's again, what shows stays, to try
+					// once more.
+					if len(a.featured) == 0 && len(a.charts) == 0 {
+						a.homeErr = "无法连接网易云音乐，请检查网络"
+					}
+					return
 				}
-				return
-			}
-			a.featured, a.charts, a.daily, a.recPlaylists = featured, charts, daily, rec
-			a.homeAt = at
+				a.featured, a.charts, a.daily, a.recPlaylists = featured, charts, daily, rec
+				a.homeAt = at
+			})
 		})
 	}()
 }

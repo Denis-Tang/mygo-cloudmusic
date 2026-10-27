@@ -86,10 +86,10 @@ func init() {
 				}
 				if long := os.Getenv("NM_LONG"); long != "" {
 					// Each pane for a while, as one listens: a mark every 5 s.
-					// NM_LONG=stage shows only the stage.
-					panes := []int{paneLyrics, paneStage}
-					if long == "stage" {
-						panes = panes[1:]
+					// NM_LONG=lyrics shows only the lyrics.
+					panes := []int{paneLyrics, paneQueue}
+					if long == "lyrics" {
+						panes = panes[:1]
 					}
 					for _, pane := range panes {
 						step(0, func() { a.nowPlaying, a.npPane = true, pane })
@@ -123,8 +123,8 @@ func init() {
 				}
 				for round := range 2 {
 					if round == 0 {
-						// And one of the stage, for its character animation.
-						if f, err := os.Create(filepath.Join(dir, "stage.pprof")); err == nil {
+						// One of the cover, for its drawing.
+						if f, err := os.Create(filepath.Join(dir, "cover.pprof")); err == nil {
 							pprof.StartCPUProfile(f)
 							go func() {
 								time.Sleep(4 * time.Second)
@@ -133,8 +133,8 @@ func init() {
 							}()
 						}
 					}
-					mark(fmt.Sprint("stage", round))
-					step(0, func() { a.nowPlaying, a.npPane = true, paneStage })
+					mark(fmt.Sprint("cover", round))
+					step(0, func() { a.nowPlaying, a.npPane = true, paneCover })
 					time.Sleep(4 * time.Second)
 					mark(fmt.Sprint("shut", round))
 					step(0, func() { a.nowPlaying = false })

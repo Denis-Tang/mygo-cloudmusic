@@ -76,8 +76,8 @@ func TestQueueStaysAsATrackIsPlayed(t *testing.T) {
 // The app chooses Now Playing's pane before it makes the player: it
 // crashed on start when the choice asked the player what played.
 func TestLyricsPaneBeforePlayer(t *testing.T) {
-	a := &app{settings: settings{LyricsStage: true}}
-	if pane := a.lyricsPaneChosen(); pane != paneStage {
+	a := &app{}
+	if pane := a.lyricsPaneChosen(); pane != paneCover {
 		t.Errorf("pane %d", pane)
 	}
 }
@@ -130,34 +130,40 @@ func TestNowPlayingHoldsStillWithoutBadge(t *testing.T) {
 	}
 }
 
-// ⌘ and a number choose Now Playing's tab in that place, for a song and
-// for an episode, whose tabs are others: its last is the comments, wherever
-// the captions it may have put it.
-func TestCmdNumberChoosesTab(t *testing.T) {
-	for _, c := range []struct {
-		track netease.Track
-		keys  []int // from 1, 0 for the last tab
-		panes []int
-	}{
-		{netease.Track{ID: 1, Name: "宝船", Duration: 200000}, []int{4, 2, 1}, []int{paneWall, paneStage, paneLyrics}},
-		{netease.Track{ID: 2, Name: "节目", ProgramID: 9, Duration: 200000}, []int{0, 1}, []int{paneComments, paneProgram}},
-	} {
+// The buttons over the top of Now Playing choose its pane: a click on
+// one opens it, and it goes back to the cover.
+func TestPaneButtonsChoosePane(t *testing.T) {
+	for _, pane := range []int{paneLyrics, paneQueue, paneComments} {
 		a := newTestApp()
 		a.settings = defaultSettings()
-		a.pl.Cue([]netease.Track{c.track})
+		a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
 		a.pl.SetLyrics(nil)
 		a.nowPlaying = true
 		tt := ui.NewTester(a.view, 1200, 800)
 		tt.Frame()
-		for i, n := range c.keys {
-			if n == 0 {
-				n = len(a.npTabs())
-			}
-			tt.Key(ui.Cmd, ui.Key1+ui.Key(n-1))
-			tt.Frame()
-			if a.npPane != c.panes[i] {
-				t.Errorf("%s: ⌘%d chose pane %d, want %d", c.track.Name, n, a.npPane, c.panes[i])
-			}
+		r, ok := tt.Find(paneButtons[pane])
+		if !ok {
+			t.Fatalf("no %s button", paneButtons[pane])
+		}
+		// The buttons show while the pointer is in the window: over one,
+		// they fade in, and once in, a click on it lands.
+		tt.Move(r.X+r.W/2, r.Y+r.H/2)
+		tt.Advance(400 * time.Millisecond)
+		tt.Frame()
+		if err := tt.Click(paneButtons[pane]); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		if a.npPane != pane {
+			t.Errorf("the %s button chose pane %d, want %d", paneButtons[pane], a.npPane, pane)
 		}
 	}
+}
+
+// paneButtons name the top strip's buttons that open their panes, by
+// accessibility name, which the texts on them alone would share.
+var paneButtons = map[int]string{
+	paneLyrics:   "歌词面板",
+	paneQueue:    "待播清单面板",
+	paneComments: "评论面板",
 }

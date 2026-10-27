@@ -58,7 +58,7 @@ func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	if !open && settled || a.pl.Current() == nil {
 		// Closed: nothing to paint or click.
 		layer.Invisible()
-		a.queueAt, a.wallState.track = -1, 0
+		a.queueAt = -1
 		return
 	}
 	if !open {
@@ -104,11 +104,9 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	pl := a.pl
 	a.commentsFor(tr)
 	// An episode has what it is about and its captions in place of lyrics;
-	// a song, lyrics in place of those.
+	// a song lyrics hidden until asked, as the cover shows.
 	switch program := tr.ProgramID != 0; {
-	case program && a.npPane == paneWall:
-		a.npPane = paneQueue
-	case program && (a.npPane == paneLyrics || a.npPane == paneStage):
+	case program && (a.npPane == paneLyrics || a.npPane == paneCover):
 		a.npPane = paneProgram
 		if a.captionsOn() {
 			a.npPane = paneCaptions
@@ -116,17 +114,15 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	case program && a.npPane == paneCaptions && !a.captionsShown():
 		a.npPane = paneProgram
 	case !program && (a.npPane == paneProgram || a.npPane == paneCaptions):
-		a.npPane = a.lyricsPaneChosen()
+		a.npPane = paneCover
 	}
 	if a.npPane != paneQueue {
 		a.queueAt = -1
 	}
-	if a.npPane != paneWall {
-		a.wallState.track = 0
-	}
 	{
 		// The top strip drags the window; the chevron closes the view,
-		// showing only while the pointer is in the window, as the pane tabs do.
+		// showing only while the pointer is in the window, as the panes'
+		// buttons do.
 		ui.Row(c).Height(topBar(c)).Justify(ui.Center).AlignItems(ui.Center).DragWindow().Children(func() {
 			reveal(ui.Box(c.Key("close-reveal")), pointerIn).Children(func() {
 				if iconButton(c.Key("close"), iconDown, 22, white.Alpha(0.7), "关闭").Clicked() {
@@ -134,33 +130,49 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 				}
 			})
 		})
-		if a.npPane == paneStage {
-			// The stage takes the whole view: the lyrics are the show, the
-			// controls a slim bar at the foot.
-			reveal(ui.Row(c.Key("tabs")).Absolute().Top(topBar(c)).Right(48).Gap(6), pointerIn).Children(func() {
-				a.stageStyleButton(c)
-				a.paneTabs(c)
+		// The panes' buttons, over the top right of the strip: they open
+		// a pane, or, paneCover, return to the cover. On the strip, not
+		// in it: a drag's press would take their clicks. An episode has
+		// others than a song: what it is about, and its captions, in
+		// place of the lyrics.
+		ui.Row(c.Key("np-buttons")).Absolute().Top(topBar(c)).Right(48).AlignItems(ui.Center).Gap(6).
+			Children(func() {
+				reveal(ui.Row(c.Key("buttons")).Gap(6), pointerIn).Children(func() {
+					if a.fullCoverButton(c).Clicked() {
+						a.openFullCover()
+					}
+					a.paneButton(c, paneLyrics, iconLyrics, "歌词", true)
+					a.paneButton(c, paneQueue, iconQueue, "待播清单", true)
+					// The comments' button, whose count rolls as it changes,
+					// from one song's to the next, as its tab did.
+					if a.countButton(c, paneComments).Clicked() {
+						a.choosePane(paneComments)
+					}
+					if tr.ProgramID != 0 {
+						a.paneButton(c, paneProgram, iconInfo, "简介", true)
+						if a.captionsShown() {
+							a.paneButton(c, paneCaptions, iconCaptions, "字幕", true)
+						}
+					}
+				})
 			})
-			a.stage(c, tr, accent)
-			a.stageBar(c, tr, art, accent)
-			return
-		}
-		if a.npPane == paneWall {
-			// The wall takes the whole view too, under the song playing.
-			a.wallPane(c, tr, art, accent, w, h, pointerIn)
-			return
-		}
-
+		// The cover leaves room above it for the pane's buttons.
 		side := float32(math.Min(float64(w)*0.36, 440))
-		// The cover leaves room above it for the pane's tabs.
-		coverSize := min(side, h-404)
-		ui.Row(c).Grow(1).Padding(0, 72, 44, 72).Gap(72).AlignItems(ui.Stretch).Children(func() {
-			var coverTop float32
+		justify := ui.Start
+		if a.npPane == paneCover {
+			// On its own, the cover fills the view: as wide as the height
+			// leaves room for the words and controls under it.
+			side = min(float32(w)*0.58, h-380)
+			if side < 240 {
+				side = float32(math.Min(float64(w)*0.36, 440))
+				justify = ui.Center
+			}
+			justify = ui.Center
+		}
+		ui.Row(c).Grow(1).Padding(0, 72, 44, 72).Gap(72).AlignItems(ui.Stretch).Justify(justify).Children(func() {
 			ui.Column(c).Width(side).Justify(ui.Center).Gap(0).Children(func() {
-				coverTop = ui.Box(c.Key("cover-top")).Height(0).LayoutBounds().Y
-				a.npCover(c, tr, art, coverSize)
-
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(36, 0, 18, 0).Children(func() {
+				a.npCover(c, tr, art, side)
+				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(36, 0, 18, 0).Justify(ui.Center).Children(func() {
 					ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
 						if r := pl.Radio(); r != "" {
 							a.radioChip(c, r)
@@ -192,30 +204,11 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 					a.volumeSlider(c, white.Alpha(0.7), white.Alpha(0.18), 180)
 				})
 			})
-
+			if a.npPane == paneCover {
+				return
+			}
 			pane := ui.Column(c.Key("pane")).Grow(1).Basis(0).MinWidth(0)
 			pane.Children(func() {
-				// The pane starts level with the cover beside it. Its tabs come
-				// and go with the pointer, so they sit above it, out of the flow,
-				// never over it.
-				tabs := ui.Row(c.Key("tabs")).Absolute().Left(0).Gap(6)
-				b, tb := pane.LayoutBounds(), tabs.LayoutBounds()
-				if b.H > 0 && tb.H > 0 && coverTop > 0 {
-					if top := max(coverTop-b.Y, tb.H+8); top != a.npPaneTop {
-						a.npPaneTop = top
-						c.AnimationFrame()
-					}
-				} else {
-					c.AnimationFrame() // not laid out yet: the next frame places it
-				}
-				// Built anew, back from another pane, the tabs are not laid out
-				// yet: they take their height from the last time, rather than
-				// showing lower for a frame and rising.
-				if tb.H > 0 {
-					a.npTabsH = tb.H
-				}
-				reveal(tabs.Top(a.npPaneTop-8-a.npTabsH), pointerIn).Children(func() { a.paneTabs(c) })
-				ui.Box(c).Height(a.npPaneTop)
 				switch a.npPane {
 				case paneLyrics:
 					a.lyricsPane(c, tr, h)
@@ -233,6 +226,60 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	}
 }
 
+// paneButton is one of the buttons over the top of Now Playing, which open
+// a pane of it, or, paneCover, return to the cover: lit where shown, gone
+// in a pane's own view. Songs and episodes the icons differ of, and an
+// episode's buttons the labels of, show when ok is set for: captions only
+// once the model is there, and its comments by its tab.
+func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok bool) {
+	if !ok {
+		return
+	}
+	at := a.npPane == pane
+	// The button's name names where it goes: the panes' names are other
+	// elements' too, as the song's menu's items are.
+	b := ui.ButtonBase(c.Key(label)).Padding(6, 14).Radius(999).FocusRing(false).Label(label + "面板").Gap(6)
+	bg, fg := white.Alpha(0.06), white.Alpha(0.6)
+	if at {
+		bg, fg = white.Alpha(0.14), white
+	} else if b.Hovered() {
+		fg = white
+	}
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
+	b.Children(func() {
+		ui.Icon(c, icon).Size(13, 13)
+		ui.Text(c, label).FontSize(13).FontWeight(600).TextColor(fg)
+	})
+	if b.Clicked() {
+		a.choosePane(pane)
+	}
+}
+
+// countButton is the comments' pane's button: its count, kept rolling as
+// one song's gives to the next, in the wheels of a counter.
+func (a *app) countButton(c *ui.Context, pane int) ui.Element {
+	b := ui.ButtonBase(c.Key("评论面板")).Padding(6, 14).Radius(999).FocusRing(false).Label("评论面板").Gap(6)
+	bg, fg := white.Alpha(0.06), white.Alpha(0.6)
+	if a.npPane == pane {
+		bg, fg = white.Alpha(0.14), white
+	} else if b.Hovered() {
+		fg = white
+	}
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
+	b.Children(func() {
+		ui.Icon(c, iconComment).Size(13, 13)
+		ui.Text(c, "评论").FontSize(13).FontWeight(600).TextColor(fg)
+		// The count rolls as it changes: kept, where its tab kept it.
+		n, text := a.commentCount(), ""
+		if n > 0 {
+			text = " " + count(n)
+			b.Label("评论面板 · " + count(n))
+		}
+		rollCount(c, &a.tabCount, n, text, fg)
+	})
+	return b
+}
+
 // reveal fades e in while the pointer is in the window, and out when it
 // leaves.
 func reveal(e ui.Element, shown bool) ui.Element {
@@ -247,60 +294,23 @@ func reveal(e ui.Element, shown bool) ui.Element {
 // the app starts on, before the player is made. Now Playing shows an
 // episode's in place of either.
 func (a *app) lyricsPaneChosen() int {
-	if a.settings.LyricsStage {
-		return paneStage
-	}
-	return paneLyrics
+	return paneCover
 }
 
-// The panes of Now Playing.
+// The panes of Now Playing. The cover comes first, as it is the view the
+// app shows: a pane opens over it, and the app starts on the cover again.
 const (
-	paneLyrics = iota
+	paneCover = iota
+	paneLyrics
 	paneQueue
-	paneStage
 	paneComments
 	paneProgram
 	paneCaptions
-	paneWall
 )
 
-// npTab is a tab of Now Playing: its pane, and what it says.
-type npTab struct {
-	pane  int
-	label string
-}
-
-// npTabs returns the tabs of Now Playing, in order, for what plays: ⌘1
-// chooses the first, ⌘2 the second, and on.
-func (a *app) npTabs() []npTab {
-	if tr := a.pl.Current(); tr != nil && tr.ProgramID != 0 {
-		tabs := []npTab{{paneProgram, "简介"}}
-		if a.captionsShown() {
-			tabs = append(tabs, npTab{paneCaptions, "字幕"})
-		}
-		return append(tabs, npTab{paneQueue, "待播清单"}, npTab{paneComments, "评论"})
-	}
-	return []npTab{{paneLyrics, "歌词"}, {paneStage, "律动"}, {paneQueue, "待播清单"}, {paneWall, "选歌"}, {paneComments, "评论"}}
-}
-
-func (a *app) paneTabs(c *ui.Context) {
-	for _, t := range a.npTabs() {
-		label := t.label
-		if t.pane == paneComments {
-			label = a.commentsTab()
-		}
-		a.paneTab(c, t.pane, label)
-	}
-}
-
-// choosePane shows pane i in Now Playing, remembering lyrics or the stage,
-// whichever was chosen, for the next song.
+// choosePane shows a pane of Now Playing, or, paneCover, the cover.
 func (a *app) choosePane(i int) {
 	a.npPane = i
-	if (i == paneLyrics || i == paneStage) && a.settings.LyricsStage != (i == paneStage) {
-		a.settings.LyricsStage = i == paneStage
-		a.settings.save()
-	}
 }
 
 // radioChip says which radio plays, over the title: a click on it, or on
@@ -340,60 +350,8 @@ func qualityBadge(c *ui.Context, st *netease.Stream) {
 		Padding(1, 6).Radius(4).Border(1, ui.Hex("#f5d58a").Alpha(0.55))
 }
 
-// stageBar is the slim bar along the foot of the stage: what plays, where
-// it is, and the controls.
-func (a *app) stageBar(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color) {
-	pl := a.pl
-	ui.Column(c).Padding(0, 48, 28, 48).Gap(10).Children(func() {
-		a.scrubber(c.Key("stage-scrub"), &a.npScrub, white.Alpha(0.18), white.Alpha(0.9), 14, accent.Mix(white, 0.35))
-		ui.Row(c).Gap(14).AlignItems(ui.Center).Children(func() {
-			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Gap(12).AlignItems(ui.Center).Children(func() {
-				if bmp := bitmap(art); bmp != nil {
-					cov := ui.Box(c.Key(tr.ID)).Size(44, 44)
-					in := artIn(cov, bmp)
-					cov.Children(func() { artImage(c, bmp, 8, in) })
-				}
-				ui.Column(c).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, tr.Name).FontSize(14).FontWeight(700).SingleLine()
-					a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(12).SingleLine()
-				})
-				a.likeButton(c.Key("like"), tr, 17, white.Alpha(0.6))
-				a.songMenu(c.Key("more"), tr, 17, white.Alpha(0.6)).Margin(0, 0, 0, -10)
-			})
-			a.transport(c, white, white.Alpha(0.45), white, 22)
-			ui.Row(c).Grow(1).Basis(0).MinWidth(0).Justify(ui.End).Children(func() {
-				ui.Text(c, clock(pl.Position())+" / "+clock(pl.Duration())).FontSize(11.5).FontFeatures("tnum").TextColor(white.Alpha(0.5))
-			})
-		})
-	})
-}
-
-func (a *app) paneTab(c *ui.Context, i int, label string) {
-	b := ui.ButtonBase(c.Key(i)).Padding(6, 14).Radius(999).FocusRing(false).Label(label)
-	bg, fg := ui.Transparent, white.Alpha(0.55)
-	if a.npPane == i {
-		bg, fg = white.Alpha(0.14), white
-	} else if b.Hovered() {
-		bg = white.Alpha(0.06)
-	}
-	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond}))
-	b.Children(func() {
-		if i != paneComments {
-			ui.Text(c, label).FontSize(13).FontWeight(600).TextColor(fg)
-			return
-		}
-		// The count rolls as it changes, from one song's to the next.
-		n, text := a.commentCount(), ""
-		if n > 0 {
-			text = " " + count(n)
-		}
-		ui.Text(c, "评论").FontSize(13).FontWeight(600).TextColor(fg)
-		rollCount(c, &a.tabCount, n, text, fg)
-	})
-	if b.Clicked() {
-		a.choosePane(i)
-	}
-}
+// stageBar is gone with the stage: Now Playing's controls live under the
+// cover, in every pane.
 
 func (a *app) lyricsPane(c *ui.Context, tr *netease.Track, h float32) {
 	pl := a.pl

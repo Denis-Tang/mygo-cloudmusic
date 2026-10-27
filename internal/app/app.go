@@ -65,9 +65,15 @@ type app struct {
 	// answered, and those asked about: see ui_like.go.
 	likedPrograms, askedPrograms map[int64]bool
 
-	daily       []netease.Track
-	dailySpin   spinState // the record on the daily card
-	dailyBars   barState  // the bars on its play button
+	daily     []netease.Track
+	dailySpin spinState // the record on the daily card
+	dailyBars barState  // the bars on its play button
+	// The album publish times kept, and whether they are read and new:
+	// see albumtime.go. They are for the main thread alone.
+	pubLoaded   bool
+	pubTimes    map[int64]int64
+	pubAsked    map[int64]bool
+	pubDirty    bool
 	featured    []netease.Playlist
 	charts      []netease.Playlist
 	homeErr     string
@@ -131,7 +137,6 @@ type app struct {
 	backdropCache         backdropCache // the backdrop of Now Playing, as last painted
 	npArt                 *artwork      // the cover whose colors Now Playing shows
 	npCoverState          coverState    // the cover of Now Playing, as it is tilted and flicked
-	wallState             wallState     // the wall of the queue's covers, as it is dragged
 	quiet                 quietState    // the quiet parts of the song playing, for its hot comments
 	captions              captionState  // the episode playing's captions, and the model that writes them
 	sig                   playerSig
@@ -139,8 +144,18 @@ type app struct {
 
 	settings    settings
 	settingsWin *mygo.Window
-	cacheUsed   int64 // the bytes the song cache takes, -1 until measured
-	updates     bool  // the update plugin is used (useUpdater)
+	// fullCover is the window of the cover on the whole screen: see
+	// ui_fullcover.go. Its states are its own, where Now Playing's keep
+	// to the main window.
+	fullCoverWin *mygo.Window
+	fcScrub      scrubState
+	fcScroll     ui.ScrollState
+	fcGlide      lyricGlide
+	fcAt         int
+	fcTrack      int64
+	fcLyrics     bool  // the lyrics show over the cover, asked by a click
+	cacheUsed    int64 // the bytes the song cache takes, -1 until measured
+	updates      bool  // the update plugin is used (useUpdater)
 
 	restored     bool   // playback picked up where it was left
 	savedSession string // the session as last kept
@@ -198,6 +213,7 @@ func Run() error {
 		lyricAt:    -1,
 		queueAt:    -1,
 		cacheUsed:  -1,
+		pubAsked:   map[int64]bool{},
 	}
 	moveOldData()
 	a.useUpdater()
@@ -212,6 +228,7 @@ func Run() error {
 		a.pl.Quality = func() string { return a.settings.Quality }
 		a.pl.Normalize = func() bool { return a.settings.Normalize }
 		a.pl.Cache = newSongCache(a.settings.CacheMB)
+		a.pl.Blocked = a.blocked
 		a.pl.Changed = func() {
 			a.keepSession()
 			a.syncCaptions()

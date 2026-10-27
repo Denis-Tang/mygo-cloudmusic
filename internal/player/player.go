@@ -35,6 +35,9 @@ type Player struct {
 	// Changed, if set, hears that what plays, where it is or whether it
 	// plays changed.
 	Changed func()
+	// Blocked, if set, reports whether a track is kept from playing:
+	// those skip over as ones that cannot play do.
+	Blocked func(netease.Track) bool
 
 	queue   []netease.Track
 	order   []int // the queue's indices in play order: shuffled or not
@@ -577,11 +580,24 @@ func (p *Player) load(at int) {
 // loadSkipping loads the track at order[at], to play or not, from from,
 // skipping those that cannot play: skipped of them so far.
 func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration) {
+	t := p.queue[p.order[at]]
+	if p.Blocked != nil && p.Blocked(t) {
+		// A kept track skips over like one that cannot play: to the next
+		// in order, unless the round of them is already spent.
+		if skipped+1 < len(p.order) {
+			next := at + 1
+			if next >= len(p.order) {
+				next = 0
+			}
+			p.loadSkipping(next, skipped+1, play, 0)
+			return
+		}
+		play = false
+	}
 	p.stop()
 	p.gen++
 	gen := p.gen
 	p.at = at
-	t := p.queue[p.order[at]]
 	p.track = &t
 	p.loading, p.playing, p.err = true, play, ""
 	p.awaiting = false

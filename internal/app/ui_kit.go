@@ -97,6 +97,9 @@ func playPause(c *ui.Context, b ui.Element, playing bool, size float32) {
 	})
 }
 
+// clamp01 is v held in 0 to 1.
+func clamp01(v float32) float32 { return max(0, min(v, 1)) }
+
 // roundButton is the button of iconButton, without its icon.
 func roundButton(c *ui.Context, size float32, color ui.Color, label string) ui.Element {
 	b := ui.ButtonBase(c).Size(size+16, size+16).Center().Radius(999).Label(label).TextColor(color)

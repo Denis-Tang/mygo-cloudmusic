@@ -137,6 +137,14 @@ const (
 	smokeWisps = 36  // alive at once, at most
 )
 
+// smokeRandom is what the smoke of a wisp of seed takes for its drift and
+// its curls: a steady hash into 0 to 1, which looks random and stays as
+// it is, frame after frame.
+func smokeRandom(seed, offset float64) float32 {
+	x := math.Sin(seed+offset) * 10000
+	return float32(x - math.Floor(x))
+}
+
 // drawSmoke draws the smoke of a playhead at (x, y) at now, thicker as
 // loud (0 to 1) is higher, at opacity shown.
 func drawSmoke(p *ui.Painter, x, y float32, now time.Time, loud float32, color ui.Color, shown float32) {
@@ -151,7 +159,7 @@ func drawSmoke(p *ui.Painter, x, y float32, now time.Time, loud float32, color u
 		}
 		// A wisp of its own: how fast it drifts and rises, how it curls,
 		// how large it grows. Quiet music sheds fewer of them.
-		r := func(o float64) float32 { return lineRandom(k, o) }
+		r := func(o float64) float32 { return smokeRandom(k, o) }
 		if r(5) > 0.6+0.4*loud {
 			continue
 		}

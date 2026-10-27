@@ -19,19 +19,19 @@ func TestCommentCountHoldsWhileLoading(t *testing.T) {
 	a.pl.Next()
 	a.comments = commentState{track: 3, loading: true}
 	tt.Frame()
-	if _, ok := tt.Find("评论 128"); !ok {
+	if _, ok := tt.Find("评论面板 · 128"); !ok {
 		t.Fatal("the count went as the next song's loads")
 	}
 	a.comments.loading, a.comments.loaded, a.comments.total = false, true, 96
 	tt.Frame()
-	if _, ok := tt.Find("评论 96"); !ok {
+	if _, ok := tt.Find("评论面板 · 96"); !ok {
 		t.Error("the count did not change once loaded")
 	}
 	a.pl.Next()
 	a.comments = commentState{track: 1, loaded: true}
 	tt.Advance(time.Second)
 	tt.Frame()
-	if _, ok := tt.Find("评论"); !ok {
+	if _, ok := tt.Find("评论面板 · 128"); ok {
 		t.Error("a song without comments shows a count")
 	}
 }

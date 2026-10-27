@@ -62,23 +62,17 @@ func TestNowPlayingFrameBudget(t *testing.T) {
 	if n := framesAt(a, tt, 12*time.Second); n > 3 {
 		t.Errorf("a page under the player: %d frames a second", n)
 	}
-	// Its rows still, the wall asks for no more than the lyrics beside it
-	// do: it moves only as it is moved.
+	// The lyrics still, they ask for no more than the scroll asks.
 	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
 	a.nowPlaying, a.npPane = true, paneLyrics
-	lyricsFrames := framesAt(a, tt, 12*time.Second)
-	a.npPane = paneWall
-	if n := framesAt(a, tt, 12*time.Second); n > lyricsFrames+3 {
-		t.Errorf("the wall, still: %d frames a second, the lyrics %d", n, lyricsFrames)
+	if n := framesAt(a, tt, 12*time.Second); n > 3 {
+		t.Errorf("the lyrics, still: %d frames a second", n)
 	}
-	tt.SetPreferences(ui.Preferences{})
-	a.npPane = paneStage
-	a.settings.StageSparks = true
-	for _, s := range stageStyles {
-		a.settings.StageStyle = s.id
-		if n := framesAt(a, tt, 18*time.Second); n > 12 {
-			t.Errorf("the stage between lines, in %s: %d frames a second", s.label, n)
-		}
+	// The cover on its own, as the app shows it, and under the pointer:
+	// neither asks for more than a still song's share.
+	a.npPane = paneCover
+	if n := framesAt(a, tt, 12*time.Second); n > 3 {
+		t.Errorf("the cover, still: %d frames a second", n)
 	}
 }
 
