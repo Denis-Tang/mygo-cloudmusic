@@ -111,7 +111,7 @@ func TestNowPlayingHoldsStillWithoutBadge(t *testing.T) {
 	a.settings = defaultSettings()
 	a.pl.Cue([]netease.Track{{ID: 1, Name: "一", Duration: 200000}})
 	a.pl.SetLyrics(nil)
-	a.nowPlaying = true
+	a.nowPlaying, a.npPane = true, paneLyrics
 	tt := ui.NewTester(a.view, 1200, 800)
 	var at []float32
 	for _, st := range []*netease.Stream{{Level: "lossless"}, nil} {

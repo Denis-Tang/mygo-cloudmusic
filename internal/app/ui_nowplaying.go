@@ -119,7 +119,17 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	if a.npPane != paneQueue {
 		a.queueAt = -1
 	}
+	// The panes' buttons and the top strip are for every pane; the cover's
+	// own pane is the immersive page, and the others, the cover beside the
+	// pane. The page is built last, under the strip and the buttons, that
+	// its click layer not take theirs.
 	{
+		// The cover's own pane is the immersive page, built first, under
+		// the strip and the buttons, that its full-view click layer take
+		// no click of theirs.
+		if a.npPane == paneCover {
+			a.immersive(c, tr, art, accent, w, h, pointerIn)
+		}
 		// The top strip drags the window; the chevron closes the view,
 		// showing only while the pointer is in the window, as the panes'
 		// buttons do.
@@ -138,9 +148,6 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 		ui.Row(c.Key("np-buttons")).Absolute().Top(topBar(c)).Right(48).AlignItems(ui.Center).Gap(6).
 			Children(func() {
 				reveal(ui.Row(c.Key("buttons")).Gap(6), pointerIn).Children(func() {
-					if a.fullCoverButton(c).Clicked() {
-						a.openFullCover()
-					}
 					a.paneButton(c, paneLyrics, iconLyrics, "歌词", true)
 					a.paneButton(c, paneQueue, iconQueue, "待播清单", true)
 					// The comments' button, whose count rolls as it changes,
@@ -156,20 +163,12 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 					}
 				})
 			})
-		// The cover leaves room above it for the pane's buttons.
-		side := float32(math.Min(float64(w)*0.36, 440))
-		justify := ui.Start
 		if a.npPane == paneCover {
-			// On its own, the cover fills the view: as wide as the height
-			// leaves room for the words and controls under it.
-			side = min(float32(w)*0.58, h-380)
-			if side < 240 {
-				side = float32(math.Min(float64(w)*0.36, 440))
-				justify = ui.Center
-			}
-			justify = ui.Center
+			// The immersive page was it: nothing else of the panes.
+			return
 		}
-		ui.Row(c).Grow(1).Padding(0, 72, 44, 72).Gap(72).AlignItems(ui.Stretch).Justify(justify).Children(func() {
+		side := float32(math.Min(float64(w)*0.36, 440))
+		ui.Row(c).Grow(1).Padding(0, 72, 44, 72).Gap(72).AlignItems(ui.Stretch).Children(func() {
 			ui.Column(c).Width(side).Justify(ui.Center).Gap(0).Children(func() {
 				a.npCover(c, tr, art, side)
 				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(36, 0, 18, 0).Justify(ui.Center).Children(func() {
@@ -204,9 +203,6 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 					a.volumeSlider(c, white.Alpha(0.7), white.Alpha(0.18), 180)
 				})
 			})
-			if a.npPane == paneCover {
-				return
-			}
 			pane := ui.Column(c.Key("pane")).Grow(1).Basis(0).MinWidth(0)
 			pane.Children(func() {
 				switch a.npPane {

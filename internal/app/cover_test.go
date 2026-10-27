@@ -9,14 +9,15 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
-// coverApp is Now Playing showing the second of three songs.
+// coverApp is Now Playing showing the second of three songs, the lyrics'
+// pane open, where the cover keeps its tilt and its fling.
 func coverApp(t *testing.T) (*app, *ui.Tester, ui.Rect) {
 	a := newTestApp()
 	a.settings = defaultSettings()
 	a.pl.Cue([]netease.Track{{ID: 1, Name: "一"}, {ID: 2, Name: "二"}, {ID: 3, Name: "三"}})
 	a.pl.Next()
 	a.pl.SetLyrics(nil)
-	a.nowPlaying = true
+	a.nowPlaying, a.npPane = true, paneLyrics
 	tt := ui.NewTester(a.view, 860, 560)
 	// Without the tilt and the swing, which the CPU draws slowly in depth:
 	// the gestures do as they would.

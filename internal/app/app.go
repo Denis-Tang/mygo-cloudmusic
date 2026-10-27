@@ -144,18 +144,19 @@ type app struct {
 
 	settings    settings
 	settingsWin *mygo.Window
-	// fullCover is the window of the cover on the whole screen: see
-	// ui_fullcover.go. Its states are its own, where Now Playing's keep
-	// to the main window.
-	fullCoverWin *mygo.Window
-	fcScrub      scrubState
-	fcScroll     ui.ScrollState
-	fcGlide      lyricGlide
-	fcAt         int
-	fcTrack      int64
-	fcLyrics     bool  // the lyrics show over the cover, asked by a click
-	cacheUsed    int64 // the bytes the song cache takes, -1 until measured
-	updates      bool  // the update plugin is used (useUpdater)
+	// The immersive page of Now Playing keeps states of its own, where the
+	// panes keep to theirs: the bar's scrubber, the lyrics the picture's
+	// click asks for, and the lyrics' scroll, glide and line. See
+	// ui_immersive.go.
+	coverScrub scrubState
+	ovScroll   ui.ScrollState
+	ovGlide    lyricGlide
+	ovAt       int
+	ovTrack    int64
+	ovLyrics   bool // the lyrics show over the picture, asked by a click
+
+	cacheUsed int64 // the bytes the song cache takes, -1 until measured
+	updates   bool  // the update plugin is used (useUpdater)
 
 	restored     bool   // playback picked up where it was left
 	savedSession string // the session as last kept
