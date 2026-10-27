@@ -207,7 +207,7 @@ func TestAccountMenuFrames(t *testing.T) {
 		tt.Frame()
 		img := tt.Image()
 		s := float32(img.Bounds().Dx()) / 1000
-		crop := image.Rect(0, int(400*s), int((sidebarWidth+20)*s), img.Bounds().Dy())
+		crop := image.Rect(0, int(400*s), int((a.sidebarWidth()+20)*s), img.Bounds().Dy())
 		out := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
 		draw.Draw(out, out.Bounds(), img, crop.Min, draw.Src)
 		name := "account-light.png"

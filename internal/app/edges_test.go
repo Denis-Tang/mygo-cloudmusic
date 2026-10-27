@@ -12,12 +12,20 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
+// playTracks builds a playlist of n songs, the page the edges over.
+func playTracks(n int) *netease.Playlist {
+	pl := &netease.Playlist{ID: 7, Name: "歌单"}
+	for i := range n {
+		pl.Tracks = append(pl.Tracks, netease.Track{ID: int64(i + 1), Name: "歌"})
+	}
+	return pl
+}
+
 func TestScrollEdgesFollowContent(t *testing.T) {
 	a := newTestApp()
 	a.settings = defaultSettings()
-	for i := range 40 {
-		a.featured = append(a.featured, netease.Playlist{ID: int64(i + 1), Name: "歌单"})
-	}
+	a.playlists[7] = playTracks(40)
+	a.open(route{page: pagePlaylist, id: 7})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
 	if a.underTop {
@@ -41,7 +49,8 @@ func TestScrollEdgesFollowContent(t *testing.T) {
 func TestShortPageHasNoEdges(t *testing.T) {
 	a := newTestApp()
 	a.settings = defaultSettings()
-	a.featured = []netease.Playlist{{ID: 1, Name: "歌单"}}
+	a.playlists[7] = playTracks(3)
+	a.open(route{page: pagePlaylist, id: 7})
 	tt := ui.NewTester(a.view, 1200, 1400)
 	tt.Frame()
 	if a.underTop || a.underBottom {
@@ -57,9 +66,8 @@ func TestAccountMenuKeepsPlayerEdge(t *testing.T) {
 	a := newTestApp()
 	a.settings = defaultSettings()
 	a.profile = &netease.Profile{UserID: 1, Nickname: "小明"}
-	for i := range 40 {
-		a.featured = append(a.featured, netease.Playlist{ID: int64(i + 1), Name: "歌单"})
-	}
+	a.playlists[7] = playTracks(40)
+	a.open(route{page: pagePlaylist, id: 7})
 	tt := ui.NewTester(a.view, 1000, 700)
 	tt.Frame()
 	tt.Advance(time.Second)
@@ -68,7 +76,7 @@ func TestAccountMenuKeepsPlayerEdge(t *testing.T) {
 	bar := func() *image.RGBA {
 		img := tt.Image()
 		s := float32(img.Bounds().Dx()) / 1000
-		r := image.Rect(int((sidebarWidth+60)*s), int((700-playerBarHeight)*s), img.Bounds().Dx(), img.Bounds().Dy())
+		r := image.Rect(int((a.sidebarWidth()+60)*s), int((700-playerBarHeight)*s), img.Bounds().Dx(), img.Bounds().Dy())
 		out := image.NewRGBA(image.Rect(0, 0, r.Dx(), r.Dy()))
 		draw.Draw(out, out.Bounds(), img, r.Min, draw.Src)
 		return out

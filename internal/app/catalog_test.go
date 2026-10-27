@@ -346,11 +346,10 @@ func TestPodcastsTabLoads(t *testing.T) {
 	defer func() { hotPodcasts, recommendedPodcasts = netease.HotPodcasts, netease.RecommendedPodcasts }()
 	a := newTestApp()
 	a.settings = defaultSettings()
+	// The sidebar's 播客 entry goes, as the listener's settings say: the
+	// page's tab still loads, where it is opened.
+	a.open(route{page: pagePodcasts})
 	tt := ui.NewTester(a.view, 1200, 800)
-	tt.Frame()
-	if err := tt.Click("播客"); err != nil {
-		t.Fatal(err)
-	}
 	tt.Frame()
 	if a.route.page != pagePodcasts {
 		t.Fatalf("opened %+v", a.route)

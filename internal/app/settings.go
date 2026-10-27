@@ -28,9 +28,9 @@ type settings struct {
 	Quality string `json:"quality"`
 	// Appearance is light, dark, or system to follow the system.
 	Appearance string `json:"appearance"`
-	// Smoke makes the progress bars comets trailing smoke as music plays,
-	// for a few percent of a core: the listener turns it on.
-	Smoke bool `json:"smoke"`
+	// Sidebar shows the sidebar of the pages; without it, the pages fill
+	// the window, and a button of the page top's brings the sidebar back.
+	Sidebar bool `json:"sidebar"`
 	// Volume is where the volume was left, from 0 to 1.
 	Volume float64 `json:"volume"`
 	// Normalize evens out the loudness of tracks, by what NetEase
@@ -39,10 +39,6 @@ type settings struct {
 	// HotComments shows a song's hot comments in its quiet parts, in
 	// place of the lyrics (quietComment): the listener turns it on.
 	HotComments bool `json:"hotComments"`
-	// Fog fills Now Playing's backdrop with fog of the cover's color,
-	// rising and swelling with the bass: an experiment the listener turns
-	// on.
-	Fog bool `json:"fog"`
 	// AppIcon is where the app's icon shows on macOS (appIcons); elsewhere
 	// it is always in the notification area.
 	AppIcon string `json:"appIcon"`
@@ -59,7 +55,7 @@ type settings struct {
 }
 
 func defaultSettings() settings {
-	return settings{NotchActivity: true, Quality: "exhigh", Appearance: "system", Volume: 0.8, Normalize: true, AppIcon: "dock-and-menubar", CacheMB: 2048, Captions: true}
+	return settings{NotchActivity: true, Quality: "exhigh", Appearance: "system", Volume: 0.8, Normalize: true, AppIcon: "dock-and-menubar", CacheMB: 2048, Captions: true, Sidebar: true}
 }
 
 func settingsPath() (string, error) {
@@ -155,6 +151,7 @@ var qualityLevels = []struct{ level, label string }{
 	{"exhigh", "极高（320k）"},
 	{"lossless", "无损（FLAC）"},
 	{"hires", "Hi-Res"},
+	{"jymaster", "超清母带"},
 }
 
 // cacheLimits are the sizes the song cache may take, in megabytes.

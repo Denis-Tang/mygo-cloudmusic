@@ -10,7 +10,17 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
-const sidebarWidth = 232
+// fullSidebar is how wide the sidebar is, as the settings show it.
+const fullSidebar = 232
+
+// sidebarWidth is how wide the sidebar is now: nothing, hidden, where a
+// button of the page top's brings it back.
+func (a *app) sidebarWidth() float32 {
+	if a.settings.Sidebar {
+		return fullSidebar
+	}
+	return 0
+}
 
 func (a *app) view(c *ui.Context) {
 	t := *c.Theme()
@@ -47,14 +57,21 @@ func (a *app) view(c *ui.Context) {
 				// trackList), so it shows again as it was.
 				return
 			}
-			side := ui.Column(c).Width(sidebarWidth)
-			if !c.Vibrancy() {
-				side.Background(p.sidebar)
+			if a.settings.Sidebar {
+				side := ui.Column(c).Width(fullSidebar)
+				if !c.Vibrancy() {
+					side.Background(p.sidebar)
+				}
+				side.Children(func() { a.sidebar(c) })
 			}
-			side.Children(func() { a.sidebar(c) })
 			// Keyed, so that a popover of the sidebar opening or closing
 			// keeps what the page and its bars hold, their edges' fades.
-			ui.Box(c.Key("main")).Grow(1).Background(p.bg).BorderWidth(0, 0, 0, 1).BorderColor(p.hairline).Children(func() {
+			ui.Box(c.Key("main")).Grow(1).Background(p.bg).BorderWidth(0, 0, 0, func() float32 {
+				if a.settings.Sidebar {
+					return 1
+				}
+				return 0
+			}()).BorderColor(p.hairline).Children(func() {
 				a.content(c)
 				// The bars float over the page, which scrolls under them:
 				// positioned, they paint over it.
@@ -175,10 +192,8 @@ func (a *app) sidebar(c *ui.Context) {
 
 		ui.Scroll(c.Key("nav")).TrackScroll(&a.navScroll).Grow(1).Margin(0, -6).Padding(0, 6).Gap(4).Children(func() {
 			a.navItem(c, iconHome, "为你推荐", route{page: pageHome})
-			a.navItem(c, iconDaily, "每日推荐", route{page: pageDaily})
 			a.navItem(c, iconRadio, "私人 FM", route{page: pageFM})
-			a.navItem(c, iconCharts, "排行榜", route{page: pageCharts})
-			a.navItem(c, iconPodcast, "播客", route{page: pagePodcasts})
+			a.navItem(c, iconHeart, "我的收藏", route{page: pageCollected})
 			if a.searched.query != "" {
 				a.navItem(c, iconSearch, "搜索结果", a.searched)
 			}
@@ -186,10 +201,6 @@ func (a *app) sidebar(c *ui.Context) {
 			a.myPlaylists(c, "收藏的歌单", a.saved, false, &a.savedCollapsed)
 		})
 
-		// What plays, as a card at the foot of the sidebar, over who listens.
-		if tr := a.pl.Current(); tr != nil {
-			a.sidebarNowPlaying(c, tr)
-		}
 		a.accountRow(c)
 	})
 }
@@ -216,26 +227,6 @@ func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 	})
 	if b.Clicked() {
 		a.open(r)
-	}
-}
-
-func (a *app) sidebarNowPlaying(c *ui.Context, tr *netease.Track) {
-	p := a.pal
-	card := ui.ButtonBase(c.Key("np-card")).Gap(10).Padding(8).Radius(12).AlignItems(ui.Center).FocusRing(false).Label("正在播放")
-	bg := p.hover
-	if card.Hovered() {
-		bg = p.press
-	}
-	card.Background(card.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond}))
-	card.Children(func() {
-		a.cover(c, tr.Album.PicURL, 96, 40, 6).Shadow(0, 2, 6, 0, p.cardShade)
-		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-			ui.Text(c, tr.Name).FontSize(12.5).FontWeight(600).SingleLine()
-			a.artistLinks(c, tr, p.muted, p.text).FontSize(11.5).SingleLine()
-		})
-	})
-	if card.Clicked() {
-		a.nowPlaying = true
 	}
 }
 
@@ -318,8 +309,11 @@ func (a *app) pageTop(c *ui.Context) {
 	edge := ui.Box(c.Key("top-edge")).Absolute().Top(0).Left(0).Right(0).Height(top).DragWindow().
 		Material(glass.ScrollEdge{Hard: true, Background: a.pal.bg})
 	edge.Opacity(edgeShown(edge, a.underTop))
-	if len(a.history) > 0 || len(a.forward) > 0 {
-		ui.Row(c).Absolute().Top(0).Left(20).Height(topBar(c)).AlignItems(ui.Center).Children(func() {
+	if len(a.history) > 0 || len(a.forward) > 0 || !a.settings.Sidebar {
+		ui.Row(c).Absolute().Top(0).Left(20).Height(topBar(c)).AlignItems(ui.Center).Gap(2).Children(func() {
+			if !a.settings.Sidebar {
+				a.sidebarToggle(c, true)
+			}
 			back := iconButton(c.Key("back"), iconBack, 18, a.pal.muted, "返回").Disabled(len(a.history) == 0)
 			if len(a.history) == 0 {
 				back.Opacity(0.35)
@@ -359,6 +353,8 @@ func (a *app) content(c *ui.Context) {
 		a.artistPage(c)
 	case pageAlbum:
 		a.albumPage(c)
+	case pageCollected:
+		a.collectedPage(c)
 	case pageUser:
 		a.userPage(c)
 	case pagePodcast:
@@ -387,9 +383,7 @@ func (a *app) loadHome() {
 	signedIn := a.profile != nil
 	at := time.Now()
 	go func() {
-		featured, err1 := netease.FeaturedPlaylists(30)
-		charts, err2 := netease.Charts()
-		daily, _ := netease.DailySongs()
+		daily, err := netease.DailySongs()
 		var rec []netease.Playlist
 		if signedIn {
 			rec, _ = netease.RecommendedPlaylists()
@@ -400,15 +394,14 @@ func (a *app) loadHome() {
 			daily = kept
 			a.post(func() {
 				a.homeLoading = false
-				if err1 != nil && err2 != nil {
+				if err != nil && len(a.daily) == 0 {
 					// Loading the new day's again, what shows stays, to try
 					// once more.
-					if len(a.featured) == 0 && len(a.charts) == 0 {
-						a.homeErr = "无法连接网易云音乐，请检查网络"
-					}
+					a.homeErr = "无法连接网易云音乐，请检查网络"
 					return
 				}
-				a.featured, a.charts, a.daily, a.recPlaylists = featured, charts, daily, rec
+				a.homeErr = ""
+				a.daily, a.recPlaylists = daily, rec
 				a.homeAt = at
 			})
 		})

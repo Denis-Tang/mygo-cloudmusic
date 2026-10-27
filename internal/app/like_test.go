@@ -242,68 +242,6 @@ func TestBackdropFrame(t *testing.T) {
 	png.Encode(f, tt.Image())
 }
 
-// With NM_FRAMES set, saves the progress bar's comet at moments, in Now
-// Playing and in the player bar.
-func TestSmokeFrames(t *testing.T) {
-	dir := os.Getenv("NM_FRAMES")
-	if dir == "" {
-		t.Skip()
-	}
-	hits, err := netease.Search("春日影 MyGO", 1)
-	if err != nil || len(hits) == 0 {
-		t.Fatal(err)
-	}
-	tr := hits[0]
-	a := newTestApp()
-	a.settings = defaultSettings()
-	for _, size := range []int{600, 120, 96} {
-		img, err := fetchImage(netease.Sized(tr.Album.PicURL, size))
-		if err != nil {
-			t.Fatal(err)
-		}
-		art := &artwork{bmp: ui.NewBitmap(img), tint: dominantColor(img)}
-		a.art.art[netease.Sized(tr.Album.PicURL, size)] = art
-		if size == 600 {
-			bd := *art
-			bd.backdrop = ui.NewBitmap(blurImage(img))
-			a.art.art[netease.Sized(tr.Album.PicURL, size)+"#backdrop"] = &bd
-		}
-	}
-	a.pl.Cue([]netease.Track{tr})
-	a.pl.SetLyrics(nil)
-	a.pl.Hold(75 * time.Second)
-	a.settings.Smoke = true
-	shots := func(name string, dark bool) {
-		tt := ui.NewTester(a.view, 1000, 680)
-		tt.SetDark(dark)
-		tt.Advance(2 * time.Second)
-		tt.Frame()
-		r, ok := tt.Find("播放进度")
-		if !ok {
-			t.Fatal("no progress bar")
-		}
-		img := tt.Image()
-		scale := float32(img.Bounds().Dx()) / 1000
-		frac := float32(75.0 / tr.Length().Seconds())
-		cx, cy := int((r.X+r.W*frac)*scale), int((r.Y+r.H/2)*scale)
-		w, h := int(200*scale), int(70*scale)
-		moments := 4
-		strip := image.NewRGBA(image.Rect(0, 0, w, h*moments))
-		for i := range moments {
-			tt.Advance(170 * time.Millisecond)
-			tt.Frame()
-			draw.Draw(strip, image.Rect(0, i*h, w, (i+1)*h), tt.Image(), image.Pt(cx-w*3/4, cy-h*2/3), draw.Src)
-		}
-		f, _ := os.Create(filepath.Join(dir, name+".png"))
-		png.Encode(f, strip)
-		f.Close()
-	}
-	a.nowPlaying = true
-	shots("smoke-np", true)
-	a.nowPlaying = false
-	shots("smoke-bar", false)
-}
-
 // With NM_FRAMES set, saves the player bar at window widths from the
 // narrowest up.
 func TestPlayerBarWidths(t *testing.T) {
@@ -324,9 +262,9 @@ func TestPlayerBarWidths(t *testing.T) {
 		tt.Frame()
 		img := tt.Image()
 		s := float32(img.Bounds().Dx()) / float32(w)
-		bar := image.Rect(int(float32(sidebarWidth)*s), int(float32(600-playerBarHeight)*s), img.Bounds().Dx(), img.Bounds().Dy())
+		bar := image.Rect(int(float32(a.sidebarWidth())*s), int(float32(600-playerBarHeight)*s), img.Bounds().Dx(), img.Bounds().Dy())
 		if i == 0 {
-			strip = image.NewRGBA(image.Rect(0, 0, int(float32(1180-sidebarWidth)*s), bar.Dy()*len(widths)))
+			strip = image.NewRGBA(image.Rect(0, 0, int(float32(1180-a.sidebarWidth())*s), bar.Dy()*len(widths)))
 			draw.Draw(strip, strip.Bounds(), image.NewUniform(color.RGBA{60, 60, 60, 255}), image.Point{}, draw.Src)
 		}
 		draw.Draw(strip, image.Rect(0, y, bar.Dx(), y+bar.Dy()), img, bar.Min, draw.Src)

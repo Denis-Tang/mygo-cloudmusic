@@ -339,8 +339,11 @@ func qualityBadge(c *ui.Context, st *netease.Stream) {
 		return
 	}
 	label := "无损"
-	if st.Level == "hires" {
+	switch st.Level {
+	case "hires":
 		label = "Hi-Res"
+	case "jymaster":
+		label = "母带"
 	}
 	ui.Text(c, label).FontSize(9.5).FontWeight(800).LetterSpacing(0.6).TextColor(ui.Hex("#f5d58a")).
 		Padding(1, 6).Radius(4).Border(1, ui.Hex("#f5d58a").Alpha(0.55))

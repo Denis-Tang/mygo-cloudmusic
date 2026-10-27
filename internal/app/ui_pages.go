@@ -16,7 +16,7 @@ const pagePad = 40
 // columns returns how many cards of at least min DIPs fit across the page.
 func (a *app) columns(c *ui.Context, min float32) int {
 	w, _ := c.Size()
-	inner := w - sidebarWidth - 2*pagePad
+	inner := w - a.sidebarWidth() - 2*pagePad
 	return max(2, int((inner+20)/(min+20)))
 }
 
@@ -34,10 +34,12 @@ func (a *app) section(c *ui.Context, title string) ui.Element {
 }
 
 func (a *app) homePage(c *ui.Context) {
-	loading := len(a.featured) == 0 && len(a.charts) == 0
-	if loading && !a.homeLoading {
-		a.centered(c, a.homeErr, a.loadHome)
-		return
+	loading := a.homeLoading
+	if loading || a.homeErr != "" {
+		if !loading {
+			a.centered(c, a.homeErr, a.loadHome)
+			return
+		}
 	}
 	now := c.Now()
 	top, bottom := a.insets(c)
@@ -63,22 +65,6 @@ func (a *app) homePage(c *ui.Context) {
 				}
 			})
 		}
-
-		a.section(c, "官方榜单")
-		official := a.charts[:min(4, len(a.charts))]
-		cols := min(4, max(2, a.columns(c, 260)))
-		ui.Grid(c).Columns(cols).Gap(20).Children(func() {
-			for i := range official {
-				a.chartCard(c.Key(official[i].ID), &official[i])
-			}
-		})
-
-		a.section(c, "推荐歌单")
-		ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
-			for i := range a.featured {
-				a.playlistCard(c.Key(a.featured[i].ID), &a.featured[i])
-			}
-		})
 	})
 }
 
@@ -334,7 +320,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 	}
 	w, _ := c.Size()
 	// An album's page has no column of the album its songs are on.
-	wide := w-sidebarWidth > 820 && a.route.page != pageAlbum
+	wide := w-a.sidebarWidth() > 820 && a.route.page != pageAlbum
 	top, bottom := a.insets(c)
 	// Rows out of view are not built, their marks with them: a list
 	// scrolled away from its start or end has content under the bars.

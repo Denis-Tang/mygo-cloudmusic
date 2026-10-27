@@ -154,10 +154,6 @@ func (a *app) settingsView(c *ui.Context) {
 			})
 		})
 
-		if a.captionsShown() {
-			group("播客", func() { a.captionSettings(row, c) })
-		}
-
 		group("缓存", func() {
 			row("歌曲缓存", "听过的歌曲保存在本机，再次播放无需等待，也不耗流量；"+a.cacheUsage(), func() {
 				labels := make([]string, len(cacheLimits))
@@ -196,19 +192,6 @@ func (a *app) settingsView(c *ui.Context) {
 				}
 				if segmented(c.Key("appearance"), &i, "跟随系统", "浅色", "深色") {
 					s.Appearance = modes[i]
-					a.changed()
-				}
-			})
-		})
-
-		group("实验性功能", func() {
-			row("进度条烟雾特效", "播放时进度条化作拖着烟雾的光点，随音乐起伏；会多用一些电量", func() {
-				if ui.Switch(c.Key("smoke"), &s.Smoke).Label("进度条烟雾特效").Changed() {
-					a.changed()
-				}
-			})
-			row("烟雾背景", "播放页的背景化作封面色调的烟雾，缓缓升起，随低音起伏；仍在打磨，会多用一些电量", func() {
-				if ui.Switch(c.Key("fog"), &s.Fog).Label("烟雾背景").Changed() {
 					a.changed()
 				}
 			})

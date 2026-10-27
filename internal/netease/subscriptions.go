@@ -80,6 +80,25 @@ func SubscribedPodcasts() ([]Podcast, error) {
 	}
 }
 
+// CollectedAlbums returns the albums the listener collects, the last
+// collected first.
+func CollectedAlbums() ([]AlbumProfile, error) {
+	var out []AlbumProfile
+	for offset := 0; ; offset += subPage {
+		var res struct {
+			Data    []AlbumProfile `json:"data"`
+			HasMore bool           `json:"hasMore"`
+		}
+		if err := get("/api/album/sublist", subQuery(offset), &res); err != nil {
+			return nil, err
+		}
+		out = append(out, res.Data...)
+		if !res.HasMore || len(res.Data) == 0 {
+			return out, nil
+		}
+	}
+}
+
 // subPage is how many artists or podcasts the listener follows NetEase
 // sends at a time.
 const subPage = 100

@@ -402,10 +402,13 @@ type Stream struct {
 }
 
 // Levels are the stream levels, from the lowest.
-var Levels = []string{"standard", "higher", "exhigh", "lossless", "hires"}
+var Levels = []string{"standard", "higher", "exhigh", "lossless", "hires", "jymaster"}
 
 // Lossless reports whether level streams FLAC.
-func Lossless(level string) bool { return level == "lossless" || level == "hires" }
+// Lossless reports whether level streams FLAC.
+func Lossless(level string) bool {
+	return level == "lossless" || level == "hires" || level == "jymaster"
+}
 
 // SongURL returns where to stream a track, MP3 or FLAC, at level (one of
 // Levels) or the best below it the listener may play. It goes through

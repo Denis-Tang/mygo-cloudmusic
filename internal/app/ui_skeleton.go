@@ -101,10 +101,6 @@ func (a *app) homeSkeleton(c *ui.Context, s shimmer) {
 		a.section(c, "今日为你推荐")
 		a.playlistCardsSkeleton(c.Key("rec"), s, cards, 168, false)
 	}
-	a.section(c, "官方榜单")
-	a.chartCardsSkeleton(c, s)
-	a.section(c, "推荐歌单")
-	a.playlistCardsSkeleton(c.Key("featured"), s, cards*2, 168, false)
 }
 
 func (a *app) chartCardsSkeleton(c *ui.Context, s shimmer) {
@@ -147,7 +143,7 @@ func (a *app) playlistCardsSkeleton(c *ui.Context, s shimmer, n int, min float32
 // the header, which may hold blocks of its own.
 func (a *app) trackSkeleton(c *ui.Context, s shimmer, covers bool, header func(c *ui.Context)) {
 	w, h := c.Size()
-	wide := w-sidebarWidth > 820
+	wide := w-a.sidebarWidth() > 820
 	top, bottom := a.insets(c)
 	a.underTop, a.underBottom = false, true
 	ui.Column(c.Key("skeleton")).Grow(1).Padding(top+pageGap, pagePad-12, bottom+32, pagePad-12).Children(func() {

@@ -45,8 +45,7 @@ func init() {
 				mygo.RunOnMain(func() {
 					a.win.SetAlwaysOnTop(true)
 					a.win.Show()
-					// NM_SMOKE=0 and NM_NOTCH=0 turn them off, to measure them.
-					a.settings.Smoke = os.Getenv("NM_SMOKE") != "0"
+					// NM_NOTCH=0 turns it off, to measure it.
 					a.settings.Notch = os.Getenv("NM_NOTCH") != "0"
 					a.notch.setEnabled(a.settings.Notch)
 				})
