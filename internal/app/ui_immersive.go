@@ -176,9 +176,12 @@ func (a *app) nowLine(c *ui.Context, tr *netease.Track, size, width float32) {
 		return
 	}
 	pl := a.pl
-	lines, _ := pl.Lyrics()
+	lines, loaded := pl.Lyrics()
 	if len(lines) == 0 {
-		// No lyrics of this song at NetEase: not theirs to sing.
+		// Still loading, it says nothing; none at NetEase, 纯音乐.
+		if !loaded {
+			return
+		}
 		ui.Text(c, "纯音乐，请欣赏").FontSize(size * 0.7).TextColor(white.Alpha(0.62)).SingleLine()
 		return
 	}
@@ -229,7 +232,7 @@ func (a *app) reading(c *ui.Context, tr *netease.Track, w, h float32) {
 		panel.Absolute().Top(topBar(c) + 6).Bottom(fcBarH + 12).Right(30).Grow(0).Width(min(max(w*0.3, 420), 620))
 	} else {
 		panel.Absolute().Top(topBar(c) + 6).Bottom(fcBarH + 12).Left(max(24, (w-640)/2)).Right(max(24, (w-640)/2))
-		panel.Radius(18).Background(ui.RGBA(0, 0, 0, 0.34)).Border(1, white.Alpha(0.08)).
+		panel.Radius(radiusPanel).Background(ui.RGBA(0, 0, 0, 0.34)).Border(1, white.Alpha(0.08)).
 			Shadow(0, 24, 60, -20, ui.RGBA(0, 0, 0, 0.5))
 	}
 	panel.AlignItems(ui.Stretch)
@@ -256,7 +259,7 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 	} else if a.npPane == paneCaptions {
 		title = "字幕"
 	}
-	panel.Radius(18).Background(ui.RGBA(14, 14, 16, 0.82)).Border(1, white.Alpha(0.1)).
+	panel.Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.82)).Border(1, white.Alpha(0.1)).
 		Shadow(0, 30, 70, -20, ui.RGBA(0, 0, 0, 0.5)).
 		Padding(10, 14, 12, 14).AlignItems(ui.Stretch).TextColor(white)
 	panel.Children(func() {
@@ -313,7 +316,7 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 			// The summary of what plays, at the left, and what one may
 			// think of it; the words it takes have room, and give it up.
 			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Size(44, 44).Radius(8).Children(func() { a.coverFill(c, tr.Album.PicURL, 120, 8) })
+				ui.Box(c).Size(44, 44).Radius(radiusTile).Children(func() { a.coverFill(c, tr.Album.PicURL, 120, radiusTile) })
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
 					ui.Text(c, tr.Name).FontSize(13.5).FontWeight(700).SingleLine()
 					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(11.5).SingleLine()

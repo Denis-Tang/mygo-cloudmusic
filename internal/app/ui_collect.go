@@ -65,7 +65,7 @@ func (a *app) collectDialogBody(c *ui.Context) {
 	_, wh := c.Size()
 	ui.DialogBase(c.Key("collect"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.42))
-		panel.Width(400).Height(min(480, wh-140)).Padding(0).Radius(18).
+		panel.Width(400).Height(min(480, wh-140)).Padding(0).Radius(radiusPanel).
 			Background(ui.RGBA(26, 26, 29, 0.96)).Border(1, white.Alpha(0.1)).
 			Shadow(0, 30, 70, -20, ui.RGBA(0, 0, 0, 0.55)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
@@ -93,10 +93,12 @@ func (a *app) collectDialogBody(c *ui.Context) {
 // collectRow is the look of a row of the playlists: the tile at its left
 // and its words.
 func collectRow(c *ui.Context, key any, label string) ui.Element {
-	row := ui.ButtonBase(c.Key(key)).Height(56).Padding(4, 6).Radius(10).Gap(12).AlignItems(ui.Center).FocusRing(false).Label(label)
+	row := ui.ButtonBase(c.Key(key)).Height(56).Padding(4, 6).Radius(radiusRow).Gap(12).AlignItems(ui.Center).FocusRing(false).Label(label)
+	rg := ui.Transparent
 	if row.Hovered() {
-		row.Background(white.Alpha(0.07))
+		rg = white.Alpha(0.07)
 	}
+	row.Background(row.AnimateColor("bg", rg, hoverFade))
 	return row
 }
 
@@ -105,7 +107,7 @@ func collectRow(c *ui.Context, key any, label string) ui.Element {
 func (a *app) collectCreateRow(c *ui.Context, d *collectDialog) {
 	row := collectRow(c, "create", "创建新歌单")
 	row.Children(func() {
-		ui.Box(c).Size(40, 40).Radius(9).Center().Background(white.Alpha(0.08)).Children(func() {
+		ui.Box(c).Size(40, 40).Radius(radiusTile).Center().Background(white.Alpha(0.08)).Children(func() {
 			ui.Icon(c, iconPlus).Size(16, 16).TextColor(white.Alpha(0.8))
 		})
 		ui.Text(c, "创建新歌单").FontSize(13.5).FontWeight(600).TextColor(white)
@@ -122,8 +124,8 @@ func (a *app) collectCreateRow(c *ui.Context, d *collectDialog) {
 func (a *app) collectPlaylistRow(c *ui.Context, pl *netease.Playlist, d *collectDialog) {
 	row := collectRow(c, pl.ID, "添加到歌单："+pl.Name)
 	row.Children(func() {
-		cov := ui.Box(c).Size(40, 40).Radius(9).Background(white.Alpha(0.08))
-		cov.Children(func() { a.coverFill(c, pl.Cover(), 120, 9) })
+		cov := ui.Box(c).Size(40, 40).Radius(radiusTile).Background(white.Alpha(0.08))
+		cov.Children(func() { a.coverFill(c, pl.Cover(), 120, radiusTile) })
 		if pl.SpecialType == 5 {
 			cov.Children(func() {
 				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Center().Children(func() {

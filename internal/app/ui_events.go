@@ -45,12 +45,12 @@ func (a *app) event(c *ui.Context, e *netease.Event) {
 			ui.Text(c, msg).FontSize(14).LineHeight(1.6)
 		}
 		if ct.Forwarded != "" {
-			ui.Text(c, ct.Forwarded).FontSize(13).LineHeight(1.5).TextColor(p.muted).Padding(10, 12).Radius(8).Background(p.hover)
+			ui.Text(c, ct.Forwarded).FontSize(13).LineHeight(1.5).TextColor(p.muted).Padding(10, 12).Radius(radiusTile).Background(p.hover)
 		}
 		if len(e.Pictures) > 0 {
 			ui.Grid(c).Columns(3).Gap(8).MaxWidth(480).Children(func() {
 				for i, pic := range e.Pictures {
-					ui.Box(c.Key(i)).AspectRatio(1).Children(func() { a.coverFill(c, pic.SquareURL, 400, 8) })
+					ui.Box(c.Key(i)).AspectRatio(1).Radius(radiusCover).Children(func() { a.coverFill(c, pic.SquareURL, 400, radiusCover) })
 				}
 			})
 		}
@@ -77,13 +77,15 @@ func (a *app) event(c *ui.Context, e *netease.Event) {
 // has one.
 func (a *app) shared(c *ui.Context, name, sub, pic string, r route) {
 	p := a.pal
-	card := ui.ButtonBase(c.Key("shared")).Gap(12).Padding(8).Radius(10).AlignItems(ui.Center).Background(p.hover).
+	card := ui.ButtonBase(c.Key("shared")).Gap(12).Padding(8).Radius(radiusRow).AlignItems(ui.Center).
 		FocusRing(false).Label(name).Disabled(r.id == 0).MaxWidth(480)
+	fill := p.hover
 	if card.Hovered() {
-		card.Background(p.press)
+		fill = p.press
 	}
+	card.Background(card.AnimateColor("bg", fill, hoverFade))
 	card.Children(func() {
-		a.cover(c, pic, 120, 44, 6)
+		a.cover(c, pic, 120, 44, radiusTile)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
 			ui.Text(c, name).FontSize(13.5).FontWeight(600).SingleLine()
 			ui.Text(c, sub).FontSize(12).TextColor(p.muted).SingleLine()

@@ -190,7 +190,7 @@ func (a *app) podcastPage(c *ui.Context) {
 	cur := a.pl.Current()
 	a.scrollPage(c, func() {
 		ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 8, 0).Children(func() {
-			ui.Box(c).Size(212, 212).Radius(14).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
+			ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 				a.coverFill(c, pod.PicURL, 600, 14)
 			})
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
@@ -240,20 +240,22 @@ func (a *app) programRow(c *ui.Context, d *podcastData, i int, cur *netease.Trac
 	p := a.pal
 	pr := &d.programs[i]
 	playing := cur != nil && cur.ProgramID == pr.ID
-	row := ui.ButtonBase(c).Height(60).PaddingX(12).Gap(14).Radius(8).AlignItems(ui.Center).FocusRing(false).
+	row := ui.ButtonBase(c).Height(60).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).
 		Label(pr.Name).Disabled(pr.MainSong.ID == 0)
+	bg := ui.Transparent
 	switch {
 	case playing:
-		row.Background(p.accent.Alpha(0.08))
+		bg = p.accent.Alpha(0.08)
 	case row.Hovered():
-		row.Background(p.hover)
+		bg = p.hover
 	}
+	row.Background(row.AnimateColor("bg", bg, hoverFade))
 	row.Children(func() {
 		cover := pr.CoverURL
 		if cover == "" {
 			cover = d.podcast.PicURL
 		}
-		a.cover(c, cover, 96, 40, 6)
+		a.cover(c, cover, 96, 40, radiusTile)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
 			title := ui.Text(c, pr.Name).FontSize(13.5).FontWeight(500).SingleLine()
 			if playing {
@@ -281,12 +283,14 @@ func (a *app) programRow(c *ui.Context, d *podcastData, i int, cur *netease.Trac
 // podcastRow is a podcast in a list, opening its page.
 func (a *app) podcastRow(c *ui.Context, pod *netease.Podcast) {
 	p := a.pal
-	row := ui.ButtonBase(c).Padding(10, 12).Gap(14).Radius(10).AlignItems(ui.Center).FocusRing(false).Label(pod.Name)
+	row := ui.ButtonBase(c).Padding(10, 12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(pod.Name)
+	bg := ui.Transparent
 	if row.Hovered() {
-		row.Background(p.hover)
+		bg = p.hover
 	}
+	row.Background(row.AnimateColor("bg", bg, hoverFade))
 	row.Children(func() {
-		a.cover(c, pod.PicURL, 160, 64, 8)
+		a.cover(c, pod.PicURL, 160, 64, radiusTile)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
 			ui.Text(c, pod.Name).FontSize(14).FontWeight(600).SingleLine()
 			meta := []string{fmt.Sprintf("%d 期", pod.ProgramCount)}

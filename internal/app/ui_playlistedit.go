@@ -283,7 +283,7 @@ func (a *app) playlistNameDialog(c *ui.Context) {
 	d := &a.naming
 	ui.DialogBase(c.Key("playlist-name"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(360).Padding(24).Radius(18).Gap(16).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(16).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		title, action := "新建歌单", "创建"
@@ -294,7 +294,7 @@ func (a *app) playlistNameDialog(c *ui.Context) {
 			action = "正在创建…"
 		}
 		ui.Text(c, title).FontSize(17).FontWeight(700)
-		in := ui.TextInput(c.Key("name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(14).AutoFocus()
+		in := ui.TextInput(c.Key("name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(14).Radius(radiusField).AutoFocus()
 		if in.Submitted() {
 			a.submitName()
 		}
@@ -320,7 +320,7 @@ func (a *app) deletePlaylistDialog(c *ui.Context) {
 	d := &a.deleting
 	ui.DialogBase(c.Key("playlist-delete"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(360).Padding(24).Radius(18).Gap(8).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(8).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		ui.Text(c, "删除歌单").FontSize(17).FontWeight(700)

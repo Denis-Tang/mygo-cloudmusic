@@ -191,7 +191,7 @@ func (a *app) commentsPane(c *ui.Context, tr *netease.Track) {
 				}
 			default:
 				ui.Icon(c, iconComment).Size(40, 40).TextColor(white.Alpha(0.3))
-				ui.Text(c, "还没有评论，快来抢沙发").FontSize(17).FontWeight(600).TextColor(white.Alpha(0.45))
+				ui.Text(c, "还没有评论").FontSize(17).FontWeight(600).TextColor(white.Alpha(0.45))
 			}
 		})
 		return
@@ -245,7 +245,7 @@ func commentHeading(c *ui.Context, title string) {
 // commentRow is a comment: who wrote it, what, and what it replies to,
 // when, from where, and how many liked it, with a thumb to like it too.
 func (a *app) commentRow(c *ui.Context, cm *netease.Comment, now time.Time) {
-	ui.Row(c).Padding(12).Gap(12).Radius(12).AlignItems(ui.Start).Children(func() {
+	ui.Row(c).Padding(12).Gap(12).Radius(radiusRow).AlignItems(ui.Start).Children(func() {
 		a.avatar(c, cm.User.AvatarURL, 34, white.Alpha(0.1))
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
@@ -256,7 +256,7 @@ func (a *app) commentRow(c *ui.Context, cm *netease.Comment, now time.Time) {
 			ui.Text(c, cm.Content).FontSize(15).LineHeight(1.55).TextColor(white.Alpha(0.92))
 			if len(cm.BeReplied) > 0 {
 				r := cm.BeReplied[0]
-				ui.Box(c).Padding(8, 12).Radius(10).Background(white.Alpha(0.07)).Children(func() {
+				ui.Box(c).Padding(8, 12).Radius(radiusTile).Background(white.Alpha(0.07)).Children(func() {
 					ui.RichText(c,
 						ui.Span{Text: "@" + r.User.Nickname + "：", Color: white.Alpha(0.75), Weight: 600},
 						ui.Span{Text: r.Content, Color: white.Alpha(0.6)},

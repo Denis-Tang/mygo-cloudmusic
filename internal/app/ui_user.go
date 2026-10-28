@@ -185,10 +185,12 @@ func (a *app) userPage(c *ui.Context) {
 // userRow is a user in a list, opening their page.
 func (a *app) userRow(c *ui.Context, u *netease.User) {
 	p := a.pal
-	row := ui.ButtonBase(c).Padding(10, 12).Gap(14).Radius(10).AlignItems(ui.Center).FocusRing(false).Label(u.Nickname)
+	row := ui.ButtonBase(c).Padding(10, 12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(u.Nickname)
+	bg := ui.Transparent
 	if row.Hovered() {
-		row.Background(p.hover)
+		bg = p.hover
 	}
+	row.Background(row.AnimateColor("bg", bg, hoverFade))
 	row.Children(func() {
 		a.cover(c, u.AvatarURL, 120, 48, 24)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {

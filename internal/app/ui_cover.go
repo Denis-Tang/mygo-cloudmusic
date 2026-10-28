@@ -217,7 +217,7 @@ func (a *app) npCover(c *ui.Context, tr *netease.Track, art *artwork, size float
 		if over {
 			scale *= 1.02
 		}
-		box := ui.Box(c).Fill().Radius(16).Shadow(0, 30, 60, -12, ui.RGBA(0, 0, 0, 0.55))
+		box := ui.Box(c).Fill().Radius(radiusPanel).Shadow(0, 30, 60, -12, ui.RGBA(0, 0, 0, 0.55))
 		if math.Abs(float64(rx))+math.Abs(float64(ry)) > 0.05 {
 			// In depth only while tilted: flat, it draws as an image does.
 			box.RotateX(rx).RotateY(ry).Perspective(900)

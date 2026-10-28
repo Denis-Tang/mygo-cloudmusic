@@ -81,7 +81,7 @@ func (s shimmer) bone(c *ui.Context, radius float32) ui.Element {
 func (s shimmer) text(c *ui.Context, size, lineHeight float32) ui.Element {
 	return ui.Box(c).Shrink(0).Height(size * lineHeight).Draw(func(p *ui.Painter, r ui.Rect) {
 		h := size * 0.78
-		s.paint(p, ui.Rect{X: r.X, Y: r.Y + (r.H-h)/2, W: r.W, H: h}, h*0.32)
+		s.paint(p, ui.Rect{X: r.X, Y: r.Y + (r.H-h)/2, W: r.W, H: h}, h*0.4)
 	})
 }
 
@@ -98,7 +98,7 @@ func (a *app) homeSkeleton(c *ui.Context, s shimmer) {
 	s.bone(c.Key("daily"), dailyRadius).Height(dailyHeight)
 	cards := a.columns(c, 168)
 	if a.profile != nil {
-		a.section(c, "今日为你推荐")
+		a.section(c, "推荐歌单")
 		a.playlistCardsSkeleton(c.Key("rec"), s, cards, 168, false)
 	}
 }
@@ -107,7 +107,7 @@ func (a *app) chartCardsSkeleton(c *ui.Context, s shimmer) {
 	cols := min(4, max(2, a.columns(c, 260)))
 	ui.Grid(c).Columns(cols).Gap(20).Children(func() {
 		for i := range 4 {
-			ui.Row(c.Key(i)).Gap(14).Padding(12).Radius(14).AlignItems(ui.Center).Background(a.pal.hover).Children(func() {
+			ui.Row(c.Key(i)).Gap(14).Padding(12).Radius(radiusCard).AlignItems(ui.Center).Background(a.pal.hover).Children(func() {
 				s.bone(c, 9).Size(84, 84)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(5).Children(func() {
 					s.text(c, 14, 1.3).WidthPercent(46)

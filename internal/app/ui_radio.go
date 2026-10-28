@@ -253,16 +253,16 @@ func (a *app) fmCard(c *ui.Context) {
 	if tr != nil {
 		art = a.art.get(netease.Sized(tr.Album.PicURL, 600), true)
 	}
-	card := ui.Box(c.Key("fm-card")).Height(320).Radius(24).Background(ui.Hex("#232328")).TextColor(white).
+	card := ui.Box(c.Key("fm-card")).Height(320).Radius(dailyRadius).Background(ui.Hex("#232328")).TextColor(white).
 		Shadow(0, 18, 44, -16, a.pal.cardShade)
 	in := artIn(card, backdrop(art))
 	card.Children(func() {
 		if in < 1 {
-			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(24).
+			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(dailyRadius).
 				LinearGradient(ui.LinearGradient{Angle: 135, Oklab: true, From: ui.Oklch(0.42, 0.14, 20), To: ui.Oklch(0.3, 0.1, 300)})
 		}
-		artImage(c, backdrop(art), 24, in)
-		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(24).
+		artImage(c, backdrop(art), dailyRadius, in)
+		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(dailyRadius).
 			LinearGradient(ui.LinearGradient{Angle: 90, Stops: []ui.GradientStop{
 				{Color: ui.RGBA(0, 0, 0, 0.35), At: 0},
 				{Color: ui.RGBA(0, 0, 0, 0.1), At: 1},
@@ -280,7 +280,6 @@ func (a *app) fmCard(c *ui.Context) {
 				})
 				if tr == nil {
 					ui.Text(c, "听见更多好音乐").FontSize(30).FontWeight(800).LetterSpacing(-0.6)
-					ui.Text(c, "根据你的口味，一首接一首，不停推荐").FontSize(13.5).TextColor(white.Alpha(0.75))
 					ui.Row(c).Margin(18, 0, 0, 0).Children(func() {
 						label := "开始收听"
 						if a.radioStarting != "" && strings.HasPrefix(a.radioStarting, "fm:") {
@@ -341,12 +340,12 @@ func (a *app) fmCovers(c *ui.Context, tr *netease.Track) {
 			}
 		}
 		if next != nil {
-			back := ui.Box(c.Key(next.ID)).Absolute().Top(16).Left(36).Size(size-32, size-32).Radius(14).Opacity(0.55).Background(white.Alpha(0.12)).
+			back := ui.Box(c.Key(next.ID)).Absolute().Top(16).Left(36).Size(size-32, size-32).Radius(radiusCard).Opacity(0.55).Background(white.Alpha(0.12)).
 				Shadow(0, 10, 24, -8, ui.RGBA(0, 0, 0, 0.4))
 			back.AnimatePose(ui.Pose{Rotate: 6, X: 14}, ui.Animation{Spring: ui.SpringOptions{Duration: 500 * time.Millisecond, Bounce: 0.2}})
 			back.Children(func() { a.coverFill(c, next.Album.PicURL, 400, 14) })
 		}
-		front := ui.Box(c.Key("front")).Absolute().Top(0).Left(0).Size(size, size).Radius(16).
+		front := ui.Box(c.Key("front")).Absolute().Top(0).Left(0).Size(size, size).Radius(radiusCard).
 			Background(white.Alpha(0.12)).Shadow(0, 20, 44, -10, ui.RGBA(0, 0, 0, 0.55))
 		if tr == nil {
 			front.Center().Children(func() {
@@ -369,8 +368,8 @@ func (a *app) fmCovers(c *ui.Context, tr *netease.Track) {
 // heartCard starts heart mode: songs like those the listener likes.
 func (a *app) heartCard(c *ui.Context, p palette) {
 	on := a.pl.Radio() == heartRadio
-	ui.Row(c).Padding(22, 26).Gap(20).Radius(18).AlignItems(ui.Center).Background(p.hover).Children(func() {
-		ui.Box(c).Size(56, 56).Radius(16).Center().Shrink(0).
+	ui.Row(c).Padding(22, 26).Gap(20).Radius(radiusPanel).AlignItems(ui.Center).Background(p.hover).Children(func() {
+		ui.Box(c).Size(56, 56).Radius(radiusCard).Center().Shrink(0).
 			LinearGradient(ui.LinearGradient{Angle: 135, Oklab: true, From: ui.Oklch(0.72, 0.17, 10), To: ui.Oklch(0.58, 0.22, 350)}).
 			TextColor(white).Children(func() { ui.Icon(c, iconHeartFill).Size(26, 26) })
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {

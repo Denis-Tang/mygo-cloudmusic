@@ -10,6 +10,25 @@ import (
 	"netease-music-mygo/internal/player"
 )
 
+// The corners of the app, one set of them: covers that fill a box and the
+// cards they make, rows and the small tiles in them, the buttons over a
+// card and the fields, the panels that float over a page and the dialogs,
+// and the pills of a single line, round by their height. What is already
+// round, as a photo or a knob, is its size's half.
+const (
+	radiusCover = 10 // a cover, and the card it heads
+	radiusTile  = 6  // a small cover in a row, and its rows' mark
+	radiusRow   = 9  // a row of a list, and the items of a menu
+	radiusCard  = 14 // a card that holds a row of its own, a bar's panel
+	radiusPanel = 18 // a drawer over the playing page, a dialog
+	radiusField = 9  // the search field and the inputs of a dialog
+	radiusPill  = 999
+)
+
+// hoverFade is how a row's background comes under the pointer, and goes
+// once it leaves, as every row of a list does.
+var hoverFade = ui.Animation{Duration: 120 * time.Millisecond}
+
 // palette holds the app's colors, for the light and the dark appearance.
 type palette struct {
 	dark      bool
@@ -102,7 +121,7 @@ func clamp01(v float32) float32 { return max(0, min(v, 1)) }
 
 // roundButton is the button of iconButton, without its icon.
 func roundButton(c *ui.Context, size float32, color ui.Color, label string) ui.Element {
-	b := ui.ButtonBase(c).Size(size+16, size+16).Center().Radius(999).Label(label).TextColor(color)
+	b := ui.ButtonBase(c).Size(size+16, size+16).Center().Radius(radiusPill).Label(label).TextColor(color)
 	bg := ui.Transparent
 	if b.Hovered() {
 		bg = ui.RGBA(128, 128, 128, 0.14)
@@ -118,7 +137,7 @@ func roundButton(c *ui.Context, size float32, color ui.Color, label string) ui.E
 
 // pillButton is a rounded button with an icon and a label.
 func pillButton(c *ui.Context, icon *ui.SVG, label string, bg, fg ui.Color) ui.Element {
-	b := ui.ButtonBase(c).Height(36).PaddingX(18).Gap(8).Radius(999).AlignItems(ui.Center).TextColor(fg)
+	b := ui.ButtonBase(c).Height(36).PaddingX(18).Gap(8).Radius(radiusPill).AlignItems(ui.Center).TextColor(fg)
 	fill := bg
 	if b.Hovered() {
 		fill = bg.Mix(ui.RGB(255, 255, 255), 0.12)
@@ -289,7 +308,7 @@ func drawBars(p *ui.Painter, r ui.Rect, st *barState, n int, color ui.Color, min
 // the user chose another.
 func segmented(c *ui.Context, selected *int, labels ...string) bool {
 	t := c.Theme()
-	const height, inset, radius = 24, 2, 6
+	const height, inset, radius = 24, 2, 6 // a capsule's corners, as AppKit's
 	width := float32(0)
 	for _, l := range labels {
 		w, _ := c.MeasureText(0, ui.Span{Text: l, Size: 13})

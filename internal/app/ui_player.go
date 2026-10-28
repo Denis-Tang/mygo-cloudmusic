@@ -120,7 +120,7 @@ func (a *app) volumeButton(c *ui.Context, color ui.Color) {
 	ui.PopoverBase(c.Key("volume-popover"), b, &a.volumeOpen, func(panel ui.Element) {
 		const arrow = 7
 		panel.AttachTo(b, ui.AnchorTop, ui.AnchorBottom).Margin(0, 0, arrow+3, 0).Width(52).Padding(11, 0, 12, 0).
-			Radius(12).Background(pop.fill).Border(0.5, pop.edge).Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2)).
+			Radius(radiusCard).Background(pop.fill).Border(0.5, pop.edge).Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2)).
 			AlignItems(ui.Center).Gap(8).Label("音量")
 		panel.Draw(func(p *ui.Painter, r ui.Rect) {
 			// The arrow pointing at the speaker, its sides edged as the
@@ -300,7 +300,7 @@ func (a *app) playerBar(c *ui.Context) {
 		ui.Row(c).Grow(1).Basis(0).MinWidth(150).Children(func() {
 			if tr == nil {
 				ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
-					ui.Box(c).Size(48, 48).Radius(8).Background(p.hover).Center().Children(func() {
+					ui.Box(c).Size(48, 48).Radius(radiusTile).Background(p.hover).Center().Children(func() {
 						ui.Icon(c, iconNote).Size(18, 18).TextColor(p.faint)
 					})
 					ui.Text(c, "未在播放").FontSize(13).TextColor(p.muted)
@@ -311,9 +311,9 @@ func (a *app) playerBar(c *ui.Context) {
 			hovered := info.Hovered()
 			info.Children(func() {
 				ui.Box(c).Size(48, 48).Shrink(0).Children(func() {
-					a.cover(c, tr.Album.PicURL, 120, 48, 8).Shadow(0, 2, 8, 0, p.cardShade)
+					a.cover(c, tr.Album.PicURL, 120, 48, radiusTile).Shadow(0, 2, 8, 0, p.cardShade)
 					if hovered {
-						ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(8).Center().
+						ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radiusTile).Center().
 							Background(ui.RGBA(0, 0, 0, 0.35)).TextColor(ui.RGB(255, 255, 255)).Children(func() {
 							ui.Icon(c, iconDown).Size(18, 18).Rotate(180)
 						})

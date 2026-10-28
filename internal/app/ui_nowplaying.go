@@ -310,7 +310,7 @@ func qualityBadge(c *ui.Context, st *netease.Stream) {
 		label = "母带"
 	}
 	ui.Text(c, label).FontSize(9.5).FontWeight(800).LetterSpacing(0.6).TextColor(ui.Hex("#f5d58a")).
-		Padding(1, 6).Radius(4).Border(1, ui.Hex("#f5d58a").Alpha(0.55))
+		Padding(1, 6).Radius(radiusTile-2).Border(1, ui.Hex("#f5d58a").Alpha(0.55))
 }
 
 // stageBar is gone with the stage: Now Playing's controls live under the
@@ -378,7 +378,7 @@ func (a *app) timedLines(c *ui.Context, scroll ui.Element, lines []lyrics.Line, 
 	scroll.Children(func() {
 		ui.Column(c).Gap(6).Translate(0, -lag).Children(func() {
 			for i, l := range lines {
-				line := ui.ButtonBase(c.Key(i)).Column().AlignItems(ui.Start).Padding(10, 12).Radius(12).Gap(6).FocusRing(false).Label(l.Text)
+				line := ui.ButtonBase(c.Key(i)).Column().AlignItems(ui.Start).Padding(10, 12).Radius(radiusRow).Gap(6).FocusRing(false).Label(l.Text)
 				on := i == cur
 				alpha := float32(0.28)
 				if on {
@@ -545,7 +545,7 @@ func (a *app) queuePane(c *ui.Context) {
 		i := order[r]
 		tr := &pl.Queue()[i]
 		playing := r == at
-		row := ui.ButtonBase(c.Key(i)).Height(58).PaddingX(10).Gap(14).Radius(12).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
+		row := ui.ButtonBase(c.Key(i)).Height(58).PaddingX(10).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
 			ContextMenu(a.songItems(tr, 0))
 		switch {
 		case playing:
@@ -557,7 +557,7 @@ func (a *app) queuePane(c *ui.Context) {
 			row.Opacity(0.4)
 		}
 		row.Children(func() {
-			a.cover(c, tr.Album.PicURL, 96, 42, 7)
+			a.cover(c, tr.Album.PicURL, 96, 42, radiusTile)
 			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 				ui.Text(c, tr.Name).FontSize(14).FontWeight(600).SingleLine()
 				a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(12.5).SingleLine()

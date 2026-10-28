@@ -61,7 +61,7 @@ func (a *app) albumPage(c *ui.Context) {
 func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 	p := a.pal
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
-		ui.Box(c).Size(212, 212).Radius(14).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
+		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 			a.coverFill(c, al.PicURL, 600, 14)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
@@ -111,7 +111,7 @@ func (a *app) albumCard(c *ui.Context, al *netease.AlbumProfile) {
 	card := ui.ButtonBase(c).Column().Gap(10).AlignItems(ui.Stretch).FocusRing(false).Label(al.Name)
 	hovered := card.Hovered()
 	card.Children(func() {
-		art := ui.Box(c).AspectRatio(1).Radius(10)
+		art := ui.Box(c).AspectRatio(1).Radius(radiusCover)
 		lift := ui.Pose{}
 		if hovered {
 			lift = ui.Pose{Y: -3}

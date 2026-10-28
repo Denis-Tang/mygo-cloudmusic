@@ -143,7 +143,7 @@ func (a *app) hotCard(c *ui.Context, dim, size float32, place func(ui.Element)) 
 		return
 	}
 	card := ui.ButtonBase(c.Key("quiet")).Column().AlignItems(ui.Start).
-		Padding(16, 12).Gap(14).Radius(14).FocusRing(false).Label("查看评论")
+		Padding(16, 12).Gap(14).Radius(radiusCard).FocusRing(false).Label("查看评论")
 	place(card)
 	// Each comment rises in on its own as it takes the last one's place.
 	seen := ui.Local(card, "seen", func() int64 { return 0 })

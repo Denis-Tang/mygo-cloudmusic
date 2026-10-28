@@ -434,7 +434,7 @@ func (n *notch) expanded(c *ui.Context, tr *netease.Track, open, left float32) {
 	col.Translate(0, (1-open)*-10)
 	col.Children(func() {
 		ui.Row(c).Gap(14).AlignItems(ui.Center).Children(func() {
-			cov := ui.ButtonBase(c.Key("cover")).Size(60, 60).Radius(12).FocusRing(false).Label("打开正在播放")
+			cov := ui.ButtonBase(c.Key("cover")).Size(60, 60).Radius(radiusCard).FocusRing(false).Label("打开正在播放")
 			lift := ui.Pose{}
 			if cov.Hovered() {
 				lift.Scale = 1.05
@@ -506,7 +506,7 @@ func (n *notch) idle(c *ui.Context, open, left float32) {
 	a := n.a
 	ui.Row(c).Absolute().Top(n.h0+4).Left(left).Width(notchIdleW).Padding(10, 20, 14, 20).Gap(12).AlignItems(ui.Center).
 		Opacity(max(0, open*1.4-0.4)).Children(func() {
-		ui.Box(c).Size(36, 36).Radius(10).Background(a.pal.accent).Center().Children(func() {
+		ui.Box(c).Size(36, 36).Radius(radiusCover).Background(a.pal.accent).Center().Children(func() {
 			ui.Icon(c, iconNote).Size(18, 18).TextColor(white)
 		})
 		ui.Column(c).Grow(1).Gap(2).Children(func() {

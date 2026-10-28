@@ -61,7 +61,7 @@ func (a *app) settingsView(c *ui.Context) {
 	ui.Scroll(c).Fill().Padding(24, 28, 32, 28).Gap(8).Children(func() {
 		group := func(title string, rows func()) {
 			ui.Text(c, title).FontSize(12).FontWeight(600).TextColor(p.muted).Margin(14, 4, 4, 4)
-			ui.Column(c).Radius(12).Background(p.bg).Border(1, p.hairline).Dividers(1, p.hairline).Children(rows)
+			ui.Column(c).Radius(radiusCard).Background(p.bg).Border(1, p.hairline).Dividers(1, p.hairline).Children(rows)
 		}
 		row := func(label, desc string, control func()) {
 			ui.Row(c).Padding(12, 16).Gap(16).AlignItems(ui.Center).MinHeight(48).Children(func() {

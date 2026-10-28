@@ -204,7 +204,7 @@ func (a *app) artistCard(c *ui.Context, ar *netease.ArtistProfile) {
 		if photo == "" {
 			photo = ar.PicURL
 		}
-		art := ui.Box(c).AspectRatio(1).Radius(999)
+		art := ui.Box(c).AspectRatio(1).Radius(radiusPill)
 		if hovered {
 			art.Shadow(0, 12, 28, -6, p.cardShade)
 		} else {

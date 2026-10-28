@@ -164,7 +164,7 @@ func (a *app) loginDialog(c *ui.Context) {
 	l := &a.login
 	ui.DialogBase(c.Key("login"), &l.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(340).Padding(28, 28, 26, 28).Radius(22).Gap(6).AlignItems(ui.Center).
+		panel.Width(340).Padding(28, 28, 26, 28).Radius(radiusPanel).Gap(6).AlignItems(ui.Center).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		title, sub := "扫码登录", "打开网易云音乐 App，扫一扫登录"
@@ -181,7 +181,7 @@ func (a *app) loginDialog(c *ui.Context) {
 		ui.Text(c, title).FontSize(20).FontWeight(700)
 		ui.Text(c, sub).FontSize(13).TextColor(p.muted).TextAlign(ui.Center).Margin(0, 0, 14, 0)
 
-		ui.Box(c).Size(212, 212).Radius(16).Background(ui.RGB(255, 255, 255)).Border(1, p.hairline).Children(func() {
+		ui.Box(c).Size(212, 212).Radius(radiusCard).Background(ui.RGB(255, 255, 255)).Border(1, p.hairline).Clip().Children(func() {
 			if l.code != nil {
 				code := l.code
 				opacity := float32(1)
@@ -247,10 +247,12 @@ func (a *app) profileName() string {
 // sign in.
 func (a *app) accountRow(c *ui.Context) {
 	p := a.pal
-	b := ui.ButtonBase(c.Key("account")).Height(40).PaddingX(8).Gap(10).Radius(10).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	b := ui.ButtonBase(c.Key("account")).Height(40).PaddingX(8).Gap(10).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	bg := ui.Transparent
 	if b.Hovered() || a.accountOpen && a.profile != nil {
-		b.Background(p.hover)
+		bg = p.hover
 	}
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond}))
 	if a.profile == nil {
 		a.accountOpen = false
 		b.Label("登录").Children(func() {
@@ -283,7 +285,7 @@ func (a *app) accountMenu(c *ui.Context, row ui.Element) {
 	pop := popoverColors(a.pal.dark)
 	ui.PopoverBase(c.Key("account-menu"), row, &a.accountOpen, func(panel ui.Element) {
 		panel.AttachTo(row, ui.AnchorTopStart, ui.AnchorBottomStart).Margin(0, 0, 6, 0).Padding(5).Gap(1).
-			Radius(12).Background(pop.fill).Border(0.5, pop.edge).Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2)).
+			Radius(radiusCard).Background(pop.fill).Border(0.5, pop.edge).Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2)).
 			Role(ui.RoleMenu).FocusGroup(ui.Vertical).Label("账户").TransformOrigin(0.5, 1).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96, Y: 4}, Exit: &ui.Motion{Scale: 0.98}})
 		if w := row.Bounds().W; w > 0 {
@@ -313,12 +315,13 @@ func (a *app) accountMenu(c *ui.Context, row ui.Element) {
 // that does the same, if any.
 func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.Element {
 	p := a.pal
-	b := ui.ButtonBase(c.Key(label)).Role(ui.RoleMenuItem).Label(label).Height(30).PaddingX(8).Gap(9).Radius(7).
+	b := ui.ButtonBase(c.Key(label)).Role(ui.RoleMenuItem).Label(label).Height(30).PaddingX(8).Gap(9).Radius(radiusRow - 2).
 		AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	bg := ui.Transparent
 	if b.Hovered() || b.FocusVisible() {
-		b.Background(p.press)
+		bg = p.press
 	}
-	b.Children(func() {
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).Children(func() {
 		ui.Icon(c, icon).Size(15, 15).TextColor(p.muted)
 		ui.Text(c, label).FontSize(13).Grow(1)
 		if shortcut != "" {
@@ -337,15 +340,17 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 	}
 	p := a.pal
 	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(18, 4, 6, 6).Children(func() {
-		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(26).PaddingX(4).Gap(6).Radius(6).
+		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(26).PaddingX(4).Gap(6).Radius(radiusTile).
 			AlignItems(ui.Center).Justify(ui.Start).Role(ui.RoleDisclosure).Label(title)
 		if b.Clicked() {
 			*collapsed = !*collapsed
 		}
 		b.Expanded(!*collapsed)
+		hb := ui.Transparent
 		if b.Hovered() {
-			b.Background(p.hover)
+			hb = p.hover
 		}
+		b.Background(b.AnimateColor("bg", hb, ui.Animation{Duration: 120 * time.Millisecond}))
 		b.Children(func() {
 			ui.Text(c, title).FontSize(11.5).FontWeight(600).TextColor(p.faint).Grow(1)
 			arrow := iconDown
@@ -354,7 +359,7 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 			}
 			ui.Icon(c, arrow).Size(12, 12).TextColor(p.faint)
 		})
-		if mine && iconButton(c.Key("new"), iconPlus, 13, p.faint, "新建歌单").Size(26, 26).Radius(6).Clicked() {
+		if mine && iconButton(c.Key("new"), iconPlus, 13, p.faint, "新建歌单").Size(26, 26).Radius(radiusTile).Clicked() {
 			a.newPlaylist(nil)
 		}
 	})
@@ -364,15 +369,17 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 	for i := range lists {
 		pl := &lists[i]
 		selected := a.route.page == pagePlaylist && a.route.id == pl.ID && !a.nowPlaying
-		b := ui.ButtonBase(c.Key(pl.ID)).Height(34).PaddingX(8).Gap(10).Radius(8).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+		b := ui.ButtonBase(c.Key(pl.ID)).Height(34).PaddingX(8).Gap(10).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+		pb := ui.Transparent
 		switch {
 		case selected:
-			b.Background(p.press)
+			pb = p.press
 		case b.Hovered():
-			b.Background(p.hover)
+			pb = p.hover
 		}
+		b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
 		b.Children(func() {
-			a.cover(c, pl.Cover(), 80, 22, 5)
+			a.cover(c, pl.Cover(), 80, 22, radiusTile-1)
 			ui.Text(c, pl.Name).FontSize(13).SingleLine().Shrink(1).MinWidth(0)
 		})
 		if mine && pl.SpecialType != 5 {

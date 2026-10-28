@@ -214,12 +214,21 @@ func init() {
 				return
 			}
 			time.Sleep(5 * time.Second)
-			mygo.RunOnMain(func() {
-				x, y, w, h := windowFrame(a.notch.win.NativeHandle())
-				println("notch frame", int(x), int(y), int(w), int(h))
-			})
+			// The notch player is the Mac's alone: elsewhere there is none
+			// to show, and its window is nil.
+			if a.notch != nil {
+				mygo.RunOnMain(func() {
+					x, y, w, h := windowFrame(a.notch.win.NativeHandle())
+					println("notch frame", int(x), int(y), int(w), int(h))
+				})
+			}
 			shot("1-home", a.win)
-			shot("1-notch-idle", a.notch.win)
+			mygo.RunOnMain(func() {
+				if a.notch == nil {
+					return
+				}
+				shot("1-notch-idle", a.notch.win)
+			})
 			step(0, func() { a.open(route{page: pageCharts}) })
 			time.Sleep(time.Second)
 			shot("2-charts", a.win)
@@ -234,10 +243,26 @@ func init() {
 			})
 			time.Sleep(5 * time.Second)
 			shot("4-playing", a.win)
-			shot("4-notch-compact", a.notch.win)
-			step(0, func() { a.notch.open = true; a.notch.lastInside = time.Now().Add(time.Hour) })
+			mygo.RunOnMain(func() {
+				if a.notch == nil {
+					return
+				}
+				shot("4-notch-compact", a.notch.win)
+			})
+			step(0, func() {
+				if a.notch == nil {
+					return
+				}
+				a.notch.open = true
+				a.notch.lastInside = time.Now().Add(time.Hour)
+			})
 			time.Sleep(2 * time.Second)
-			shot("5-notch-open", a.notch.win)
+			mygo.RunOnMain(func() {
+				if a.notch == nil {
+					return
+				}
+				shot("5-notch-open", a.notch.win)
+			})
 			step(0, func() { a.nowPlaying = true })
 			time.Sleep(4 * time.Second)
 			shot("6-now-playing", a.win)

@@ -58,7 +58,7 @@ func (a *app) homePage(c *ui.Context) {
 		a.dailyCard(c, now)
 
 		if len(a.recPlaylists) > 0 {
-			a.section(c, "今日为你推荐")
+			a.section(c, "推荐歌单")
 			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
 				for i := range a.recPlaylists[:min(len(a.recPlaylists), a.columns(c, 168)*2)] {
 					a.playlistCard(c.Key(a.recPlaylists[i].ID), &a.recPlaylists[i])
@@ -127,7 +127,7 @@ func (a *app) coverCard(c *ui.Context, name, cover string, playCount float64, su
 	card := ui.ButtonBase(c).Column().Gap(10).AlignItems(ui.Stretch).Justify(ui.Start).FocusRing(false).Label(name)
 	hovered := card.Hovered()
 	card.Children(func() {
-		art := ui.Box(c).AspectRatio(1).Radius(10)
+		art := ui.Box(c).AspectRatio(1).Radius(radiusCover)
 		lift := ui.Pose{}
 		if hovered {
 			lift = ui.Pose{Y: -3}
@@ -137,7 +137,7 @@ func (a *app) coverCard(c *ui.Context, name, cover string, playCount float64, su
 		}
 		art.AnimatePose(lift, ui.Snappy)
 		art.Children(func() {
-			a.coverFill(c, cover, 400, 10)
+			a.coverFill(c, cover, 400, radiusCover)
 			if playCount > 0 {
 				ui.Row(c).Absolute().Top(8).Right(8).Padding(2, 7).Radius(999).Gap(3).AlignItems(ui.Center).
 					Background(ui.RGBA(0, 0, 0, 0.35)).TextColor(ui.RGB(255, 255, 255)).Children(func() {
@@ -191,7 +191,7 @@ func (a *app) coverPlayButton(c *ui.Context, shown bool, play func()) {
 // chartCard shows a chart with its top three songs beside its cover.
 func (a *app) chartCard(c *ui.Context, pl *netease.Playlist) {
 	p := a.pal
-	card := ui.ButtonBase(c).Gap(14).Padding(12).Radius(14).AlignItems(ui.Center).FocusRing(false).Label(pl.Name)
+	card := ui.ButtonBase(c).Gap(14).Padding(12).Radius(radiusCard).AlignItems(ui.Center).FocusRing(false).Label(pl.Name)
 	hovered := card.Hovered()
 	bg := p.hover
 	if hovered {
@@ -199,8 +199,8 @@ func (a *app) chartCard(c *ui.Context, pl *netease.Playlist) {
 	}
 	card.Background(card.AnimateColor("bg", bg, ui.Animation{Duration: 140 * time.Millisecond}))
 	card.Children(func() {
-		ui.Box(c).Size(84, 84).Radius(9).Shadow(0, 3, 10, -2, p.cardShade).Children(func() {
-			a.coverFill(c, pl.Cover(), 200, 9)
+		ui.Box(c).Size(84, 84).Radius(radiusTile).Shadow(0, 3, 10, -2, p.cardShade).Children(func() {
+			a.coverFill(c, pl.Cover(), 200, radiusTile)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(5).Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Baseline).Children(func() {
@@ -241,8 +241,8 @@ func (a *app) playlistPage(c *ui.Context) {
 func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 	p := a.pal
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
-		ui.Box(c).Size(212, 212).Radius(14).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
-			a.coverFill(c, pl.Cover(), 600, 14)
+		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
+			a.coverFill(c, pl.Cover(), 600, radiusCard)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
 			kind := "歌单"
@@ -344,7 +344,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 		i--
 		tr := &tracks[i]
 		playing := cur != nil && cur.ID == tr.ID
-		row := ui.ButtonBase(c.Key(tr.ID)).Height(54).PaddingX(12).Gap(14).Radius(10).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
+		row := ui.ButtonBase(c.Key(tr.ID)).Height(54).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
 			ContextMenu(a.songItems(tr, pid))
 		hovered := row.Hovered()
 		bg := ui.Transparent
@@ -370,7 +370,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				}
 			})
 			if covers {
-				a.cover(c, tr.Album.PicURL, 96, 38, 6)
+				a.cover(c, tr.Album.PicURL, 96, 38, radiusTile)
 			}
 			ui.Column(c).Grow(3).Basis(0).MinWidth(0).Gap(3).Children(func() {
 				name := p.text
