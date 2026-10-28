@@ -141,9 +141,9 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 // words a little nearer the foot of the picture than they once sat.
 func infoCol(compact bool) float32 {
 	if compact {
-		return 92
+		return 78
 	}
-	return 120
+	return 96
 }
 
 // infoColumn sets the song's name, its singer and the line it sings at,
