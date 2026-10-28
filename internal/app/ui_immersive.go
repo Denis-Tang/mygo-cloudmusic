@@ -11,14 +11,15 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
-// The playing page is one whole, as an album poster of the song: the cover
-// sharp where it stands, at the left of a wide view or across the top of a
-// tall one, melting into the cover's own blur and then into the backdrop's
-// colors; the song's name, its singer and the line it sings at over the
-// picture; the lyrics a click asks for, reading where there is room; the
-// queue and the comments, drawers of the same picture; and the controls in
-// one slim bar at the foot, which hides once the listener rests. The page
-// keeps the window as it is: "全屏封面" is the page's, not the display's.
+// The playing page is one whole, as the album's own poster: the cover
+// filling it, its proportions kept and its edges cropped to it, sharp at
+// the left of a wide view and easing into its own blur at the right, whole
+// where the window is not wide; the song's name, its singer and the line it
+// sings at over the picture; the lyrics a click asks for, reading where
+// there is room; the queue and the comments, drawers of the same picture;
+// and the controls in one slim bar at the foot, which hides once the
+// listener rests. The page keeps the window as it is: "全屏封面" is the
+// page's, not the display's.
 
 // fcBarH is how tall the bar at the foot of the playing page is; what the
 // words over it keep from.
@@ -29,70 +30,59 @@ const fcBarH = 100
 // as much as leaving it does.
 const npIdle = 2750 * time.Millisecond
 
-// blendSource paints the cover over its own blur, and, past the picture,
-// into the backdrop itself: the cover sharp in Split×Split at the view's
-// left or top, fading in its last part into the blur of itself, which
-// goes on out of the picture; and then into the backdrop's own colors,
-// which the view keeps behind it.
+// blendSource paints the cover over its own blur: the same cover, at the
+// same size, sharp at the left of a wide view and easing into the blur
+// that its right shows, so that the two are one picture rather than two
+// rectangles, an edge of one set against the other.
 const blendSource = `package main
-
-var Split float
-var FadeX float
 
 func Fragment(dst vec4, pos vec2) vec4 {
 	s := rectSize()
-	// The cover, sharp, in the square of Split at this corner of the view:
-	// its own proportions kept, its edges cropped to fill the square, so
-	// that no picture is stretched to it.
+	// The cover, the whole view: its own proportions kept, its edges
+	// cropped to fill it.
 	c0 := image0Size()
-	k0 := max(Split/c0.x, Split/c0.y)
-	o0 := (vec2(Split, Split) - c0*k0) * 0.5
+	k0 := max(s.x/c0.x, s.y/c0.y)
+	o0 := (s - c0*k0) * 0.5
 	sharp := image0Sample((pos - o0) / k0)
-	// Its blur, over the whole view, that it goes on past the picture
-	// instead of reaching its edge and stretching its last column out of
-	// it: the picture melts into a view of its own colors.
+	// The blur of the same cover, mapped just so, that the fade between
+	// them crosses nothing but a softening of one picture.
 	c1 := image1Size()
 	k1 := max(s.x/c1.x, s.y/c1.y)
 	o1 := (s - c1*k1) * 0.5
 	blur := image1Sample((pos - o1) / k1)
-	bgc := image2Sample(pos * image2Size() / s)
-	// The fade begins in the picture's last part, so it is over before
-	// the picture ends, and no edge of it shows.
-	t := smoothstep(0.70, 0.96, pos.x/Split)
-	if FadeX < 0.5 {
-		t = smoothstep(0.70, 0.96, pos.y/Split)
+	// A wide view keeps the picture whole at its left and eases it into
+	// its blur before its right; a taller one keeps it whole.
+	t := 0.0
+	if s.x > s.y*1.15 {
+		t = smoothstep(0.42, 0.72, pos.x/s.x)
 	}
-	c := mix(sharp, blur, t)
-	// Past the picture, into the backdrop, which is the view's own.
-	l := Split * 1.02
-	t2 := smoothstep(l, Split*1.6, pos.x)
-	if FadeX < 0.5 {
-		t2 = smoothstep(l, Split*1.6, pos.y)
-	}
-	return mix(c, bgc, t2)
+	return mix(sharp, blur, t)
 }
 `
 
 var blendShader = sync.OnceValue(func() *shader.Shader { return shader.MustCompile(blendSource) })
 
-// immersive fills the playing page: the cover as a poster of the song, the
+// immersive fills the playing page: the cover as the poster of the song, the
 // words over it, the lyrics and the drawers, and the bar at the foot. It
 // is the same view in every pane; the panes only say what shows over the
 // picture.
 func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32, pointerIn bool) {
-	// The picture itself: the cover sharp, its blur, the backdrop, drawn
-	// over the protections the moment the backdrop is asked for.
+	// The picture itself, over the backdrop the view keeps behind it: the
+	// cover sharp and its own blur, the two of one size, that the left of
+	// a wide view is the picture and its right the softness of the same
+	// one. Until the blur has loaded, the sharp stands for it.
 	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
-		S := min(r.W, r.H)
-		if sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1024), false)); sharp != nil {
-			blendShader().Draw(p, r, shader.Options{
-				Images: [4]*ui.Bitmap{sharp, art.backdrop, safeCanvas(a.backdropCanvas())},
-				Uniforms: map[string]any{
-					"Split": S,
-					"FadeX": b2f(r.W >= r.H),
-				},
-			})
+		// The picture is the whole view, so it is asked for at a size that
+		// fills one: the service's own original where it has one.
+		sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1536), false))
+		if sharp == nil {
+			return
 		}
+		soft := sharp
+		if art != nil && art.backdrop != nil {
+			soft = art.backdrop
+		}
+		blendShader().Draw(p, r, shader.Options{Images: [4]*ui.Bitmap{sharp, soft}})
 	})
 
 	// The reading protections: the top, under the window's buttons; the
@@ -140,14 +130,6 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 
 	// The bar at the foot, hiding once the listener rests.
 	a.immBar(c, tr, accent, pointerIn)
-}
-
-// safeCanvas is the canvas's bitmap, or absent, as a shader reads it.
-func safeCanvas(cn *ui.Canvas) *ui.Bitmap {
-	if cn == nil {
-		return nil
-	}
-	return cn.Bitmap()
 }
 
 // infoCol is how tall the information of the song is, name, singer and
@@ -355,7 +337,3 @@ func (a *app) npAwake(c *ui.Context) bool {
 	}
 	return c.Now().Sub(a.npActiveAt) < npIdle
 }
-
-// backdropCanvas is the canvas the backdrop paints into, or nil before
-// the first song painted it.
-func (a *app) backdropCanvas() *ui.Canvas { return a.backdropCache.canvas }
