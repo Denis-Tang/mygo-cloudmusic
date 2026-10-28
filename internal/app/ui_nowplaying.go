@@ -95,6 +95,12 @@ func (a *app) nowPlayingView(c *ui.Context) {
 
 	root := ui.Box(c.Key("now-playing")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
 		Background(ui.Hex("#0b0b0d")).TextColor(white)
+	// Resting, the page hides the pointer with its controls, as a video
+	// does: the pointer is the only thing left of the listener over the
+	// picture.
+	if !a.npAwake(c) {
+		root.Cursor(ui.CursorNone)
+	}
 	root.Children(func() {
 		a.backdrop(c, shown, tint)
 		// Over the backdrop, which is positioned too: positioned elements
@@ -128,9 +134,17 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	// The top strip drags the window: over the picture, the way back to
 	// the pages, at its left, and named, where the pointer finds it. It is
 	// placed, and comes after the picture that it shows over. The pill goes
-	// with the bar once the listener rests; the strip stays to drag.
-	ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(topBar(c)).AlignItems(ui.Center).DragWindow().Children(func() {
+	// with the bar once the listener rests; the strip stays to drag. Resting,
+	// the strip hides the pointer too, its clicks as the picture's.
+	top := ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(topBar(c)).AlignItems(ui.Center).DragWindow()
+	if !awake {
+		top.Cursor(ui.CursorNone)
+	}
+	top.Children(func() {
 		b := reveal(c, leaveButton(c, "返回"), awake)
+		if !awake {
+			b.Cursor(ui.CursorNone)
+		}
 		if b.Clicked() {
 			a.nowPlaying = false
 		}

@@ -199,6 +199,33 @@ func TestNowPlayingBeforeTheFirstLine(t *testing.T) {
 	}
 }
 
+// Resting, the playing page hides the pointer with its controls, as a
+// video does; moving it brings both back.
+func TestNowPlayingHidesThePointerWhenItRests(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	a.nowPlaying = true
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	tt.Move(600, 300) // over the picture
+	tt.Frame()
+	if got := tt.Cursor(); got != ui.CursorDefault {
+		t.Fatalf("pointer %v over the picture, want the default", got)
+	}
+	tt.Advance(npIdle + 300*time.Millisecond)
+	tt.Frame()
+	if got := tt.Cursor(); got != ui.CursorNone {
+		t.Errorf("pointer %v once the listener rested, want it hidden", got)
+	}
+	tt.Move(700, 320)
+	tt.Frame()
+	if got := tt.Cursor(); got != ui.CursorDefault {
+		t.Errorf("pointer %v after the move, want the default", got)
+	}
+}
+
 // The playing page's controls go once the listener rests, and come back
 // when the pointer moves: the page drawing what plays is not the listener
 // acting, which once woke it on every frame and kept it from ever resting.
@@ -228,7 +255,9 @@ func TestNowPlayingHidesItsControlsWhenTheListenerRests(t *testing.T) {
 		t.Error("the controls stayed once the listener rested")
 	}
 	tt.Move(600, 400)
-	tt.Frame()
+	// The move itself asks for the frame that brings them back: they must
+	// not wait for another act.
+	tt.Advance(50 * time.Millisecond)
 	if _, ok := tt.Find("返回"); !ok {
 		t.Error("the way back did not come with the pointer")
 	}

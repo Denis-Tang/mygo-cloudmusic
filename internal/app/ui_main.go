@@ -37,15 +37,20 @@ func (a *app) view(c *ui.Context) {
 	}
 	root := ui.Box(c).Fill()
 	// Every act of the listener wakes the playing page's tools, which
-	// sleep again once nothing moves a while.
+	// sleep again once nothing moves a while. A move that wakes them is
+	// taken, that a frame follows it: nothing of the picture changes as
+	// they come back to ask for one.
 	root.HandleInput(func(ev ui.InputEvent) bool {
-		if ev.Kind != ui.InputPointerMove && ev.Kind != ui.InputPointerDown && ev.Kind != ui.InputScroll {
+		switch ev.Kind {
+		case ui.InputPointerMove, ui.InputPointerDown, ui.InputScroll:
+		default:
 			return false
 		}
 		// The event's own time, by the window's clock: the context of the
 		// last build is not what an event between frames runs on.
+		rested := a.npOpen && ev.Time.Sub(a.npActiveAt) >= npIdle
 		a.npActiveAt = ev.Time
-		return false
+		return rested && ev.Kind == ui.InputPointerMove
 	})
 	if !c.Focused(a.searchBox) {
 		// Space plays and pauses wherever the focus is, as in Music. On

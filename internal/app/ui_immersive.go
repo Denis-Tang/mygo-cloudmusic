@@ -101,9 +101,13 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 
 	// The picture's click shows and hides the lyrics, over the band of
 	// picture above the words: under the words and the bar that come
-	// after it, which take the clicks of themselves.
+	// after it, which take the clicks of themselves. Resting, it hides the
+	// pointer with the controls.
 	b := ui.ButtonBase(c.Key("fc-cover")).Absolute().Top(topBar(c)).Left(0).Right(0).Bottom(h * 0.40).
 		FocusRing(false).Label(coverOverlayLabel(a.npPane == paneLyrics))
+	if !a.npAwake(c) {
+		b.Cursor(ui.CursorNone)
+	}
 	if b.Clicked() {
 		if a.npPane == paneLyrics {
 			a.npPane = paneCover
