@@ -6,6 +6,9 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # A tag pushed to a fork does not start its workflows here; run this on
+  # the tag instead, with the tag as the ref.
+  workflow_dispatch:
 
 permissions:
   contents: write # the draft release, and the uploads to it
