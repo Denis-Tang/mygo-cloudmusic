@@ -204,6 +204,11 @@ func (a *app) showMain() {
 
 // Run runs the app until it quits.
 func Run() error {
+	// One instance: a second launch hands its command line to the first,
+	// which shows its window (OnSecondInstance), and exits.
+	if !mygo.App.RequestSingleInstanceLock() {
+		return nil
+	}
 	a := &app{
 		playlists:  map[int64]*netease.Playlist{},
 		loadingPl:  map[int64]bool{},
@@ -307,5 +312,8 @@ func Run() error {
 	})
 	mygo.App.OnWindowAllClosed(func() {})
 	mygo.App.OnActivate(func(bool) { a.showMain() })
+	// Started again, from the menu, the tray or a shortcut, while this one
+	// runs: show the window it has, even when only the tray is left.
+	mygo.App.OnSecondInstance(func([]string, string) { a.showMain() })
 	return mygo.App.Run()
 }
