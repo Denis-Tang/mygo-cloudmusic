@@ -109,6 +109,9 @@ func TestDownloadModelFromCaptions(t *testing.T) {
 	if a.npPane != paneProgram {
 		t.Fatalf("pane %d: an episode without captions opens on 简介", a.npPane)
 	}
+	tt.Move(600, 300) // over the picture: the bar of it rises
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
 	if err := tt.Click("字幕"); err != nil {
 		t.Fatal(err)
 	}

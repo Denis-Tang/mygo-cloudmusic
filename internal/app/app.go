@@ -155,14 +155,9 @@ type app struct {
 	// click asks for, and the lyrics' scroll, glide and line. See
 	// ui_immersive.go.
 	coverScrub scrubState
-	ovScroll   ui.ScrollState
-	ovGlide    lyricGlide
-	ovAt       int
-	ovTrack    int64
-	ovLyrics   bool // the lyrics show over the picture, asked by a click
-
-	cacheUsed int64 // the bytes the song cache takes, -1 until measured
-	updates   bool  // the update plugin is used (useUpdater)
+	npActiveAt time.Time // when the listener last acted on the playing page
+	cacheUsed  int64     // the bytes the song cache takes, -1 until measured
+	updates    bool      // the update plugin is used (useUpdater)
 
 	restored     bool   // playback picked up where it was left
 	savedSession string // the session as last kept

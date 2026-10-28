@@ -36,6 +36,15 @@ func (a *app) view(c *ui.Context) {
 		c.Root().Background(ui.Transparent)
 	}
 	root := ui.Box(c).Fill()
+	// Every act of the listener wakes the playing page's tools, which
+	// sleep again once nothing moves a while.
+	root.HandleInput(func(ev ui.InputEvent) bool {
+		if ev.Kind != ui.InputPointerMove && ev.Kind != ui.InputPointerDown && ev.Kind != ui.InputScroll {
+			return false
+		}
+		a.npActiveAt = c.Now()
+		return false
+	})
 	if !c.Focused(a.searchBox) {
 		// Space plays and pauses wherever the focus is, as in Music. On
 		// the container around everything, it comes before a button the
@@ -96,6 +105,8 @@ func (a *app) shortcuts(c *ui.Context) {
 	// and swipes between pages, and the keys of Music.
 	c.OnShortcut(0, ui.KeyBack, a.back)
 	c.OnShortcut(0, ui.KeyForward, a.goForward)
+	a.npActiveAt = c.Now()
+
 	c.OnShortcut(ui.Cmd, ui.KeyBracketLeft, a.back)
 	c.OnShortcut(ui.Cmd, ui.KeyBracketRight, a.goForward)
 	c.OnShortcut(ui.Cmd, ui.KeyF, func() {
@@ -103,7 +114,15 @@ func (a *app) shortcuts(c *ui.Context) {
 		a.searchBox.Focus(c)
 	})
 	if a.nowPlaying {
-		c.OnShortcut(0, ui.KeyEscape, func() { a.nowPlaying = false })
+		// The escape leaves the reading and the drawers first, the playing
+		// page then, the pages' way back for the last.
+		c.OnShortcut(0, ui.KeyEscape, func() {
+			if a.npPane != paneCover {
+				a.npPane = paneCover
+				return
+			}
+			a.nowPlaying = false
+		})
 	}
 }
 

@@ -111,22 +111,24 @@ func TestNowPlayingHoldsStillWithoutBadge(t *testing.T) {
 	a.settings = defaultSettings()
 	a.pl.Cue([]netease.Track{{ID: 1, Name: "一", Duration: 200000}})
 	a.pl.SetLyrics(nil)
-	a.nowPlaying, a.npPane = true, paneLyrics
+	a.nowPlaying, a.npPane = true, paneCover
 	tt := ui.NewTester(a.view, 1200, 800)
+	tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+	tt.Frame()
 	var at []float32
 	for _, st := range []*netease.Stream{{Level: "lossless"}, nil} {
 		a.pl.SetStream(st)
 		tt.Frame()
 		tt.Advance(time.Second)
 		tt.Frame()
-		r, ok := tt.Find("专辑封面")
+		r, ok := tt.Find("播放进度")
 		if !ok {
-			t.Fatal("no cover")
+			t.Fatal("no progress over the playing page")
 		}
 		at = append(at, r.Y)
 	}
 	if at[0] != at[1] {
-		t.Errorf("the cover moved from %v to %v as the badge went", at[0], at[1])
+		t.Errorf("the progress moved from %v to %v as the badge went", at[0], at[1])
 	}
 }
 
@@ -140,6 +142,9 @@ func TestPaneButtonsChoosePane(t *testing.T) {
 		a.pl.SetLyrics(nil)
 		a.nowPlaying = true
 		tt := ui.NewTester(a.view, 1200, 800)
+		tt.Frame()
+		tt.Move(600, 400) // over the picture: the bar of it rises
+		tt.Advance(400 * time.Millisecond)
 		tt.Frame()
 		r, ok := tt.Find(paneButtons[pane])
 		if !ok {

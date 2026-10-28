@@ -101,10 +101,9 @@ func (a *app) nowPlayingView(c *ui.Context) {
 }
 
 func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32, pointerIn bool) {
-	pl := a.pl
 	a.commentsFor(tr)
-	// An episode has what it is about and its captions in place of lyrics;
-	// a song lyrics hidden until asked, as the cover shows.
+	// An episode has what it is about and its captions in place of
+	// lyrics; a song's lyrics hide until the picture or the bar asks.
 	switch program := tr.ProgramID != 0; {
 	case program && (a.npPane == paneLyrics || a.npPane == paneCover):
 		a.npPane = paneProgram
@@ -119,107 +118,34 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	if a.npPane != paneQueue {
 		a.queueAt = -1
 	}
-	// The panes' buttons and the top strip are for every pane; the cover's
-	// own pane is the immersive page, and the others, the cover beside the
-	// pane. The page is built last, under the strip and the buttons, that
-	// its click layer not take theirs.
-	{
-		// The cover's own pane is the immersive page, built first, under
-		// the strip and the buttons, that its full-view click layer take
-		// no click of theirs.
-		if a.npPane == paneCover {
-			a.immersive(c, tr, art, accent, w, h, pointerIn)
+	// The page itself: the cover, the words, the readers and drawers, and
+	// the bar. There is no other playing page's layout.
+	a.immersive(c, tr, art, accent, w, h, pointerIn)
+	// The top strip drags the window: over the picture, the way back to
+	// the pages, at its left, and named, where the pointer finds it. It is
+	// placed, and comes after the picture that it shows over.
+	ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(topBar(c)).AlignItems(ui.Center).DragWindow().Children(func() {
+		if leaveButton(c, "返回").Clicked() {
+			a.nowPlaying = false
 		}
-		// The top strip drags the window; the chevron closes the view,
-		// showing only while the pointer is in the window, as the panes'
-		// buttons do.
-		ui.Row(c).Height(topBar(c)).Justify(ui.Center).AlignItems(ui.Center).DragWindow().Children(func() {
-			reveal(ui.Box(c.Key("close-reveal")), pointerIn).Children(func() {
-				if iconButton(c.Key("close"), iconDown, 22, white.Alpha(0.7), "关闭").Clicked() {
-					a.nowPlaying = false
-				}
-			})
-		})
-		// The panes' buttons, over the top right of the strip: they open
-		// a pane, or, paneCover, return to the cover. On the strip, not
-		// in it: a drag's press would take their clicks. An episode has
-		// others than a song: what it is about, and its captions, in
-		// place of the lyrics.
-		ui.Row(c.Key("np-buttons")).Absolute().Top(topBar(c)).Right(48).AlignItems(ui.Center).Gap(6).
-			Children(func() {
-				reveal(ui.Row(c.Key("buttons")).Gap(6), pointerIn).Children(func() {
-					a.paneButton(c, paneLyrics, iconLyrics, "歌词", true)
-					a.paneButton(c, paneQueue, iconQueue, "待播清单", true)
-					// The comments' button, whose count rolls as it changes,
-					// from one song's to the next, as its tab did.
-					if a.countButton(c, paneComments).Clicked() {
-						a.choosePane(paneComments)
-					}
-					if tr.ProgramID != 0 {
-						a.paneButton(c, paneProgram, iconInfo, "简介", true)
-						if a.captionsShown() {
-							a.paneButton(c, paneCaptions, iconCaptions, "字幕", true)
-						}
-					}
-				})
-			})
-		if a.npPane == paneCover {
-			// The immersive page was it: nothing else of the panes.
-			return
-		}
-		side := float32(math.Min(float64(w)*0.36, 440))
-		ui.Row(c).Grow(1).Padding(0, 72, 44, 72).Gap(72).AlignItems(ui.Stretch).Children(func() {
-			ui.Column(c).Width(side).Justify(ui.Center).Gap(0).Children(func() {
-				a.npCover(c, tr, art, side)
-				ui.Row(c).Gap(8).AlignItems(ui.Center).Margin(36, 0, 18, 0).Justify(ui.Center).Children(func() {
-					ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
-						if r := pl.Radio(); r != "" {
-							a.radioChip(c, r)
-						}
-						ui.Text(c, tr.Name).FontSize(22).FontWeight(700).LetterSpacing(-0.3).SingleLine()
-						a.artistLinks(c, tr, white.Alpha(0.6), white, true).FontSize(15).SingleLine()
-					})
-					a.likeButton(c.Key("like"), tr, 22, white.Alpha(0.7))
-					a.songMenu(c.Key("more"), tr, 22, white.Alpha(0.7)).Margin(0, -8, 0, 0)
-				})
-				a.scrubber(c.Key("np-scrub"), &a.npScrub, white.Alpha(0.18), white.Alpha(0.9), 16, accent.Mix(white, 0.35))
-				// As tall with the quality's badge as without it: the badge goes
-				// while the next song loads, and the column would move with it.
-				ui.Row(c).Height(16).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, clock(pl.Position())).FontSize(11).FontFeatures("tnum").TextColor(white.Alpha(0.5))
-					ui.Spacer(c)
-					qualityBadge(c, pl.Stream())
-					ui.Spacer(c)
-					status := "-" + clock(pl.Duration()-pl.Position())
-					if pl.Loading() {
-						status = "正在缓冲…"
-					}
-					ui.Text(c, status).FontSize(11).FontFeatures("tnum").TextColor(white.Alpha(0.5))
-				})
-				ui.Box(c).Margin(14, 0, 18, 0).Children(func() {
-					a.transport(c, white, white.Alpha(0.45), accent, 28)
-				})
-				ui.Row(c).Justify(ui.Center).Children(func() {
-					a.volumeSlider(c, white.Alpha(0.7), white.Alpha(0.18), 180)
-				})
-			})
-			pane := ui.Column(c.Key("pane")).Grow(1).Basis(0).MinWidth(0)
-			pane.Children(func() {
-				switch a.npPane {
-				case paneLyrics:
-					a.lyricsPane(c, tr, h)
-				case paneComments:
-					a.commentsPane(c, tr)
-				case paneProgram:
-					a.programPane(c, tr)
-				case paneCaptions:
-					a.captionsPane(c, tr, h)
-				default:
-					a.queuePane(c)
-				}
-			})
-		})
+	})
+}
+
+// leaveButton is the pill at the top left of the playing page, which goes
+// back to the page under it.
+func leaveButton(c *ui.Context, label string) ui.Element {
+	b := ui.ButtonBase(c.Key("leave")).Height(32).PaddingX(12).Gap(4).Radius(999).FocusRing(false).
+		AlignItems(ui.Center).Label(label).Margin(0, 0, 0, 14)
+	bg := ui.RGBA(0, 0, 0, 0.22)
+	if b.Hovered() {
+		bg = ui.RGBA(0, 0, 0, 0.36)
 	}
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(white)
+	b.Children(func() {
+		ui.Icon(c, iconDown).Size(15, 15)
+		ui.Text(c, label).FontSize(13).FontWeight(600).TextColor(white)
+	})
+	return b
 }
 
 // paneButton is one of the buttons over the top of Now Playing, which open
