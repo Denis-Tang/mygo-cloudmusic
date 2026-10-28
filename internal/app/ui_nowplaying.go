@@ -26,6 +26,11 @@ func (a *app) npState(c *ui.Context) (open, settled bool) {
 	now := c.Now()
 	if open != a.npOpen {
 		a.npOpen, a.npChangedAt = open, now
+		if open {
+			// Shown, the page brings its tools with it: opening it by the
+			// menu bar sends no pointer into the window.
+			a.npActiveAt = now
+		}
 		// A build once it is at rest: to stop painting what it covers, or
 		// itself once gone.
 		c.After(npSettle)
@@ -90,17 +95,15 @@ func (a *app) nowPlayingView(c *ui.Context) {
 
 	root := ui.Box(c.Key("now-playing")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
 		Background(ui.Hex("#0b0b0d")).TextColor(white)
-	// The pointer is over the view whenever it is in the window.
-	pointerIn := root.Hovered()
 	root.Children(func() {
 		a.backdrop(c, shown, tint)
 		// Over the backdrop, which is positioned too: positioned elements
 		// paint over those in the flow.
-		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Children(func() { a.nowPlayingBody(c, tr, art, accent, w, h, pointerIn) })
+		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Children(func() { a.nowPlayingBody(c, tr, art, accent, w, h) })
 	})
 }
 
-func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32, pointerIn bool) {
+func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32) {
 	a.commentsFor(tr)
 	// An episode has what it is about and its captions in place of
 	// lyrics; a song's lyrics hide until the picture or the bar asks.
@@ -120,12 +123,15 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	}
 	// The page itself: the cover, the words, the readers and drawers, and
 	// the bar. There is no other playing page's layout.
-	a.immersive(c, tr, art, accent, w, h, pointerIn)
+	awake := a.npAwake(c)
+	a.immersive(c, tr, art, accent, w, h)
 	// The top strip drags the window: over the picture, the way back to
 	// the pages, at its left, and named, where the pointer finds it. It is
-	// placed, and comes after the picture that it shows over.
+	// placed, and comes after the picture that it shows over. The pill goes
+	// with the bar once the listener rests; the strip stays to drag.
 	ui.Row(c).Absolute().Top(0).Left(0).Right(0).Height(topBar(c)).AlignItems(ui.Center).DragWindow().Children(func() {
-		if leaveButton(c, "返回").Clicked() {
+		b := reveal(c, leaveButton(c, "返回"), awake)
+		if b.Clicked() {
 			a.nowPlaying = false
 		}
 	})
@@ -152,8 +158,9 @@ func leaveButton(c *ui.Context, label string) ui.Element {
 // a pane of it, or, paneCover, return to the cover: lit where shown, gone
 // in a pane's own view. Songs and episodes the icons differ of, and an
 // episode's buttons the labels of, show when ok is set for: captions only
-// once the model is there, and its comments by its tab.
-func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok bool) {
+// once the model is there, and its comments by its tab. A bar too narrow
+// to name them shows their icons alone.
+func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok, named bool) {
 	if !ok {
 		return
 	}
@@ -161,6 +168,9 @@ func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok
 	// The button's name names where it goes: the panes' names are other
 	// elements' too, as the song's menu's items are.
 	b := ui.ButtonBase(c.Key(label)).Padding(6, 14).Radius(999).FocusRing(false).Label(label + "面板").Gap(6)
+	if !named {
+		b.Padding(6, 10)
+	}
 	bg, fg := white.Alpha(0.06), white.Alpha(0.6)
 	if at {
 		bg, fg = white.Alpha(0.14), white
@@ -170,7 +180,9 @@ func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
 	b.Children(func() {
 		ui.Icon(c, icon).Size(13, 13)
-		ui.Text(c, label).FontSize(13).FontWeight(600).TextColor(fg)
+		if named {
+			ui.Text(c, label).FontSize(13).FontWeight(600).TextColor(fg)
+		}
 	})
 	if b.Clicked() {
 		a.choosePane(pane)
@@ -179,8 +191,11 @@ func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok
 
 // countButton is the comments' pane's button: its count, kept rolling as
 // one song's gives to the next, in the wheels of a counter.
-func (a *app) countButton(c *ui.Context, pane int) ui.Element {
+func (a *app) countButton(c *ui.Context, pane int, named bool) ui.Element {
 	b := ui.ButtonBase(c.Key("评论面板")).Padding(6, 14).Radius(999).FocusRing(false).Label("评论面板").Gap(6)
+	if !named {
+		b.Padding(6, 10)
+	}
 	bg, fg := white.Alpha(0.06), white.Alpha(0.6)
 	if a.npPane == pane {
 		bg, fg = white.Alpha(0.14), white
@@ -190,7 +205,9 @@ func (a *app) countButton(c *ui.Context, pane int) ui.Element {
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
 	b.Children(func() {
 		ui.Icon(c, iconComment).Size(13, 13)
-		ui.Text(c, "评论").FontSize(13).FontWeight(600).TextColor(fg)
+		if named {
+			ui.Text(c, "评论").FontSize(13).FontWeight(600).TextColor(fg)
+		}
 		// The count rolls as it changes: kept, where its tab kept it.
 		n, text := a.commentCount(), ""
 		if n > 0 {
@@ -202,14 +219,21 @@ func (a *app) countButton(c *ui.Context, pane int) ui.Element {
 	return b
 }
 
-// reveal fades e in while the pointer is in the window, and out when it
-// leaves.
-func reveal(e ui.Element, shown bool) ui.Element {
-	pose := ui.Pose{Fade: 1}
+// reveal fades e in while the listener is at the playing page and out once
+// they rest, and, the fade over, leaves it taking nothing, so that a click
+// where it was falls on the picture under it. Only the listener wakes it:
+// the page's own frames, drawn for the words as they are sung, must not.
+func reveal(c *ui.Context, e ui.Element, shown bool) ui.Element {
+	to := float32(0)
 	if shown {
-		pose = ui.Pose{}
+		to = 1
 	}
-	return e.AnimatePose(pose, ui.Animation{Duration: 200 * time.Millisecond})
+	fade := e.AnimateTo("shown", to, ui.Animation{Duration: 200 * time.Millisecond})
+	e.Opacity(fade)
+	if !shown && fade < 0.02 {
+		e.Invisible()
+	}
+	return e
 }
 
 // lyricsPaneChosen is the pane of lyrics the listener chose last: what

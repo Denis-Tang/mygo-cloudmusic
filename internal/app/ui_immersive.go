@@ -66,7 +66,7 @@ var blendShader = sync.OnceValue(func() *shader.Shader { return shader.MustCompi
 // words over it, the lyrics and the drawers, and the bar at the foot. It
 // is the same view in every pane; the panes only say what shows over the
 // picture.
-func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32, pointerIn bool) {
+func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32) {
 	// The picture itself, over the backdrop the view keeps behind it: the
 	// cover sharp and its own blur, the two of one size, that the left of
 	// a wide view is the picture and its right the softness of the same
@@ -129,7 +129,7 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 	}
 
 	// The bar at the foot, hiding once the listener rests.
-	a.immBar(c, tr, accent, pointerIn)
+	a.immBar(c, tr, accent, w)
 }
 
 // infoCol is how tall the information of the song is, name, singer and
@@ -270,20 +270,26 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 	})
 }
 
+// immBarWide is how wide the playing page is for the bar to name its
+// entries: narrower, their names would cost the volume and the rest their
+// room, and they show as their icons alone.
+const immBarWide = 1000
+
 // immBar is the bar at the foot of the playing page: the progress, with
 // the times it stands between, and the controls, the summary of what
 // plays at their left, the entries of the page, the quality, its volume
 // and the rest at their right. It shows while the listener is at it, and
 // softens away once they rest.
-func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, pointerIn bool) {
+func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float32) {
 	pl := a.pl
 	awake := a.npAwake(c)
+	named := w >= immBarWide
 	if awake {
 		// Asleep again after the wait, a build turns the tools to their
 		// hiding pose.
 		c.After(npIdle - c.Now().Sub(a.npActiveAt) + 10*time.Millisecond)
 	}
-	reveal(ui.Column(c.Key("fc-bar")).Absolute().Left(0).Right(0).Bottom(18).Padding(0, 28).Gap(6), awake).Children(func() {
+	reveal(c, ui.Column(c.Key("fc-bar")).Absolute().Left(0).Right(0).Bottom(18).Padding(0, 28).Gap(6), awake).Children(func() {
 		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
 			ui.Text(c, clock(pl.Position())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.55)).Width(40).TextAlign(ui.End)
 			a.scrubber(c.Key("fc-scrub"), &a.coverScrub, white.Alpha(0.24), white.Alpha(0.92), 12, accent).Grow(1)
@@ -306,20 +312,25 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, pointerI
 			// The playing page's entries, once each; the quality, the
 			// volume and the rest at the right.
 			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Justify(ui.End).AlignItems(ui.Center).Gap(6).Children(func() {
-				a.paneButton(c, paneLyrics, iconLyrics, "歌词", true)
-				a.paneButton(c, paneQueue, iconQueue, "待播清单", true)
-				if a.countButton(c, paneComments).Clicked() {
+				// The quality of the stream, and the song put in a playlist
+				// from the page itself; an episode belongs to none.
+				qualityBadge(c, pl.Stream())
+				if tr.ProgramID == 0 {
+					a.collectButton(c, tr)
+				}
+				a.paneButton(c, paneLyrics, iconLyrics, "歌词", true, named)
+				a.paneButton(c, paneQueue, iconQueue, "待播清单", true, named)
+				if a.countButton(c, paneComments, named).Clicked() {
 					a.choosePane(paneComments)
 				}
 				// An episode has its description and its captions for the song's
 				// lyrics and queue.
 				if tr.ProgramID != 0 {
-					a.paneButton(c, paneProgram, iconInfo, "简介", true)
+					a.paneButton(c, paneProgram, iconInfo, "简介", true, named)
 					if a.captionsShown() {
-						a.paneButton(c, paneCaptions, iconCaptions, "字幕", true)
+						a.paneButton(c, paneCaptions, iconCaptions, "字幕", true, named)
 					}
 				}
-				qualityBadge(c, pl.Stream())
 				a.volumeButton(c.Key("volume"), white.Alpha(0.7))
 				a.songMenu(c.Key("more"), tr, 18, white.Alpha(0.7))
 			})

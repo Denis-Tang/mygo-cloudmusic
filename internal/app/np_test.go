@@ -172,3 +172,41 @@ var paneButtons = map[int]string{
 	paneQueue:    "待播清单面板",
 	paneComments: "评论面板",
 }
+
+// The playing page's controls go once the listener rests, and come back
+// when the pointer moves: the page drawing what plays is not the listener
+// acting, which once woke it on every frame and kept it from ever resting.
+func TestNowPlayingHidesItsControlsWhenTheListenerRests(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	a.nowPlaying = true
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if _, ok := tt.Find("返回"); !ok {
+		t.Fatal("no way back over the picture")
+	}
+	if _, ok := tt.Find("歌词"); !ok {
+		t.Fatal("no controls over the picture")
+	}
+	tt.Advance(npIdle + 200*time.Millisecond)
+	tt.Frame()
+	if d := tt.Now().Sub(a.npActiveAt); d < npIdle {
+		t.Errorf("the page woke %v ago, want it resting", d)
+	}
+	if _, ok := tt.Find("返回"); ok {
+		t.Error("the way back stayed once the listener rested")
+	}
+	if _, ok := tt.Find("歌词"); ok {
+		t.Error("the controls stayed once the listener rested")
+	}
+	tt.Move(600, 400)
+	tt.Frame()
+	if _, ok := tt.Find("返回"); !ok {
+		t.Error("the way back did not come with the pointer")
+	}
+	if _, ok := tt.Find("歌词"); !ok {
+		t.Error("the controls did not come with the pointer")
+	}
+}

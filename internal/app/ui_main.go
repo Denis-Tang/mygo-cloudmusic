@@ -42,7 +42,9 @@ func (a *app) view(c *ui.Context) {
 		if ev.Kind != ui.InputPointerMove && ev.Kind != ui.InputPointerDown && ev.Kind != ui.InputScroll {
 			return false
 		}
-		a.npActiveAt = c.Now()
+		// The event's own time, by the window's clock: the context of the
+		// last build is not what an event between frames runs on.
+		a.npActiveAt = ev.Time
 		return false
 	})
 	if !c.Focused(a.searchBox) {
@@ -91,6 +93,7 @@ func (a *app) view(c *ui.Context) {
 		a.nowPlayingLayer(c, npOpen, npSettled)
 	})
 	a.loginDialog(c)
+	a.collectDialogBody(c)
 	a.playlistNameDialog(c)
 	a.deletePlaylistDialog(c)
 	if a.toast != "" {
@@ -105,7 +108,6 @@ func (a *app) shortcuts(c *ui.Context) {
 	// and swipes between pages, and the keys of Music.
 	c.OnShortcut(0, ui.KeyBack, a.back)
 	c.OnShortcut(0, ui.KeyForward, a.goForward)
-	a.npActiveAt = c.Now()
 
 	c.OnShortcut(ui.Cmd, ui.KeyBracketLeft, a.back)
 	c.OnShortcut(ui.Cmd, ui.KeyBracketRight, a.goForward)
