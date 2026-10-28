@@ -7,6 +7,7 @@ import (
 
 	"github.com/egoist/mygo/ui"
 
+	"netease-music-mygo/internal/lyrics"
 	"netease-music-mygo/internal/netease"
 )
 
@@ -171,6 +172,31 @@ var paneButtons = map[int]string{
 	paneLyrics:   "歌词面板",
 	paneQueue:    "待播清单面板",
 	paneComments: "评论面板",
+}
+
+// Now Playing over a song at its start shows its name and singer without
+// a line: reading the lyrics as the line before the first was there
+// panicked, and opening the page over a song at 0:00 closed the app.
+func TestNowPlayingBeforeTheFirstLine(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics([]lyrics.Line{{At: 5 * time.Second, Text: "第一句"}})
+	a.pl.Hold(0)
+	a.nowPlaying = true
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if _, ok := tt.Find("宝船"); !ok {
+		t.Fatal("the song's name is gone")
+	}
+	if _, ok := tt.Find("第一句"); ok {
+		t.Error("a line shows before the song reaches it")
+	}
+	a.pl.Hold(5 * time.Second)
+	tt.Frame()
+	if _, ok := tt.Find("第一句"); !ok {
+		t.Errorf("the first line does not show once reached: %q", tt.Texts())
+	}
 }
 
 // The playing page's controls go once the listener rests, and come back

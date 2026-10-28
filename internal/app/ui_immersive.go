@@ -179,6 +179,15 @@ func (a *app) nowLine(c *ui.Context, tr *netease.Track, size, width float32) {
 	}
 	pos := pl.Position()
 	cur := lyrics.Index(lines, pos)
+	if cur < 0 {
+		// Before the song reaches its first line there is none to show; a
+		// build once it does shows it. Indexing the lines as it was here
+		// panicked on a song at its start.
+		if pl.Playing() {
+			c.After(lines[0].At - pos + 20*time.Millisecond)
+		}
+		return
+	}
 	line := lines[cur]
 	ui.Column(c).Gap(2).Width(width).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, line.Text).FontSize(size).FontWeight(650).TextColor(white.Alpha(0.94)).MaxLines(2).LineHeight(1.3).TextAlign(ui.Center)
