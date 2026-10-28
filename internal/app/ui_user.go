@@ -136,8 +136,8 @@ func (a *app) userPage(c *ui.Context) {
 				a.coverFill(c, u.AvatarURL, 600, artistPhotoSize/2)
 			})
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
-				ui.Text(c, "用户").FontSize(12).FontWeight(600).TextColor(p.accent)
-				ui.Text(c, u.Nickname).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
+				ui.Text(c, "用户").FontSize(headSub).FontWeight(600).TextColor(p.accent)
+				ui.Text(c, u.Nickname).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 				ui.Text(c, fmt.Sprintf("%s 关注 · %s 粉丝", count(u.Follows), count(u.Followeds))).FontSize(13).TextColor(p.muted)
 				if u.Signature != "" {
 					ui.Text(c, u.Signature).FontSize(12.5).TextColor(p.muted).MaxLines(2).LineHeight(1.45).Margin(2, 0, 0, 0)

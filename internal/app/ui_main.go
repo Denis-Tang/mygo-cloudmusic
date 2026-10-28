@@ -1,6 +1,7 @@
 package app
 
 import (
+	"math"
 	"runtime"
 	"time"
 
@@ -11,7 +12,17 @@ import (
 )
 
 // fullSidebar is how wide the sidebar is, as the settings show it.
-const fullSidebar = 232
+const fullSidebar = 290
+
+// sideScale is how much larger the sidebar's words are than the rest of the
+// app's, and its entries with them: the sidebar reads at a glance, and the
+// pages keep their own sizes.
+const sideScale = 1.25
+
+// sideFont is a size of the app's type, as the sidebar draws it. The sizes
+// are whole points: a fractional one draws its last letter clipped at the
+// display scales that measure the letters in pixels, as 125% does.
+func sideFont(size float32) float32 { return max(11, float32(math.Round(float64(size*sideScale)))) }
 
 // sidebarWidth is how wide the sidebar is now: nothing, hidden, where a
 // button of the page top's brings it back.
@@ -122,10 +133,11 @@ func (a *app) shortcuts(c *ui.Context) {
 	})
 	if a.nowPlaying {
 		// The escape leaves the reading and the drawers first, the playing
-		// page then, the pages' way back for the last.
+		// page then, the pages' way back for the last. The panel of the
+		// bar's [...] closes itself, as its popover takes the key first.
 		c.OnShortcut(0, ui.KeyEscape, func() {
 			if a.npPane != paneCover {
-				a.npPane = paneCover
+				a.npPane, a.npDrawer.open = paneCover, false
 				return
 			}
 			a.nowPlaying = false
@@ -234,7 +246,10 @@ func (a *app) sidebar(c *ui.Context) {
 func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 	p := a.pal
 	selected := a.route.page == r.page && !a.nowPlaying
-	b := ui.ButtonBase(c.Key(label)).Height(34).PaddingX(10).Gap(10).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	// As wide as the sidebar gives it, its sides kept: a row that took only
+	// its words' width would cut the last of them where the display draws
+	// the letters a little wider than it measures them.
+	b := ui.ButtonBase(c.Key(label)).Width(fullSidebar - 28).Height(42).PaddingX(12).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
 	bg := ui.Transparent
 	switch {
 	case selected:
@@ -248,8 +263,11 @@ func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 		color = p.accent
 	}
 	b.Children(func() {
-		ui.Icon(c, icon).Size(17, 17).TextColor(color)
-		ui.Text(c, label).FontSize(13.5).FontWeight(500).TextColor(p.text)
+		ui.Icon(c, icon).Size(21, 21).TextColor(color)
+		// The words take what the row has left, rather than just the width
+		// they measure: at some display scales the letters drawn are a
+		// little wider than measured, and the last would be cut.
+		ui.Text(c, label).FontSize(sideFont(13.5)).FontWeight(500).TextColor(p.text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 	})
 	if b.Clicked() {
 		a.open(r)

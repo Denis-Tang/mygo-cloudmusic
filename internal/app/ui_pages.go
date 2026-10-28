@@ -11,7 +11,19 @@ import (
 	"netease-music-mygo/internal/player"
 )
 
+// pagePad is the room a page keeps at its sides, and the pages of cards,
+// tracks and skeletons alike take it, that their content lines up as one
+// goes from one page to another.
 const pagePad = 40
+
+// The type of a page's head: the line saying what it is, over its title.
+// The pages of a song, an album and a person name them in the same size and
+// weight, and the sections under them read as one smaller size.
+const (
+	headTitle = 30
+	headSub   = 12
+	sectionAt = 19
+)
 
 // columns returns how many cards of at least min DIPs fit across the page.
 func (a *app) columns(c *ui.Context, min float32) int {
@@ -23,14 +35,14 @@ func (a *app) columns(c *ui.Context, min float32) int {
 func (a *app) heading(c *ui.Context, title, sub string) {
 	ui.Column(c).Gap(4).Margin(0, 0, 18, 0).Children(func() {
 		if sub != "" {
-			ui.Text(c, sub).FontSize(12).FontWeight(600).TextColor(a.pal.muted).LetterSpacing(0.4)
+			ui.Text(c, sub).FontSize(headSub).FontWeight(600).TextColor(a.pal.muted).LetterSpacing(0.4)
 		}
-		ui.Text(c, title).FontSize(30).FontWeight(700).LetterSpacing(-0.6)
+		ui.Text(c, title).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).LineHeight(1.2)
 	})
 }
 
 func (a *app) section(c *ui.Context, title string) ui.Element {
-	return ui.Text(c, title).FontSize(19).FontWeight(700).LetterSpacing(-0.3).Margin(34, 0, 14, 0)
+	return ui.Text(c, title).FontSize(sectionAt).FontWeight(700).LetterSpacing(-0.3).Margin(34, 0, 14, 0)
 }
 
 func (a *app) homePage(c *ui.Context) {
@@ -249,8 +261,8 @@ func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 			if pl.UpdateFreq != "" {
 				kind = "榜单 · " + pl.UpdateFreq
 			}
-			ui.Text(c, kind).FontSize(12).FontWeight(600).TextColor(p.accent)
-			ui.Text(c, pl.Name).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
+			ui.Text(c, kind).FontSize(headSub).FontWeight(600).TextColor(p.accent)
+			ui.Text(c, pl.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 			var meta []string
 			if pl.Creator.Nickname != "" {
 				meta = append(meta, pl.Creator.Nickname)

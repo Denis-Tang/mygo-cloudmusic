@@ -114,7 +114,7 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Padding(0, dailyPadX).Gap(28).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
 				ui.Textf(c, "%d月%d日 %s · %s", now.Month(), now.Day(), weekday(now), a.dailyNote()).FontSize(12).FontWeight(600).LetterSpacing(0.3).TextColor(white.Alpha(0.66)).MaxLines(1)
-				ui.Text(c, "每日推荐").FontSize(32).FontWeight(800).LetterSpacing(-0.8).LineHeight(1.15)
+				ui.Text(c, "每日推荐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.8).LineHeight(1.15)
 				ui.Text(c, dailyArtists(songs)).FontSize(13).TextColor(white.Alpha(0.8)).MaxLines(1)
 				ui.Row(c).Gap(10).Margin(12, 0, 0, 0).Children(func() {
 					a.dailyPlayButton(c.Key("play"), songs, ours, playing)
@@ -485,8 +485,8 @@ func (a *app) dailyPage(c *ui.Context) {
 		ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
 			a.dailyArt(c, now, 212)
 			ui.Column(c).Gap(8).Children(func() {
-				ui.Text(c, "每日推荐").FontSize(12).FontWeight(600).TextColor(p.accent)
-				ui.Text(c, "每日歌曲推荐").FontSize(30).FontWeight(800).LetterSpacing(-0.6)
+				ui.Text(c, "每日推荐").FontSize(headSub).FontWeight(600).TextColor(p.accent)
+				ui.Text(c, "每日歌曲推荐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6)
 				if loading {
 					s.text(c, 13, 1.3).Width(240)
 					ui.Row(c).Gap(10).Margin(8, 0, 0, 0).Children(func() {

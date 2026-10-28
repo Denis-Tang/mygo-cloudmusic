@@ -279,7 +279,7 @@ func (a *app) fmCard(c *ui.Context) {
 					ui.Text(c, label).FontSize(12).FontWeight(600).TextColor(white.Alpha(0.75))
 				})
 				if tr == nil {
-					ui.Text(c, "听见更多好音乐").FontSize(30).FontWeight(800).LetterSpacing(-0.6)
+					ui.Text(c, "听见更多好音乐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6)
 					ui.Row(c).Margin(18, 0, 0, 0).Children(func() {
 						label := "开始收听"
 						if a.radioStarting != "" && strings.HasPrefix(a.radioStarting, "fm:") {
@@ -291,7 +291,7 @@ func (a *app) fmCard(c *ui.Context) {
 					})
 					return
 				}
-				ui.Text(c, tr.Name).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
+				ui.Text(c, tr.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 				switch {
 				case pl.Loading():
 					ui.Text(c, "正在缓冲…").FontSize(14).TextColor(white.Alpha(0.7)).SingleLine()

@@ -123,17 +123,21 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 		a.infoColumn(c, tr, w, h)
 	}
 
-	// The lyrics, reading where there is room.
+	// The lyrics, reading where there is room; an episode's program or its
+	// captions a drawer of the same picture. A song's queue and comments
+	// are the panel the bar's [...] opens, over the picture.
 	if a.npPane == paneLyrics {
 		a.reading(c, tr, w, h)
-	} else if a.npPane != paneCover {
-		// The queue, the comments, what a podcast is about or its
-		// captions: a drawer of the same picture.
+	} else if a.npPane == paneProgram || a.npPane == paneCaptions {
 		a.drawer(c, tr, w, h)
 	}
 
-	// The bar at the foot, hiding once the listener rests.
+	// The bar at the foot, hiding once the listener rests, and the panel
+	// its [...] opens over the picture, which is placed against the window.
 	a.immBar(c, tr, accent, w)
+	if a.npPane == paneQueue || a.npPane == paneComments {
+		a.npDrawerPanel(c, tr)
+	}
 }
 
 // infoCol is how tall the information of the song is, name, singer and
@@ -239,10 +243,10 @@ func (a *app) reading(c *ui.Context, tr *netease.Track, w, h float32) {
 	panel.Children(func() { a.lyricsPane(c, tr, h) })
 }
 
-// drawer shows what aids the playing page: the queue, the comments, what
-// a podcast is about, or its captions. One at a time, they cover the
-// right of the view where there is room, and most of it where there is
-// not, the bar at the foot kept beneath.
+// drawer shows what aids the playing page: what a podcast is about, or its
+// captions. One at a time, they cover the right of the view where there is
+// room, and most of it where there is not, the bar at the foot kept beneath.
+// A song's queue and comments are the [...] of the bar's, in drawerPanel.
 func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 	wide := w >= 1000
 	panel := ui.Column(c.Key("drawer"))
@@ -251,14 +255,11 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 	} else {
 		panel.Absolute().Top(topBar(c) + 6).Bottom(fcBarH + 12).Left(24).Right(24)
 	}
-	title := "待播清单"
-	if a.npPane == paneComments {
-		title = a.commentsTab()
-	} else if a.npPane == paneProgram {
-		title = "节目简介"
-	} else if a.npPane == paneCaptions {
+	title := "节目简介"
+	if a.npPane == paneCaptions {
 		title = "字幕"
 	}
+	// Its corners are the panel's of the [...] the bar opens.
 	panel.Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.82)).Border(1, white.Alpha(0.1)).
 		Shadow(0, 30, 70, -20, ui.RGBA(0, 0, 0, 0.5)).
 		Padding(10, 14, 12, 14).AlignItems(ui.Stretch).TextColor(white)
@@ -274,10 +275,6 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 		// Its body, which keeps its scroll of itself.
 		ui.Box(c).Grow(1).AlignItems(ui.Stretch).Children(func() {
 			switch a.npPane {
-			case paneQueue:
-				a.queuePane(c)
-			case paneComments:
-				a.commentsPane(c, tr)
 			case paneProgram:
 				a.programPane(c, tr)
 			default:
@@ -291,6 +288,13 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 // entries: narrower, their names would cost the volume and the rest their
 // room, and they show as their icons alone.
 const immBarWide = 1000
+
+// immBarEdge is the room the bar keeps at either side for the time it
+// stands next to, which the row of controls takes too, that what sits at
+// the left of one lines up with the left of the other, and what sits at
+// the right of one with the right of the other: the progress bar crosses
+// neither, and the entries begin where it ends.
+const immBarEdge = 52
 
 // immBar is the bar at the foot of the playing page: the progress, with
 // the times it stands between, and the controls, the summary of what
@@ -307,12 +311,19 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 		c.After(npIdle - c.Now().Sub(a.npActiveAt) + 10*time.Millisecond)
 	}
 	reveal(c, ui.Column(c.Key("fc-bar")).Absolute().Left(0).Right(0).Bottom(18).Padding(0, 28).Gap(6), awake).Children(func() {
-		ui.Row(c).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, clock(pl.Position())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.55)).Width(40).TextAlign(ui.End)
+		// The times stand outside the bar either side, on its middle: the
+		// rows below keep their room from them, so that what sits at the
+		// left of the one and the right of the other line up.
+		ui.Row(c).AlignItems(ui.Center).Children(func() {
+			ui.Box(c).Width(immBarEdge).Children(func() {
+				ui.Text(c, clock(pl.Position())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.55)).TextAlign(ui.End).Fill()
+			})
 			a.scrubber(c.Key("fc-scrub"), &a.coverScrub, white.Alpha(0.24), white.Alpha(0.92), 12, accent).Grow(1)
-			ui.Text(c, clock(pl.Duration())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.55)).Width(40)
+			ui.Box(c).Width(immBarEdge).Children(func() {
+				ui.Text(c, clock(pl.Duration())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.55)).Fill()
+			})
 		})
-		ui.Row(c).Height(52).AlignItems(ui.Center).Gap(14).Children(func() {
+		ui.Row(c).Height(52).Padding(0, immBarEdge).AlignItems(ui.Center).Gap(14).Children(func() {
 			// The summary of what plays, at the left, and what one may
 			// think of it; the words it takes have room, and give it up.
 			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Gap(10).AlignItems(ui.Center).Children(func() {
@@ -327,30 +338,112 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 			// whatever the words beside them do.
 			a.transport(c, white, white.Alpha(0.45), white, 24)
 			// The playing page's entries, once each; the quality, the
-			// volume and the rest at the right.
-			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Justify(ui.End).AlignItems(ui.Center).Gap(6).Children(func() {
+			// volume and the drawer at the right. The drawer's entries are
+			// its one button, which opens them towards the middle of the
+			// page, a click on it again closing them.
+			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Justify(ui.End).AlignItems(ui.Center).Gap(2).Children(func() {
 				// The quality of the stream, and the song put in a playlist
 				// from the page itself; an episode belongs to none.
 				qualityBadge(c, pl.Stream())
 				if tr.ProgramID == 0 {
 					a.collectButton(c, tr)
 				}
-				a.paneButton(c, paneLyrics, iconLyrics, "歌词", true, named)
-				a.paneButton(c, paneQueue, iconQueue, "待播清单", true, named)
-				if a.countButton(c, paneComments, named).Clicked() {
-					a.choosePane(paneComments)
-				}
-				// An episode has its description and its captions for the song's
-				// lyrics and queue.
+				// An episode has its description and its captions for a
+				// song's drawer.
 				if tr.ProgramID != 0 {
 					a.paneButton(c, paneProgram, iconInfo, "简介", true, named)
 					if a.captionsShown() {
 						a.paneButton(c, paneCaptions, iconCaptions, "字幕", true, named)
 					}
 				}
+				a.drawerButton(c, tr, named)
 				a.volumeButton(c.Key("volume"), white.Alpha(0.7))
-				a.songMenu(c.Key("more"), tr, 18, white.Alpha(0.7))
 			})
+		})
+	})
+}
+
+// npDrawerW is how wide the panel of the bar's [...] is, and npDrawerH how
+// tall it may grow: as much of the page as reads without covering it all,
+// over the middle of the window rather than over its right, as a menu of
+// the system opens towards what it belongs to.
+const (
+	npDrawerW = 380
+	npDrawerH = 400
+	// drawerHead is how tall each of the panel's lists names itself.
+	drawerHead = 30
+)
+
+// npDrawer is the [...] of the bar's panel, as the popover it opens shows:
+// open while it shows, which its entry toggles, and dismissed when a press
+// falls outside it, or the escape key.
+type npDrawer struct {
+	open    bool
+	scrolls [2]ui.ScrollState // the queue's, and the comments'
+	box     ui.Rect           // the panel's box last laid out
+	more    ui.Rect           // the [...] that opens it, last laid out
+}
+
+// npDrawerPanel shows what aids a song's playing, in the panel the bar's
+// [...] opens: the queue and the comments, one under the other, each as
+// tall as the page gives it. It floats over the middle of the window,
+// rather than at the button's end of the bar, as a menu rises from what it
+// belongs to, and covers the picture until closed.
+func (a *app) npDrawerPanel(c *ui.Context, tr *netease.Track) {
+	d := &a.npDrawer
+	w, h := c.Size()
+	boxW, boxH := float32(npDrawerW), min(npDrawerH, max(h*0.62, 260))
+	// Over the middle of the window, its foot clearing the bar.
+	box := ui.Column(c.Key("np-drawer")).Width(boxW).Height(boxH).
+		Absolute().Left(w/2-boxW/2).Bottom(fcBarH+18).
+		Padding(8, 10, 10, 10).Gap(2).
+		Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.92)).Border(1, white.Alpha(0.1)).
+		Shadow(0, 30, 70, -20, ui.RGBA(0, 0, 0, 0.55)).TextColor(white).
+		AlignItems(ui.Stretch).TransformOrigin(0.5, 1)
+	box.Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94, Y: 12}, Exit: &ui.Motion{Scale: 0.96, Y: 6}})
+	// What the panel holds is the room its two lists have, short of their
+	// heads, the line between them and the panel's own padding: the queue's
+	// rows are read first, so its list takes the larger part of it.
+	const divider, pad = 5, 18 // as the line between them and the box lay them out
+	head := float32(drawerHead)
+	rows := boxH - pad - 2*head - divider
+	box.Children(func() {
+		a.drawerList(c, d, "待播清单", iconQueue, head+rows*0.6, &d.scrolls[0], nil, func() { a.queuePane(c) })
+		ui.Box(c).Height(1).Margin(4, 2).Background(white.Alpha(0.08))
+		a.drawerList(c, d, "评论", iconComment, head+rows*0.4, &d.scrolls[1], &a.tabCount, func() { a.commentsPane(c, tr) })
+	})
+	// The [...] that opened it closes it again, and the escape key too.
+	// A press on the picture is the picture's, which shows the lyrics: the
+	// panel stays as it is under it.
+	if box.OverlayShortcut(0, ui.KeyEscape) {
+		a.npPane, d.open = paneCover, false
+	}
+}
+
+// drawerList is one of the panel's lists: its head, which says what it is,
+// over its rows, which scroll under it. h is how tall it is: the queue's
+// rows are read first, so it takes the larger part of the panel, and the
+// comments below it the rest. count, if set, rolls the number on the head
+// as one song's gives to the next.
+func (a *app) drawerList(c *ui.Context, d *npDrawer, title string, icon *ui.SVG, h float32, scroll *ui.ScrollState, roll *rollState, rows func()) {
+	ui.Column(c).Height(h).Shrink(0).AlignItems(ui.Stretch).Children(func() {
+		ui.Row(c).Height(drawerHead).Padding(2, 8).Gap(7).AlignItems(ui.Center).TextColor(white.Alpha(0.6)).Children(func() {
+			ui.Icon(c, icon).Size(13, 13)
+			ui.Text(c, title).FontSize(12.5).FontWeight(700).LetterSpacing(0.2).Grow(1).SingleLine()
+			if roll != nil {
+				n := a.commentCount()
+				text := ""
+				if n > 0 {
+					text = " " + count(n)
+				}
+				rollCount(c, roll, n, text, white.Alpha(0.6))
+			}
+		})
+		// Its rows are laid out one under the other, and stretched across
+		// the list: a row of its own width would take only its words.
+		ui.Scroll(c).Grow(1).TrackScroll(scroll).Padding(0, 2, 6, 2).Width(npDrawerW - 2*10 - 6).
+			AlignItems(ui.Stretch).Children(func() {
+			ui.Column(c).AlignItems(ui.Stretch).Children(rows)
 		})
 	})
 }
@@ -360,7 +453,7 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 // it, and so does dragging the progress, or the volume's popover.
 func (a *app) npAwake(c *ui.Context) bool {
 	// Reading, or a drawer's open: the bar keeps still at the foot.
-	if a.npPane != paneCover || a.npScrub.active || a.coverScrub.active || a.volumeOpen {
+	if a.npPane != paneCover || a.npDrawer.open || a.npScrub.active || a.coverScrub.active || a.volumeOpen {
 		return true
 	}
 	return c.Now().Sub(a.npActiveAt) < npIdle

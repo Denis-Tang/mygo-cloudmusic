@@ -92,13 +92,15 @@ func (a *app) commentsTab() string {
 	return "评论"
 }
 
-// commentCount is the count the comments' tab shows: the last song's
+// commentCount is the count the comments' head shows: the last song's
 // while the next one's loads, so that it rolls from one to the other.
 func (a *app) commentCount() int {
 	switch cs := &a.comments; {
 	case cs.loaded:
+		a.tabCount.n = cs.total
 		return cs.total
 	case cs.err != "":
+		a.tabCount.n = 0
 		return 0
 	}
 	return a.tabCount.n
@@ -197,7 +199,7 @@ func (a *app) commentsPane(c *ui.Context, tr *netease.Track) {
 		return
 	}
 	now := c.Now()
-	scroll := ui.Scroll(c.Key("comments")).Grow(1).TrackScroll(&cs.scroll).Padding(4, 8, 48, 0)
+	scroll := ui.Scroll(c.Key("comments")).Grow(1).TrackScroll(&cs.scroll).Padding(0, 0, 32, 0)
 	var end ui.Rect
 	scroll.Children(func() {
 		ui.Column(c).Gap(2).Children(func() {
@@ -214,7 +216,7 @@ func (a *app) commentsPane(c *ui.Context, tr *netease.Track) {
 			if cs.loading {
 				commentSkeleton(c.Key("more"), npShimmer(c), 2)
 			}
-			ui.Row(c.Key("foot")).Height(56).Center().Children(func() {
+			ui.Row(c.Key("foot")).Height(44).Center().Children(func() {
 				switch {
 				case cs.loading:
 				case cs.err != "":

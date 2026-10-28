@@ -313,11 +313,12 @@ func (a *app) artistPage(c *ui.Context) {
 	a.trackRows(c, songs, true, header)
 }
 
-// scrollPage scrolls a page of cards and rows, inset as one of tracks is:
-// a tab of a page that lists tracks puts its header in the same place.
+// scrollPage scrolls a page of cards and rows, inset as the pages of cards
+// are: a tab of a page that lists tracks puts its header where the page it
+// opens from has its own, whatever it shows.
 func (a *app) scrollPage(c *ui.Context, content func()) {
 	top, bottom := a.insets(c)
-	ui.Scroll(c.Key(a.route)).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad-12, bottom+32, pagePad-12).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
+	ui.Scroll(c.Key(a.route)).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
 		defer a.endMark(c)
 		content()
@@ -349,8 +350,8 @@ func (a *app) artistHeader(c *ui.Context, d *artistData) {
 			a.coverFill(c, photo, 600, artistPhotoSize/2)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
-			ui.Text(c, "歌手").FontSize(12).FontWeight(600).TextColor(p.accent)
-			ui.Text(c, ar.Name).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
+			ui.Text(c, "歌手").FontSize(headSub).FontWeight(600).TextColor(p.accent)
+			ui.Text(c, ar.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 			var meta []string
 			if aka := distinct(append([]string{ar.Trans}, ar.Alias...)); len(aka) > 0 {
 				meta = append(meta, strings.Join(aka, " / "))

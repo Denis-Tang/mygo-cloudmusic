@@ -95,20 +95,20 @@ func (a *app) searchField(c *ui.Context) {
 	p := a.pal
 	// The field of search, and, at its left, the button that folds the
 	// sidebar away, as the official client's is: over the box, not in it.
-	row := ui.Row(c).Height(32).Gap(6).AlignItems(ui.Center).Margin(0, 0, 14, 0)
+	row := ui.Row(c).Height(40).Gap(7).AlignItems(ui.Center).Margin(0, 0, 16, 0)
 	row.Children(func() {
 		a.sidebarToggle(c, false)
-		field := ui.Row(c).Height(32).PaddingX(10).Gap(7).Radius(radiusField).AlignItems(ui.Center).Grow(1)
+		field := ui.Row(c).Height(40).PaddingX(12).Gap(8).Radius(radiusField).AlignItems(ui.Center).Grow(1)
 		if c.Focused(a.searchBox) {
 			field.Background(p.bg).Shadow(0, 0, 0, 3, p.accent.Alpha(0.25)).Border(1, p.accent.Alpha(0.6))
 		} else {
 			field.Background(p.hover).Border(1, p.hairline)
 		}
 		field.Children(func() {
-			ui.Icon(c, iconSearch).Size(14, 14).TextColor(p.muted)
+			ui.Icon(c, iconSearch).Size(17, 17).TextColor(p.muted)
 			cb := ui.ComboboxBase(c.Key("search"), &a.query)
 			in := cb.Input.Bind(&a.searchBox).Grow(1).MinWidth(0).
-				Placeholder("搜索歌曲、歌手、播客").FontSize(13).Label("搜索")
+				Placeholder("搜索歌曲、歌手、播客").FontSize(sideFont(13)).Label("搜索")
 			q := strings.TrimSpace(a.query)
 			s := &a.suggestions
 			switch {
@@ -123,11 +123,11 @@ func (a *app) searchField(c *ui.Context) {
 			}
 			cb.Popup(func(panel ui.Element) {
 				panel.AttachTo(field, ui.AnchorBottomStart, ui.AnchorTopStart).
-					Width(360).Padding(6).Margin(8, 0, 0, 0).Radius(radiusCard).
+					Width(430).Padding(7).Margin(9, 0, 0, 0).Radius(radiusCard).
 					Background(p.bg).Border(1, p.hairline).
 					Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2))
 				option := func(key, label string) ui.Element {
-					row := cb.Item(key).MinHeight(36).Padding(6, 10).Gap(10).Radius(radiusRow - 2).AlignItems(ui.Center).Label(label)
+					row := cb.Item(key).MinHeight(44).Padding(7, 11).Gap(11).Radius(radiusRow - 2).AlignItems(ui.Center).Label(label)
 					rg := ui.Transparent
 					if row.Highlighted() {
 						rg = p.hover
@@ -138,13 +138,13 @@ func (a *app) searchField(c *ui.Context) {
 				if q == "" {
 					panel.Label("搜索历史")
 					ui.Row(c).Padding(2, 4, 2, 10).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, "搜索历史").FontSize(12).TextColor(p.muted).Grow(1)
+						ui.Text(c, "搜索历史").FontSize(sideFont(12)).TextColor(p.muted).Grow(1)
 						iconButton(c.Key("clear"), iconTrash, 14, p.muted, "清空搜索历史").KeepFocus().OnClick(a.clearSearchHistory)
 					})
 					for _, h := range a.settings.SearchHistory {
 						option("history:"+h, h).Children(func() {
-							ui.Icon(c, iconSearch).Size(13, 13).TextColor(p.muted)
-							ui.Text(c, h).FontSize(13).SingleLine().Shrink(1).MinWidth(0)
+							ui.Icon(c, iconSearch).Size(15, 15).TextColor(p.muted)
+							ui.Text(c, h).FontSize(sideFont(13)).SingleLine().Shrink(1).MinWidth(0)
 						})
 					}
 					return
@@ -152,19 +152,19 @@ func (a *app) searchField(c *ui.Context) {
 				panel.Label("搜索建议")
 				// The query first, which Enter searches as typed.
 				option("query", "搜索“"+q+"”").Children(func() {
-					ui.Icon(c, iconSearch).Size(13, 13).TextColor(p.muted)
-					ui.Text(c, "搜索“"+q+"”").FontSize(13).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
+					ui.Icon(c, iconSearch).Size(15, 15).TextColor(p.muted)
+					ui.Text(c, "搜索“"+q+"”").FontSize(sideFont(13)).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
 				})
 				if s.query == q {
 					for _, sg := range s.items {
 						option(sg.key, sg.kind+"："+sg.name).Children(func() {
 							ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-								ui.Text(c, sg.name).FontSize(13).SingleLine()
+								ui.Text(c, sg.name).FontSize(sideFont(13)).SingleLine()
 								if sg.detail != "" {
-									ui.Text(c, sg.detail).FontSize(11.5).TextColor(p.muted).SingleLine()
+									ui.Text(c, sg.detail).FontSize(sideFont(11.5)).TextColor(p.muted).SingleLine()
 								}
 							})
-							ui.Text(c, sg.kind).FontSize(11.5).TextColor(p.faint)
+							ui.Text(c, sg.kind).FontSize(sideFont(11.5)).TextColor(p.faint)
 						})
 					}
 				}

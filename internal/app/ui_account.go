@@ -247,7 +247,7 @@ func (a *app) profileName() string {
 // sign in.
 func (a *app) accountRow(c *ui.Context) {
 	p := a.pal
-	b := ui.ButtonBase(c.Key("account")).Height(40).PaddingX(8).Gap(10).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	b := ui.ButtonBase(c.Key("account")).Height(48).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
 	bg := ui.Transparent
 	if b.Hovered() || a.accountOpen && a.profile != nil {
 		bg = p.hover
@@ -256,10 +256,10 @@ func (a *app) accountRow(c *ui.Context) {
 	if a.profile == nil {
 		a.accountOpen = false
 		b.Label("登录").Children(func() {
-			ui.Box(c).Size(26, 26).Radius(13).Background(p.press).Center().Children(func() {
+			ui.Box(c).Size(32, 32).Radius(16).Background(p.press).Center().Children(func() {
 				ui.Icon(c, iconUser).Size(14, 14).TextColor(p.muted)
 			})
-			ui.Text(c, "登录网易云音乐").FontSize(13).FontWeight(500).TextColor(p.muted)
+			ui.Text(c, "登录网易云音乐").FontSize(sideFont(13)).FontWeight(500).TextColor(p.muted).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		})
 		if b.Clicked() {
 			a.openLogin()
@@ -269,7 +269,7 @@ func (a *app) accountRow(c *ui.Context) {
 	prof := a.profile
 	b.Label(prof.Nickname).Expanded(a.accountOpen).Children(func() {
 		a.avatar(c, prof.AvatarURL, 26, p.press)
-		ui.Text(c, prof.Nickname).FontSize(13).FontWeight(600).SingleLine().Grow(1).Shrink(1).MinWidth(0)
+		ui.Text(c, prof.Nickname).FontSize(sideFont(13)).FontWeight(600).SingleLine().Grow(1).Shrink(1).MinWidth(0)
 		ui.Icon(c, iconUpDown).Size(13, 13).TextColor(p.faint)
 	})
 	if b.Clicked() {
@@ -315,7 +315,7 @@ func (a *app) accountMenu(c *ui.Context, row ui.Element) {
 // that does the same, if any.
 func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.Element {
 	p := a.pal
-	b := ui.ButtonBase(c.Key(label)).Role(ui.RoleMenuItem).Label(label).Height(30).PaddingX(8).Gap(9).Radius(radiusRow - 2).
+	b := ui.ButtonBase(c.Key(label)).Role(ui.RoleMenuItem).Label(label).Height(36).PaddingX(9).Gap(10).Radius(radiusRow - 2).
 		AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
 	bg := ui.Transparent
 	if b.Hovered() || b.FocusVisible() {
@@ -323,9 +323,9 @@ func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.E
 	}
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).Children(func() {
 		ui.Icon(c, icon).Size(15, 15).TextColor(p.muted)
-		ui.Text(c, label).FontSize(13).Grow(1)
+		ui.Text(c, label).FontSize(sideFont(13)).Grow(1)
 		if shortcut != "" {
-			ui.Text(c, shortcut).FontSize(12).TextColor(p.faint)
+			ui.Text(c, shortcut).FontSize(sideFont(12)).TextColor(p.faint)
 		}
 	})
 	return b
@@ -340,7 +340,7 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 	}
 	p := a.pal
 	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(18, 4, 6, 6).Children(func() {
-		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(26).PaddingX(4).Gap(6).Radius(radiusTile).
+		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(32).PaddingX(5).Gap(7).Radius(radiusTile).
 			AlignItems(ui.Center).Justify(ui.Start).Role(ui.RoleDisclosure).Label(title)
 		if b.Clicked() {
 			*collapsed = !*collapsed
@@ -352,14 +352,14 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 		}
 		b.Background(b.AnimateColor("bg", hb, ui.Animation{Duration: 120 * time.Millisecond}))
 		b.Children(func() {
-			ui.Text(c, title).FontSize(11.5).FontWeight(600).TextColor(p.faint).Grow(1)
+			ui.Text(c, title).FontSize(sideFont(11.5)).FontWeight(600).TextColor(p.faint).Grow(1)
 			arrow := iconDown
 			if *collapsed {
 				arrow = iconForward
 			}
-			ui.Icon(c, arrow).Size(12, 12).TextColor(p.faint)
+			ui.Icon(c, arrow).Size(15, 15).TextColor(p.faint)
 		})
-		if mine && iconButton(c.Key("new"), iconPlus, 13, p.faint, "新建歌单").Size(26, 26).Radius(radiusTile).Clicked() {
+		if mine && iconButton(c.Key("new"), iconPlus, 15, p.faint, "新建歌单").Size(30, 30).Radius(radiusTile).Clicked() {
 			a.newPlaylist(nil)
 		}
 	})
@@ -369,7 +369,7 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 	for i := range lists {
 		pl := &lists[i]
 		selected := a.route.page == pagePlaylist && a.route.id == pl.ID && !a.nowPlaying
-		b := ui.ButtonBase(c.Key(pl.ID)).Height(34).PaddingX(8).Gap(10).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+		b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 28).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
 		pb := ui.Transparent
 		switch {
 		case selected:
@@ -379,8 +379,8 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 		}
 		b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
 		b.Children(func() {
-			a.cover(c, pl.Cover(), 80, 22, radiusTile-1)
-			ui.Text(c, pl.Name).FontSize(13).SingleLine().Shrink(1).MinWidth(0)
+			a.cover(c, pl.Cover(), 80, 28, radiusTile-1)
+			ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		})
 		if mine && pl.SpecialType != 5 {
 			b.ContextMenu(func(m *ui.Menu) {

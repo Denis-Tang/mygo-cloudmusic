@@ -65,8 +65,8 @@ func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 			a.coverFill(c, al.PicURL, 600, 14)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
-			ui.Text(c, "专辑").FontSize(12).FontWeight(600).TextColor(p.accent)
-			ui.Text(c, al.Name).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
+			ui.Text(c, "专辑").FontSize(headSub).FontWeight(600).TextColor(p.accent)
+			ui.Text(c, al.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 			ui.RichText(c).FontSize(13).TextColor(p.muted).Children(func() {
 				for i, ar := range al.Artists {
 					if i > 0 {

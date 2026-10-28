@@ -9,30 +9,31 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
-// The count on the comments' tab holds the last song's while the next
+// The count the panel's head shows holds the last song's while the next
 // one's loads, for it to roll from one to the other, and goes once the
 // next song turns out to have none.
 func TestCommentCountHoldsWhileLoading(t *testing.T) {
 	a, tt, _ := coverApp(t)
 	a.comments = commentState{track: 2, loaded: true, total: 128}
+	a.commentCount() // what the panel's head reads, as it shows
 	tt.Frame()
 	a.pl.Next()
 	a.comments = commentState{track: 3, loading: true}
 	tt.Frame()
-	if _, ok := tt.Find("评论面板 · 128"); !ok {
-		t.Fatal("the count went as the next song's loads")
+	if got := a.commentsTab(); got != "评论 128" {
+		t.Fatalf("the head read %q as the next song's loads", got)
 	}
 	a.comments.loading, a.comments.loaded, a.comments.total = false, true, 96
 	tt.Frame()
-	if _, ok := tt.Find("评论面板 · 96"); !ok {
-		t.Error("the count did not change once loaded")
+	if got := a.commentsTab(); got != "评论 96" {
+		t.Errorf("the head read %q once loaded", got)
 	}
 	a.pl.Next()
 	a.comments = commentState{track: 1, loaded: true}
 	tt.Advance(time.Second)
 	tt.Frame()
-	if _, ok := tt.Find("评论面板 · 128"); ok {
-		t.Error("a song without comments shows a count")
+	if got := a.commentsTab(); got != "评论" {
+		t.Errorf("a song without comments reads %q", got)
 	}
 }
 
@@ -60,9 +61,10 @@ func TestEpisodeComments(t *testing.T) {
 	if a.npPane != paneProgram {
 		t.Fatalf("opened on pane %d", a.npPane)
 	}
-	if err := tt.Click("评论"); err != nil {
-		t.Fatal(err)
-	}
+	// An episode's comments open beside what it is about, the drawers of
+	// its program, rather than the [...] of a song's.
+	a.npPane = paneComments
+	tt.Frame()
 	tt.Advance(time.Second)
 	tt.Frame()
 	if a.npPane != paneComments {

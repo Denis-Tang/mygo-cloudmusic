@@ -23,7 +23,7 @@ func TestNowPlayingClosesAsOneLayer(t *testing.T) {
 	tt.Frame()
 	tt.Advance(time.Second)
 	tt.Frame()
-	if !tt.HasText("待播清单") {
+	if !tt.HasText("更多") {
 		t.Fatal("now playing did not open")
 	}
 	// Mid-way out, it still covers the page and the sidebar alike.
@@ -42,7 +42,7 @@ func TestNowPlayingClosesAsOneLayer(t *testing.T) {
 	}
 	tt.Advance(2 * time.Second)
 	tt.Frame()
-	if tt.HasText("待播清单") {
+	if tt.HasText("更多") {
 		t.Error("now playing still shows after closing")
 	}
 }
@@ -54,20 +54,34 @@ func TestQueueStaysAsATrackIsPlayed(t *testing.T) {
 		tracks = append(tracks, netease.Track{ID: int64(i + 1), Name: fmt.Sprintf("歌%02d", i), Duration: 200000})
 	}
 	a.pl.Cue(tracks)
-	a.nowPlaying, a.npPane = true, paneQueue
+	a.nowPlaying = true
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
 	tt.Frame()
-	if err := tt.Click("歌05"); err != nil {
-		t.Fatal(err)
+	tt.Move(600, 400) // the bar rises with the pointer
+	tt.Advance(400 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("更多"); err != nil {
+		t.Fatalf("the [...] opening the queue: %v", err)
 	}
+	for range 3 {
+		tt.Frame()
+		tt.Advance(100 * time.Millisecond)
+	}
+	// The queue's rows, down the top list of the panel: one of them plays.
+	row, ok := tt.Find("歌02")
+	if !ok || row.H <= 0 {
+		t.Fatalf("no row of the queue in the panel, over %q", tt.Texts())
+	}
+	tt.Press(600, row.Y+row.H/2)
+	tt.Release(600, row.Y+row.H/2)
 	tt.Frame()
 	tt.Frame()
-	if got := a.pl.Current().Name; got != "歌05" {
-		t.Fatalf("playing %q, want 歌05", got)
+	if got := a.pl.Current().Name; got != "歌02" {
+		t.Fatalf("playing %q, want 歌02", got)
 	}
 	// The tracks before it are still listed, as they were.
-	for _, s := range []string{"歌01", "歌04", "歌06", "歌09"} {
+	for _, s := range []string{"歌01", "歌03", "歌04"} {
 		if !tt.HasText(s) {
 			t.Errorf("missing %q in %q", s, tt.Texts())
 		}
@@ -133,45 +147,50 @@ func TestNowPlayingHoldsStillWithoutBadge(t *testing.T) {
 	}
 }
 
-// The buttons over the top of Now Playing choose its pane: a click on
-// one opens it, and it goes back to the cover.
-func TestPaneButtonsChoosePane(t *testing.T) {
-	for _, pane := range []int{paneLyrics, paneQueue, paneComments} {
-		a := newTestApp()
-		a.settings = defaultSettings()
-		a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
-		a.pl.SetLyrics(nil)
-		a.nowPlaying = true
-		tt := ui.NewTester(a.view, 1200, 800)
-		tt.Frame()
-		tt.Move(600, 400) // over the picture: the bar of it rises
-		tt.Advance(400 * time.Millisecond)
-		tt.Frame()
-		r, ok := tt.Find(paneButtons[pane])
-		if !ok {
-			t.Fatalf("no %s button", paneButtons[pane])
-		}
-		// The buttons show while the pointer is in the window: over one,
-		// they fade in, and once in, a click on it lands.
-		tt.Move(r.X+r.W/2, r.Y+r.H/2)
-		tt.Advance(400 * time.Millisecond)
-		tt.Frame()
-		if err := tt.Click(paneButtons[pane]); err != nil {
-			t.Fatal(err)
-		}
-		tt.Frame()
-		if a.npPane != pane {
-			t.Errorf("the %s button chose pane %d, want %d", paneButtons[pane], a.npPane, pane)
-		}
+// The [...] of the playing page's bar opens the queue and the comments
+// over the middle of the page, and a click on it again closes them, as a
+// press outside them or the escape key does.
+func TestDrawerOpensAndCloses(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	a.nowPlaying = true
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	tt.Move(600, 400) // over the picture: the bar of it rises
+	tt.Advance(400 * time.Millisecond)
+	tt.Frame()
+	tt.Move(1000, 756)
+	tt.Advance(400 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("更多"); err != nil {
+		t.Fatal(err)
 	}
-}
-
-// paneButtons name the top strip's buttons that open their panes, by
-// accessibility name, which the texts on them alone would share.
-var paneButtons = map[int]string{
-	paneLyrics:   "歌词面板",
-	paneQueue:    "待播清单面板",
-	paneComments: "评论面板",
+	tt.Frame()
+	tt.Advance(time.Second)
+	tt.Frame()
+	if !a.npDrawer.open || a.npPane != paneQueue {
+		t.Fatalf("the [...] left the panel %v, on pane %d", a.npDrawer.open, a.npPane)
+	}
+	// It opens over the middle of the page, its foot towards the button.
+	q, ok := tt.Find("待播清单")
+	if !ok {
+		t.Fatalf("no queue in the panel, over %q", tt.Texts())
+	}
+	if q.X < 300 || q.X+q.W > 900 {
+		t.Errorf("the queue's head at %.0f..%.0f: the panel should open over the middle", q.X, q.X+q.W)
+	}
+	// A click on it again closes it.
+	tt.Move(1000, 756)
+	tt.Advance(50 * time.Millisecond)
+	if err := tt.Click("更多"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.npDrawer.open || a.npPane != paneCover {
+		t.Errorf("a second click left the panel %v, on pane %d", a.npDrawer.open, a.npPane)
+	}
 }
 
 // Now Playing over a song at its start shows its name and singer without
@@ -240,7 +259,7 @@ func TestNowPlayingHidesItsControlsWhenTheListenerRests(t *testing.T) {
 	if _, ok := tt.Find("返回"); !ok {
 		t.Fatal("no way back over the picture")
 	}
-	if _, ok := tt.Find("歌词"); !ok {
+	if _, ok := tt.Find("更多"); !ok {
 		t.Fatal("no controls over the picture")
 	}
 	tt.Advance(npIdle + 200*time.Millisecond)
@@ -251,7 +270,7 @@ func TestNowPlayingHidesItsControlsWhenTheListenerRests(t *testing.T) {
 	if _, ok := tt.Find("返回"); ok {
 		t.Error("the way back stayed once the listener rested")
 	}
-	if _, ok := tt.Find("歌词"); ok {
+	if _, ok := tt.Find("更多"); ok {
 		t.Error("the controls stayed once the listener rested")
 	}
 	tt.Move(600, 400)
@@ -261,7 +280,7 @@ func TestNowPlayingHidesItsControlsWhenTheListenerRests(t *testing.T) {
 	if _, ok := tt.Find("返回"); !ok {
 		t.Error("the way back did not come with the pointer")
 	}
-	if _, ok := tt.Find("歌词"); !ok {
+	if _, ok := tt.Find("更多"); !ok {
 		t.Error("the controls did not come with the pointer")
 	}
 }

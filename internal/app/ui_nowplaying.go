@@ -127,6 +127,15 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	if a.npPane != paneQueue {
 		a.queueAt = -1
 	}
+	// A song's queue and comments are the bar's [...] panel: the pane that
+	// stands for them is the panel open, which its entry toggles, and a
+	// press outside it, or the escape key, closes. An episode has its
+	// program's drawers in their place.
+	if tr.ProgramID == 0 {
+		a.npDrawer.open = a.npPane == paneQueue || a.npPane == paneComments
+	} else {
+		a.npDrawer.open = false
+	}
 	// The page itself: the cover, the words, the readers and drawers, and
 	// the bar. There is no other playing page's layout.
 	awake := a.npAwake(c)
@@ -181,17 +190,7 @@ func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok
 	at := a.npPane == pane
 	// The button's name names where it goes: the panes' names are other
 	// elements' too, as the song's menu's items are.
-	b := ui.ButtonBase(c.Key(label)).Padding(6, 14).Radius(999).FocusRing(false).Label(label + "面板").Gap(6)
-	if !named {
-		b.Padding(6, 10)
-	}
-	bg, fg := white.Alpha(0.06), white.Alpha(0.6)
-	if at {
-		bg, fg = white.Alpha(0.14), white
-	} else if b.Hovered() {
-		fg = white
-	}
-	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
+	b, fg := barButton(c, label, named, at, label+"面板")
 	b.Children(func() {
 		ui.Icon(c, icon).Size(13, 13)
 		if named {
@@ -203,34 +202,52 @@ func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok
 	}
 }
 
-// countButton is the comments' pane's button: its count, kept rolling as
-// one song's gives to the next, in the wheels of a counter.
-func (a *app) countButton(c *ui.Context, pane int, named bool) ui.Element {
-	b := ui.ButtonBase(c.Key("评论面板")).Padding(6, 14).Radius(999).FocusRing(false).Label("评论面板").Gap(6)
-	if !named {
-		b.Padding(6, 10)
+// barButton is a button of the playing page's bar: round, as tall as the
+// others there, its name's letters when the bar has room for them, and a
+// soft disc under the pointer, lit while it stands for the pane showing.
+// The bar's entries are all of it, whatever they say, so that they sit on
+// one line and keep one height.
+func barButton(c *ui.Context, key any, named, lit bool, label string) (ui.Element, ui.Color) {
+	b := ui.ButtonBase(c).Key(key).Height(32).Center().Radius(radiusPill).FocusRing(false).Label(label)
+	if named {
+		b.PaddingX(12).Gap(6)
+	} else {
+		b.Width(36)
 	}
-	bg, fg := white.Alpha(0.06), white.Alpha(0.6)
-	if a.npPane == pane {
+	bg, fg := white.Alpha(0), white.Alpha(0.6)
+	if lit {
 		bg, fg = white.Alpha(0.14), white
 	} else if b.Hovered() {
-		fg = white
+		bg, fg = white.Alpha(0.08), white
 	}
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
+	return b, fg
+}
+
+// drawerButton is the [...] of the bar, which opens what aids the playing
+// page: the queue and the comments, at once, in a panel over the middle of
+// the page, which a click on it again closes. The panel is built with the
+// rest of the page, that its box is placed against the window.
+func (a *app) drawerButton(c *ui.Context, tr *netease.Track, named bool) {
+	open := a.npPane == paneQueue || a.npPane == paneComments
+	label := "更多"
+	if open {
+		label = "收起待播清单与评论"
+	}
+	b, fg := barButton(c, "more", named, open, label)
 	b.Children(func() {
-		ui.Icon(c, iconComment).Size(13, 13)
+		ui.Icon(c, iconMore).Size(15, 15)
 		if named {
-			ui.Text(c, "评论").FontSize(13).FontWeight(600).TextColor(fg)
+			ui.Text(c, "更多").FontSize(13).FontWeight(600).TextColor(fg)
 		}
-		// The count rolls as it changes: kept, where its tab kept it.
-		n, text := a.commentCount(), ""
-		if n > 0 {
-			text = " " + count(n)
-			b.Label("评论面板 · " + count(n))
-		}
-		rollCount(c, &a.tabCount, n, text, fg)
 	})
-	return b
+	if b.Clicked() {
+		if open {
+			a.choosePane(paneCover)
+		} else {
+			a.choosePane(paneQueue)
+		}
+	}
 }
 
 // reveal fades e in while the listener is at the playing page and out once
@@ -527,45 +544,39 @@ func (g *lyricGlide) step(c *ui.Context, s *ui.ScrollState) float32 {
 
 // queuePane lists the whole queue in play order, the track playing marked
 // among the others: a click plays one there, and the list stays as it is.
+// Its rows are laid out one under the other, in the panel that scrolls
+// them: a list of its own inside would scroll twice.
 func (a *app) queuePane(c *ui.Context) {
 	pl := a.pl
 	order, at := pl.PlayOrder()
-	// Opened, it shows the track playing at its top; after, it follows it
-	// as little as keeps it in view.
-	if at >= 0 && at != a.queueAt {
-		if a.queueAt < 0 {
-			a.queueList.ScrollTo(at, ui.Start)
-		} else {
-			a.queueList.ScrollIntoView(at)
-		}
-		a.queueAt = at
-	}
-	a.queueList.Key = func(row int) any { return order[row] }
-	ui.List(c.Key("queue"), &a.queueList, len(order), func(r int) {
-		i := order[r]
-		tr := &pl.Queue()[i]
-		playing := r == at
-		row := ui.ButtonBase(c.Key(i)).Height(58).PaddingX(10).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
-			ContextMenu(a.songItems(tr, 0))
-		switch {
-		case playing:
-			row.Background(white.Alpha(0.12))
-		case row.Hovered():
-			row.Background(white.Alpha(0.08))
-		}
-		if !tr.Playable() {
-			row.Opacity(0.4)
-		}
-		row.Children(func() {
-			a.cover(c, tr.Album.PicURL, 96, 42, radiusTile)
-			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-				ui.Text(c, tr.Name).FontSize(14).FontWeight(600).SingleLine()
-				a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(12.5).SingleLine()
+	ui.Column(c).Gap(2).Children(func() {
+		for r, i := range order {
+			tr := &pl.Queue()[i]
+			playing := r == at
+			row := ui.ButtonBase(c.Key(i)).Height(52).PaddingX(10).Gap(12).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
+				ContextMenu(a.songItems(tr, 0))
+			bg := ui.Transparent
+			switch {
+			case playing:
+				bg = white.Alpha(0.12)
+			case row.Hovered():
+				bg = white.Alpha(0.08)
+			}
+			row.Background(row.AnimateColor("bg", bg, hoverFade))
+			if !tr.Playable() {
+				row.Opacity(0.4)
+			}
+			row.Children(func() {
+				a.cover(c, tr.Album.PicURL, 96, 34, radiusTile)
+				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+					ui.Text(c, tr.Name).FontSize(13.5).FontWeight(600).SingleLine()
+					a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(12).SingleLine()
+				})
+				ui.Text(c, clock(tr.Length())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.4))
 			})
-			ui.Text(c, clock(tr.Length())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.4))
-		})
-		if row.Clicked() && tr.Playable() && !playing {
-			pl.Jump(i)
+			if row.Clicked() && tr.Playable() && !playing {
+				pl.Jump(i)
+			}
 		}
-	}).Grow(1).Padding(8, 0, 40, 0).Gap(2)
+	})
 }

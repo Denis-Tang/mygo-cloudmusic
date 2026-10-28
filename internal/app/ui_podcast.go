@@ -198,8 +198,8 @@ func (a *app) podcastPage(c *ui.Context) {
 				if pod.Category != "" {
 					kind += " · " + pod.Category
 				}
-				ui.Text(c, kind).FontSize(12).FontWeight(600).TextColor(p.accent)
-				ui.Text(c, pod.Name).FontSize(30).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
+				ui.Text(c, kind).FontSize(headSub).FontWeight(600).TextColor(p.accent)
+				ui.Text(c, pod.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 				ui.RichText(c).FontSize(13).TextColor(p.muted).Children(func() {
 					if pod.DJ.UserID != 0 {
 						a.link(c.Key("dj"), pod.DJ.Nickname, p.muted, p.text, route{page: pageUser, id: pod.DJ.UserID})

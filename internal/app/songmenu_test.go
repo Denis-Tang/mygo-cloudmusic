@@ -3,7 +3,6 @@ package app
 import (
 	"slices"
 	"testing"
-	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -19,19 +18,19 @@ func TestSongMenuCopies(t *testing.T) {
 	a := newTestApp()
 	a.settings = defaultSettings()
 	tr := netease.Track{ID: 1859245776, Name: "宝船", Artists: []netease.Artist{{Name: "DOUDOU"}, {Name: "小明"}}, Duration: 200000}
-	a.pl.Cue([]netease.Track{tr})
-	a.pl.SetLyrics(nil)
-	a.nowPlaying = true
+	a.playlists[42] = &netease.Playlist{ID: 42, Name: "飙升榜", Tracks: []netease.Track{tr}}
+	a.route = route{page: pagePlaylist, id: 42}
 	tt := ui.NewTester(a.view, 1200, 800)
-	tt.Advance(time.Second)
 	tt.Frame()
 
+	// The song's menu is its row's, by a right click: the bar's [...] is
+	// the panel of the queue and the comments.
 	for _, c := range []struct{ item, want string }{
 		{"复制歌名", "宝船"},
 		{"复制歌名和歌手", "宝船 - DOUDOU, 小明"},
 		{"复制链接", "https://music.163.com/song?id=1859245776"},
 	} {
-		if err := tt.Click("更多"); err != nil {
+		if err := tt.RightClick("宝船"); err != nil {
 			t.Fatal(err)
 		}
 		if err := tt.ChooseMenuItem(c.item); err != nil {
