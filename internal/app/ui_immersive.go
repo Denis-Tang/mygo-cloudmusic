@@ -137,12 +137,13 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 }
 
 // infoCol is how tall the information of the song is, name, singer and
-// line, so the bar may keep its room from it.
+// line, so the bar may keep its room from it: its room above the bar, the
+// words a little nearer the foot of the picture than they once sat.
 func infoCol(compact bool) float32 {
 	if compact {
-		return 118
+		return 92
 	}
-	return 158
+	return 120
 }
 
 // infoColumn sets the song's name, its singer and the line it sings at,
