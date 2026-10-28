@@ -6,7 +6,7 @@
   "out": "build",
   "updates": {
     "publicKey": "WzJsOGNIuf6mcEqo5ff8jub+NoQQOEk4JXreLPYjgyQ=",
-    "github": "egoist/mygo-cloudmusic"
+    "github": "Denis-Tang/mygo-cloudmusic"
   },
   "macos": {
     "icon": "icon/AppIcon.icon",
