@@ -307,7 +307,7 @@ func (a *app) fmCard(c *ui.Context) {
 						}
 					}
 					a.likeButton(c.Key("like"), tr, 20, white.Alpha(0.8))
-					play := ui.ButtonBase(c.Key("play")).Size(56, 56).Center().Radius(999).Background(white).TextColor(ui.Hex("#1d1d1f")).Label("播放/暂停")
+					play := ui.ButtonBase(c.Key("play")).Size(56, 56).Center().Radius(radiusPill).Background(white).TextColor(ui.Hex("#1d1d1f")).Label("播放/暂停")
 					pose := ui.Pose{}
 					if play.Pressed() {
 						pose.Scale = 0.92
@@ -343,7 +343,7 @@ func (a *app) fmCovers(c *ui.Context, tr *netease.Track) {
 			back := ui.Box(c.Key(next.ID)).Absolute().Top(16).Left(36).Size(size-32, size-32).Radius(radiusCard).Opacity(0.55).Background(white.Alpha(0.12)).
 				Shadow(0, 10, 24, -8, ui.RGBA(0, 0, 0, 0.4))
 			back.AnimatePose(ui.Pose{Rotate: 6, X: 14}, ui.Animation{Spring: ui.SpringOptions{Duration: 500 * time.Millisecond, Bounce: 0.2}})
-			back.Children(func() { a.coverFill(c, next.Album.PicURL, 400, 14) })
+			back.Children(func() { a.coverFill(c, next.Album.PicURL, 400, radiusCard) })
 		}
 		front := ui.Box(c.Key("front")).Absolute().Top(0).Left(0).Size(size, size).Radius(radiusCard).
 			Background(white.Alpha(0.12)).Shadow(0, 20, 44, -10, ui.RGBA(0, 0, 0, 0.55))
@@ -360,7 +360,7 @@ func (a *app) fmCovers(c *ui.Context, tr *netease.Track) {
 		front.AnimatePose(ui.Pose{Scale: scale}, ui.Animation{Spring: ui.SpringOptions{Duration: 600 * time.Millisecond, Bounce: 0.25}})
 		front.Children(func() {
 			ui.Box(c.Key(tr.ID)).Fill().Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.92}}).
-				Children(func() { a.coverFill(c, tr.Album.PicURL, 600, 16) })
+				Children(func() { a.coverFill(c, tr.Album.PicURL, 600, radiusCard) })
 		})
 	})
 }

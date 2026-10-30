@@ -220,7 +220,7 @@ func (a *app) commentsPane(c *ui.Context, tr *netease.Track) {
 				switch {
 				case cs.loading:
 				case cs.err != "":
-					retry := ui.ButtonBase(c.Key("retry")).Padding(6, 14).Radius(999).Background(white.Alpha(0.1)).Label("重试")
+					retry := ui.ButtonBase(c.Key("retry")).Padding(6, 14).Radius(radiusPill).Background(white.Alpha(0.1)).Label("重试")
 					retry.Children(func() {
 						ui.Text(c, "加载失败，点按重试").FontSize(12.5).TextColor(white.Alpha(0.7))
 					})
@@ -281,7 +281,7 @@ func (a *app) commentLike(c *ui.Context, cm *netease.Comment) {
 	if cm.Liked {
 		label, fg = "取消赞", a.pal.accent
 	}
-	b := ui.ButtonBase(c).Gap(4).Padding(3, 6).Margin(-3, -6).Radius(999).AlignItems(ui.Center).FocusRing(false).Label(label)
+	b := ui.ButtonBase(c).Gap(4).Padding(3, 6).Margin(-3, -6).Radius(radiusPill).AlignItems(ui.Center).FocusRing(false).Label(label)
 	if b.Hovered() && !cm.Liked {
 		fg = white.Alpha(0.75)
 	}

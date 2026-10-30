@@ -2,6 +2,9 @@ package app
 
 import (
 	"fmt"
+	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -10,6 +13,90 @@ import (
 	"netease-music-mygo/internal/lyrics"
 	"netease-music-mygo/internal/netease"
 )
+
+// The more panel folds each list, resizes at its divider, moves, and closes on an outside click.
+func TestDrawerCustomize(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.nowPlaying, a.npPane = true, paneQueue
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	tt.Advance(time.Second)
+	tt.Frame()
+	shot := func(name string) {
+		if dir := os.Getenv("NM_FRAMES"); dir != "" {
+			f, err := os.Create(filepath.Join(dir, "drawer-"+name+".png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			png.Encode(f, tt.Image())
+		}
+	}
+	shot("expanded")
+	for _, name := range []string{"待播清单", "评论"} {
+		if err := tt.Click(name); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+	}
+	if a.npDrawer.collapsed != [2]bool{true, true} {
+		t.Fatalf("collapsed = %v", a.npDrawer.collapsed)
+	}
+	tt.Advance(350 * time.Millisecond)
+	tt.Frame()
+	shot("collapsed")
+	for _, name := range []string{"待播清单", "评论"} {
+		tt.Click(name)
+		tt.Frame()
+	}
+	tt.Advance(350 * time.Millisecond)
+	tt.Frame()
+	divider, ok := tt.Find("Divider")
+	if !ok {
+		t.Fatalf("no divider: %q", tt.Texts())
+	}
+	before := a.npDrawer.share
+	x, y := divider.X+divider.W/2, divider.Y+divider.H/2
+	tt.Press(x, y)
+	tt.Move(x, y-55)
+	tt.Release(x, y-55)
+	tt.Frame()
+	if a.npDrawer.share >= before || a.npDrawer.share <= 0 {
+		t.Fatalf("divider moved share from %v to %v", before, a.npDrawer.share)
+	}
+	grip, ok := tt.Find("移动更多面板")
+	if !ok {
+		t.Fatal("no panel grip")
+	}
+	x, y = grip.X+grip.W/2, grip.Y+grip.H/2
+	tt.Press(x, y)
+	tt.Move(x+160, y-100)
+	tt.Release(x+160, y-100)
+	tt.Advance(time.Second)
+	tt.Frame()
+	if a.npDrawer.position.X < 150 || a.npDrawer.position.Y > -90 {
+		t.Fatalf("panel position = %+v", a.npDrawer.position)
+	}
+	shot("moved")
+	grip, _ = tt.Find("移动更多面板")
+	x, y = grip.X+grip.W/2, grip.Y+grip.H/2
+	tt.Press(x, y)
+	tt.Move(x+3000, y-2000)
+	tt.Release(x+3000, y-2000)
+	tt.Advance(time.Second)
+	tt.Frame()
+	panel, _ := tt.Find("待播清单与评论")
+	if panel.X < 12 || panel.Y < 8 || panel.X+panel.W > 1188 || panel.Y+panel.H > 792 {
+		t.Fatalf("panel escaped the window: %+v", panel)
+	}
+	tt.ClickAt(100, 300)
+	tt.Frame()
+	if a.npDrawer.open || a.npPane != paneCover {
+		t.Fatalf("outside click left drawer open on pane %d", a.npPane)
+	}
+}
 
 func TestNowPlayingClosesAsOneLayer(t *testing.T) {
 	a := newTestApp()

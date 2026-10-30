@@ -32,9 +32,7 @@ func editTestApp() *app {
 	return a
 }
 
-// Choosing one of the listener's playlists from a song's menu adds the
-// song to it, and the menu offers neither the liked songs nor the
-// playlist the song is listed in.
+// A song action opens the collection dialog and adds to another playlist.
 func TestAddSongToPlaylist(t *testing.T) {
 	type add struct{ pid, song int64 }
 	calls := make(chan add, 1)
@@ -47,14 +45,18 @@ func TestAddSongToPlaylist(t *testing.T) {
 	if err := tt.RightClick("宝船"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("添加到歌单", "通勤"); err == nil {
-		t.Error("offered to add the song to the playlist it is in")
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("添加到歌单"); err != nil {
+		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("添加到歌单", "小明喜欢的音乐"); err == nil {
-		t.Error("offered to add the song to the liked songs")
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if _, ok := tt.Find("添加到歌单：通勤"); ok {
+		t.Error("offered the playlist already containing the song")
 	}
-	if err := tt.ChooseMenuItem("添加到歌单", "睡前"); err != nil {
-		t.Fatalf("%v; the menu shows %q", err, tt.Menu())
+	if err := tt.Click("添加到歌单：睡前"); err != nil {
+		t.Fatal(err)
 	}
 	tt.Frame()
 	if got := <-calls; got != (add{11, 2}) {
@@ -78,8 +80,10 @@ func TestRemoveSongFromPlaylist(t *testing.T) {
 	if err := tt.RightClick("宝船"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("从歌单中移除"); err != nil {
-		t.Fatalf("%v; the menu shows %q", err, tt.Menu())
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("从歌单中移除"); err != nil {
+		t.Fatal(err)
 	}
 	tt.Frame()
 	if got := <-calls; got != (del{10, 2}) {
@@ -103,7 +107,9 @@ func TestNoRemovingFromSavedPlaylist(t *testing.T) {
 	if err := tt.RightClick("宝船"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("从歌单中移除"); err == nil {
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("从歌单中移除"); err == nil {
 		t.Error("offered to remove a song from a saved playlist")
 	}
 }
@@ -134,8 +140,7 @@ func TestCreatePlaylist(t *testing.T) {
 	}
 }
 
-// Choosing 新建歌单… from a song's menu makes the playlist, then adds the
-// song to it.
+// Creating a playlist from song actions keeps the song to add.
 func TestCreatePlaylistForSong(t *testing.T) {
 	a := editTestApp()
 	tt := ui.NewTester(a.view, 1200, 800)
@@ -143,8 +148,15 @@ func TestCreatePlaylistForSong(t *testing.T) {
 	if err := tt.RightClick("宝船"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("添加到歌单", "新建歌单…"); err != nil {
-		t.Fatalf("%v; the menu shows %q", err, tt.Menu())
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("添加到歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("创建新歌单"); err != nil {
+		t.Fatal(err)
 	}
 	tt.Frame()
 	if !a.naming.open || a.naming.add == nil || a.naming.add.ID != 2 {
@@ -171,8 +183,10 @@ func TestRenamePlaylist(t *testing.T) {
 	if err := tt.RightClick("睡前"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("重命名…"); err != nil {
-		t.Fatalf("%v; the menu shows %q", err, tt.Menu())
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("重命名…"); err != nil {
+		t.Fatal(err)
 	}
 	tt.Advance(300 * time.Millisecond)
 	tt.Frame()
@@ -201,7 +215,7 @@ func TestNoRenamingLikedSongs(t *testing.T) {
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
 	tt.RightClick("小明喜欢的音乐")
-	if err := tt.ChooseMenuItem("重命名…"); err == nil {
+	if err := tt.Click("重命名…"); err == nil {
 		t.Error("offered to rename the liked songs")
 	}
 }
@@ -222,8 +236,10 @@ func TestDeletePlaylist(t *testing.T) {
 	if err := tt.Click("更多"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("删除歌单…"); err != nil {
-		t.Fatalf("%v; the menu shows %q", err, tt.Menu())
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("删除歌单…"); err != nil {
+		t.Fatal(err)
 	}
 	tt.Advance(300 * time.Millisecond)
 	tt.Frame()
@@ -260,8 +276,10 @@ func TestCancelDeletingPlaylist(t *testing.T) {
 	if err := tt.RightClick("睡前"); err != nil {
 		t.Fatal(err)
 	}
-	if err := tt.ChooseMenuItem("删除歌单…"); err != nil {
-		t.Fatalf("%v; the menu shows %q", err, tt.Menu())
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("删除歌单…"); err != nil {
+		t.Fatal(err)
 	}
 	tt.Advance(300 * time.Millisecond)
 	tt.Frame()

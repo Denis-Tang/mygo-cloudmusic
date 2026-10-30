@@ -153,15 +153,9 @@ func (a *app) startModelDownload() {
 			shown = done
 			a.post(func() {
 				m.done, m.total = done, total
-				if a.settingsWin != nil {
-					a.settingsWin.Invalidate()
-				}
 			})
 		})
 		a.post(func() {
-			if a.settingsWin != nil {
-				a.settingsWin.Invalidate()
-			}
 			m.downloading, m.cancel = false, nil
 			switch {
 			case err == nil:

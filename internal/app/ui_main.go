@@ -63,7 +63,7 @@ func (a *app) view(c *ui.Context) {
 		a.npActiveAt = ev.Time
 		return rested && ev.Kind == ui.InputPointerMove
 	})
-	if !c.Focused(a.searchBox) {
+	if !a.settingsOpen && !c.Focused(a.searchBox) {
 		// Space plays and pauses wherever the focus is, as in Music. On
 		// the container around everything, it comes before a button the
 		// pointer focused, which would take Space as a click; on the
@@ -112,6 +112,7 @@ func (a *app) view(c *ui.Context) {
 	a.collectDialogBody(c)
 	a.playlistNameDialog(c)
 	a.deletePlaylistDialog(c)
+	a.settingsDialog(c)
 	if a.toast != "" {
 		c.Toast(a.toast)
 		a.toast = ""
@@ -228,7 +229,7 @@ func (a *app) sidebar(c *ui.Context) {
 	ui.Column(c).Fill().Padding(top, 14, 14, 14).Gap(4).DragWindow().Children(func() {
 		a.searchField(c)
 
-		ui.Scroll(c.Key("nav")).TrackScroll(&a.navScroll).Grow(1).Margin(0, -6).Padding(0, 6).Gap(4).Children(func() {
+		ui.Scroll(c.Key("nav")).TrackScroll(&a.navScroll).Grow(1).Margin(0, -6).Padding(0, 16, 0, 6).Gap(4).Children(func() {
 			a.navItem(c, iconHome, "为你推荐", route{page: pageHome})
 			a.navItem(c, iconRadio, "私人 FM", route{page: pageFM})
 			a.navItem(c, iconHeart, "我的收藏", route{page: pageCollected})
@@ -249,7 +250,7 @@ func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 	// As wide as the sidebar gives it, its sides kept: a row that took only
 	// its words' width would cut the last of them where the display draws
 	// the letters a little wider than it measures them.
-	b := ui.ButtonBase(c.Key(label)).Width(fullSidebar - 28).Height(42).PaddingX(12).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	b := ui.ButtonBase(c.Key(label)).Width(fullSidebar - 38).Height(42).PaddingX(12).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
 	bg := ui.Transparent
 	switch {
 	case selected:

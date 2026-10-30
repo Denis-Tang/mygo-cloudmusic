@@ -210,7 +210,7 @@ func (a *app) artistCard(c *ui.Context, ar *netease.ArtistProfile) {
 		} else {
 			art.Shadow(0, 2, 8, -2, p.cardShade)
 		}
-		art.Children(func() { a.coverFill(c, photo, 400, 999) })
+		art.Children(func() { a.coverFill(c, photo, 400, radiusPill) })
 		ui.Text(c, ar.Name).FontSize(13).FontWeight(500).SingleLine().AlignSelf(ui.Center)
 	})
 	if card.Clicked() {

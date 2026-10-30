@@ -150,8 +150,8 @@ type app struct {
 	sig                   playerSig
 	quitting              bool
 
-	settings    settings
-	settingsWin *mygo.Window
+	settings     settings
+	settingsOpen bool
 	// The immersive page of Now Playing keeps states of its own, where the
 	// panes keep to theirs: the bar's scrubber, the lyrics the picture's
 	// click asks for, and the lyrics' scroll, glide and line. See

@@ -308,10 +308,11 @@ func drawBars(p *ui.Painter, r ui.Rect, st *barState, n int, color ui.Color, min
 // the user chose another.
 func segmented(c *ui.Context, selected *int, labels ...string) bool {
 	t := c.Theme()
-	const height, inset, radius = 24, 2, 6 // a capsule's corners, as AppKit's
+	const inset, radius = 2, radiusTile
+	height, fontSize := t.Space(6), t.Rem(1)
 	width := float32(0)
 	for _, l := range labels {
-		w, _ := c.MeasureText(0, ui.Span{Text: l, Size: 13})
+		w, _ := c.MeasureText(0, ui.Span{Text: l, Size: fontSize})
 		width = max(width, w+26)
 	}
 	track, capsule, divider := ui.RGBA(0, 0, 0, 0.06), ui.RGB(255, 255, 255), ui.RGBA(0, 0, 0, 0.13)
@@ -323,7 +324,7 @@ func segmented(c *ui.Context, selected *int, labels ...string) bool {
 	at := parts.Track.AnimateTo("at", float32(*selected), ui.Animation{Spring: ui.SpringOptions{Duration: 280 * time.Millisecond, Bounce: 0.08}})
 	n := len(labels)
 	dark := t.Dark
-	parts.Track.Height(height).Padding(inset).Radius(radius).Background(track).Draw(func(p *ui.Painter, r ui.Rect) {
+	parts.Track.Height(height).Shrink(0).Padding(inset).Radius(radius).Background(track).Draw(func(p *ui.Painter, r ui.Rect) {
 		// Hairlines between segments, but beside the capsule.
 		for i := 1; i < n; i++ {
 			if d := float32(i) - at; d > -1 && d < 2 {
@@ -344,7 +345,7 @@ func segmented(c *ui.Context, selected *int, labels ...string) bool {
 			if seg.Pressed() && i != *selected {
 				seg.Background(divider)
 			}
-			seg.Children(func() { ui.Text(c, l).FontSize(13).TextColor(t.Text).SingleLine() })
+			seg.Children(func() { ui.Text(c, l).FontSize(fontSize).TextColor(t.Text).SingleLine() })
 		}
 	})
 	return *selected != before

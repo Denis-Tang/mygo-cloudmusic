@@ -8,35 +8,36 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// openSettings shows the settings window, opening it the first time.
+// openSettings shows settings in the middle of the main window.
 func (a *app) openSettings() {
-	if a.settingsWin != nil {
-		a.settingsWin.Show()
-		a.settingsWin.Focus()
-		a.measureCache()
-		return
-	}
+	a.settingsOpen = true
+	a.showMain()
 	a.measureCache()
-	a.settingsWin = mygo.NewWindow(mygo.WindowOptions{
-		Title:           "设置",
-		Width:           560,
-		Height:          720,
-		MinWidth:        480,
-		MinHeight:       420,
-		StateKey:        "settings",
-		DisableMaximize: true,
-		DisableMinimize: true,
-		// The app's menu has nothing for this window: on Linux and
-		// Windows it stays out of sight until Alt shows it.
-		AutoHideMenuBar: true,
-		BackgroundColor: "light-dark(#f4f4f6, #1c1c1f)",
-		Content:         ui.View(a.settingsView),
+	a.redraw()
+}
+
+func (a *app) settingsDialog(c *ui.Context) {
+	w, h := c.Size()
+	p := a.pal
+	ui.DialogBase(c.Key("settings"), &a.settingsOpen, func(backdrop, panel ui.Element) {
+		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
+		panel.Width(min(640, w-48)).Height(min(780, h-64)).Radius(radiusPanel).Clip().
+			Background(p.sidebar).Border(1, p.hairline).Label("设置").
+			Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
+			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96}, Exit: &ui.Motion{Scale: 0.98}})
+		if panel.OverlayShortcut(ui.Cmd, ui.KeyW) {
+			a.settingsOpen = false
+		}
+		panel.Children(func() {
+			ui.Row(c).Height(56).PaddingX(24).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "设置").FontSize(20).FontWeight(600).Grow(1)
+				if iconButton(c, iconX, 16, p.muted, "关闭设置").Clicked() {
+					a.settingsOpen = false
+				}
+			})
+			ui.Box(c).Grow(1).MinHeight(0).Children(func() { a.settingsView(c) })
+		})
 	})
-	a.settingsWin.OnClosed(func() {
-		a.settingsWin = nil
-		a.syncDock()
-	})
-	a.syncDock()
 }
 
 // changed applies the settings everywhere and keeps them.
@@ -53,25 +54,27 @@ func (a *app) settingsView(c *ui.Context) {
 	t := *c.Theme()
 	p := paletteFor(&t)
 	t.Accent, t.AccentText = p.accent, p.onAccent
+	t.Text, t.TextMuted = p.text, p.muted
+	t.FontSize, t.Spacing, t.Radius = 16, 5, radiusField
 	c.SetTheme(&t)
-	c.Root().Background(p.sidebar)
-	c.OnShortcut(ui.Cmd, ui.KeyW, func() { a.settingsWin.Close() })
 	s := &a.settings
 
-	ui.Scroll(c).Fill().Padding(24, 28, 32, 28).Gap(8).Children(func() {
+	ui.Scroll(c).Fill().Background(p.sidebar).Padding(24, 24, 32, 24).Gap(24).Children(func() {
 		group := func(title string, rows func()) {
-			ui.Text(c, title).FontSize(12).FontWeight(600).TextColor(p.muted).Margin(14, 4, 4, 4)
-			ui.Column(c).Radius(radiusCard).Background(p.bg).Border(1, p.hairline).Dividers(1, p.hairline).Children(rows)
+			ui.Column(c.Key(title)).Gap(10).Children(func() {
+				ui.Text(c, title).FontSize(18).FontWeight(600).MarginX(4)
+				ui.Column(c).Radius(radiusCard).Background(p.bg).Border(1, p.hairline).Dividers(1, p.hairline).Children(rows)
+			})
 		}
 		row := func(label, desc string, control func()) {
-			ui.Row(c).Padding(12, 16).Gap(16).AlignItems(ui.Center).MinHeight(48).Children(func() {
-				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
-					ui.Text(c, label).FontSize(13.5).FontWeight(500)
-					if desc != "" {
-						ui.Text(c, desc).FontSize(12).TextColor(p.muted).LineHeight(1.4)
-					}
+			ui.Column(c.Key(label)).Padding(16, 20).Gap(6).Children(func() {
+				ui.Row(c).Gap(16).AlignItems(ui.Center).MinHeight(36).Children(func() {
+					ui.Text(c, label).Grow(1).Shrink(1).MinWidth(0).FontSize(18).FontWeight(500)
+					control()
 				})
-				control()
+				if desc != "" {
+					ui.Text(c, desc).FontSize(16).TextColor(p.muted).LineHeight(1.5)
+				}
 			})
 		}
 
@@ -88,7 +91,7 @@ func (a *app) settingsView(c *ui.Context) {
 							chosen = ic.label
 						}
 					}
-					if ui.Select(c.Key("app-icon"), &chosen, labels).Label("应用图标").Width(150).Changed() {
+					if ui.Select(c.Key("app-icon"), &chosen, labels).Label("应用图标").Width(180).Shrink(0).Changed() {
 						for _, ic := range appIcons {
 							if ic.label == chosen {
 								s.AppIcon = ic.id
@@ -132,7 +135,7 @@ func (a *app) settingsView(c *ui.Context) {
 						chosen = q.label
 					}
 				}
-				if ui.Select(c.Key("quality"), &chosen, labels).Label("音质").Width(150).Changed() {
+				if ui.Select(c.Key("quality"), &chosen, labels).Label("音质").Width(180).Shrink(0).Changed() {
 					for _, q := range qualityLevels {
 						if q.label == chosen {
 							s.Quality = q.level
@@ -164,7 +167,7 @@ func (a *app) settingsView(c *ui.Context) {
 						chosen = l.label
 					}
 				}
-				if ui.Select(c.Key("cache"), &chosen, labels).Label("歌曲缓存").Width(150).Changed() {
+				if ui.Select(c.Key("cache"), &chosen, labels).Label("歌曲缓存").Width(180).Shrink(0).Changed() {
 					for _, l := range cacheLimits {
 						if l.label == chosen {
 							s.CacheMB = l.mb
@@ -201,6 +204,7 @@ func (a *app) settingsView(c *ui.Context) {
 			if a.profile == nil {
 				row("未登录", "登录后，每日推荐与歌单将根据你的口味生成", func() {
 					if ui.PrimaryButton(c.Key("login"), "扫码登录").Clicked() {
+						a.settingsOpen = false
 						a.showMain()
 						a.openLogin()
 						a.win.Invalidate()
@@ -209,11 +213,11 @@ func (a *app) settingsView(c *ui.Context) {
 				return
 			}
 			prof := a.profile
-			ui.Row(c).Padding(12, 16).Gap(12).AlignItems(ui.Center).Children(func() {
-				a.avatar(c, prof.AvatarURL, 36, p.press)
-				ui.Column(c).Grow(1).Gap(2).Children(func() {
-					ui.Text(c, prof.Nickname).FontSize(13.5).FontWeight(600)
-					ui.Text(c, "已登录网易云音乐").FontSize(12).TextColor(p.muted)
+			ui.Row(c).Padding(16, 20).Gap(12).AlignItems(ui.Center).Children(func() {
+				a.avatar(c, prof.AvatarURL, 44, p.press)
+				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
+					ui.Text(c, prof.Nickname).FontSize(18).FontWeight(600).SingleLine()
+					ui.Text(c, "已登录网易云音乐").FontSize(16).TextColor(p.muted)
 				})
 				if ui.Button(c.Key("logout"), "退出登录").Clicked() {
 					a.signOut()

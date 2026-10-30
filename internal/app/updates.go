@@ -26,8 +26,6 @@ func (a *app) useUpdater() {
 	// A check or an answer in the update window changes what the settings
 	// show.
 	updater.OnChange(func() {
-		if a.settingsWin != nil {
-			a.settingsWin.Invalidate()
-		}
+		a.redraw()
 	})
 }

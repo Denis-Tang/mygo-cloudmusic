@@ -19,7 +19,7 @@ func (a *app) dailyArt(c *ui.Context, now time.Time, size float32) {
 	if len(a.daily) > 0 {
 		art = a.art.get(netease.Sized(a.daily[0].Album.PicURL, 600), true)
 	}
-	radius := size * 0.07
+	radius := float32(radiusCard)
 	box := ui.Box(c).Size(size, size).Radius(radius).Background(ui.Hex("#3a3a40")).
 		Shadow(0, 18, 40, -10, a.pal.cardShade)
 	in := artIn(box, backdrop(art))
@@ -292,7 +292,7 @@ func dailyArtists(songs []netease.Track) string {
 // bars dancing, and pauses them; paused, it goes on.
 func (a *app) dailyPlayButton(c *ui.Context, songs []netease.Track, ours, playing bool) {
 	ink := ui.Hex("#1d1d1f")
-	b := ui.ButtonBase(c).Height(38).PaddingX(20).Gap(8).Radius(999).AlignItems(ui.Center).TextColor(ink).
+	b := ui.ButtonBase(c).Height(38).PaddingX(20).Gap(8).Radius(radiusPill).AlignItems(ui.Center).TextColor(ink).
 		Shadow(0, 6, 16, -6, ui.RGBA(0, 0, 0, 0.35))
 	fill := white
 	if b.Hovered() {
@@ -352,8 +352,7 @@ func (a *app) dailyPicks(c *ui.Context, songs []netease.Track, ours bool) {
 	ui.Column(c.Key("picks")).Width(236).Shrink(0).Gap(2).Children(func() {
 		for i := range min(3, len(songs)) {
 			tr := &songs[i]
-			row := ui.ButtonBase(c.Key(tr.ID)).Row().Gap(12).Padding(7, 12).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
-				ContextMenu(a.songItems(tr, 0))
+			row := ui.ButtonBase(c.Key(tr.ID)).Row().Gap(12).Padding(7, 12).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
 			bg := white.Alpha(0)
 			if row.Hovered() {
 				bg = white.Alpha(0.1)
@@ -372,6 +371,7 @@ func (a *app) dailyPicks(c *ui.Context, songs []netease.Track, ours bool) {
 					ui.Text(c, tr.Name).FontSize(13).FontWeight(600).MaxLines(1)
 					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(11.5).MaxLines(1)
 				})
+				a.songMenu(c, row, tr, 0, white.Alpha(0.6))
 			})
 			if row.Clicked() {
 				a.pl.PlayQueue(songs, i)
@@ -395,7 +395,7 @@ func (a *app) dailyStack(c *ui.Context, songs []netease.Track, fanned bool, out 
 			cov := ui.Box(c.Key(i)).Absolute().Left(sleeveLeft-30*float32(i)).Top((sleeveSize-size)/2).Size(size, size).Radius(radiusCover).
 				Opacity(1-0.12*float32(i)).Shadow(0, 10, 22, -6, ui.RGBA(0, 0, 0, 0.45))
 			cov.AnimatePose(pose, spring)
-			cov.Children(func() { a.coverFill(c, songs[i].Album.PicURL, 240, 10) })
+			cov.Children(func() { a.coverFill(c, songs[i].Album.PicURL, 240, radiusCover) })
 		}
 		// The record, behind its sleeve.
 		mid := float32(sleeveLeft + sleeveSize/2)
@@ -409,7 +409,7 @@ func (a *app) dailyStack(c *ui.Context, songs []netease.Track, fanned bool, out 
 			Shadow(0, 16, 30, -8, ui.RGBA(0, 0, 0, 0.5))
 		sleeve.AnimatePose(ui.Pose{Rotate: -2 * b2f(fanned), Y: -3 * b2f(fanned)}, spring)
 		sleeve.Children(func() {
-			a.coverFill(c, songs[0].Album.PicURL, 400, 12)
+			a.coverFill(c, songs[0].Album.PicURL, 400, radiusCard)
 			// Light on its gloss, and its edge.
 			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radiusCard).PassThrough().Border(1, white.Alpha(0.14)).
 				LinearGradient(ui.LinearGradient{Angle: 145, Stops: []ui.GradientStop{

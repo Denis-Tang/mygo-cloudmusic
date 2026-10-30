@@ -11,6 +11,51 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
+// Small dialogs close on outside clicks; settings stay centered when their heading is dragged.
+func TestSmallDialogsDismiss(t *testing.T) {
+	for _, name := range []string{"settings", "login", "collect", "name", "delete"} {
+		t.Run(name, func(t *testing.T) {
+			a := newTestApp()
+			a.settings = defaultSettings()
+			switch name {
+			case "settings":
+				a.settingsOpen = true
+			case "login":
+				a.login.open = true
+			case "collect":
+				a.collecting = collectDialog{open: true, tr: &netease.Track{ID: 1}}
+			case "name":
+				a.naming.open = true
+			case "delete":
+				a.deleting.open = true
+			}
+			tt := ui.NewTester(a.view, 1200, 800)
+			tt.Frame()
+			tt.Advance(time.Second)
+			tt.Frame()
+			if name == "settings" {
+				r, ok := tt.Find("设置")
+				if !ok || r.X+r.W/2 != 600 || r.Y+r.H/2 != 400 {
+					t.Fatalf("settings bounds = %+v", r)
+				}
+				tt.Press(r.X+60, r.Y+28)
+				tt.Move(r.X+180, r.Y+100)
+				tt.Release(r.X+180, r.Y+100)
+				tt.Frame()
+				moved, _ := tt.Find("设置")
+				if moved != r {
+					t.Fatalf("settings moved from %+v to %+v", r, moved)
+				}
+			}
+			tt.ClickAt(20, 300)
+			tt.Frame()
+			if a.settingsOpen || a.login.open || a.collecting.open || a.naming.open || a.deleting.open {
+				t.Fatal("outside click left the dialog open")
+			}
+		})
+	}
+}
+
 // fakeUpdater swaps the update plugin's preferences for ones in memory,
 // counting the checks asked for, until the returned function puts them
 // back.
@@ -41,28 +86,27 @@ func TestTurnOffUpdateChecks(t *testing.T) {
 	tt.Frame()
 	// The row's title is labelled as its switch is: click the switch, at
 	// the row's end.
-	toggle := func(title, desc string) {
+	toggle := func(title string) {
 		t.Helper()
-		top, ok1 := tt.Find(title)
-		bottom, ok2 := tt.Find(desc)
-		if !ok1 || !ok2 {
+		top, ok := tt.Find(title)
+		if !ok {
 			t.Fatalf("no row %s", title)
 		}
-		tt.ClickAt(560-28-16-12, (top.Y+bottom.Y+bottom.H)/2)
+		tt.ClickAt(560-24-20-22.5, top.Y+top.H/2)
 		tt.Frame()
 	}
-	toggle("自动检查更新", "每天检查一次是否有新版本")
+	toggle("自动检查更新")
 	if checks {
 		t.Fatal("checks for updates still")
 	}
-	toggle("自动下载并安装", "在后台下载新版本，下次打开时生效")
+	toggle("自动下载并安装")
 	if downloads {
 		t.Fatal("turned on installing updates without checking for them")
 	}
 	// It does turn on while the updater checks.
 	checks = true
 	tt.Frame()
-	toggle("自动下载并安装", "在后台下载新版本，下次打开时生效")
+	toggle("自动下载并安装")
 	if !downloads {
 		t.Fatal("didn't turn on installing updates")
 	}

@@ -62,7 +62,7 @@ func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 	p := a.pal
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
-			a.coverFill(c, al.PicURL, 600, 14)
+			a.coverFill(c, al.PicURL, 600, radiusCard)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
 			ui.Text(c, "专辑").FontSize(headSub).FontWeight(600).TextColor(p.accent)
@@ -120,7 +120,7 @@ func (a *app) albumCard(c *ui.Context, al *netease.AlbumProfile) {
 			art.Shadow(0, 2, 8, -2, p.cardShade)
 		}
 		art.AnimatePose(lift, ui.Snappy)
-		art.Children(func() { a.coverFill(c, al.PicURL, 400, 10) })
+		art.Children(func() { a.coverFill(c, al.PicURL, 400, radiusCover) })
 		ui.Text(c, al.Name).FontSize(13).FontWeight(500).MaxLines(2).LineHeight(1.35)
 		var meta []string
 		if a.route.page != pageArtist {

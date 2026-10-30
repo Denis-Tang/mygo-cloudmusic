@@ -191,7 +191,7 @@ func (a *app) podcastPage(c *ui.Context) {
 	a.scrollPage(c, func() {
 		ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 8, 0).Children(func() {
 			ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
-				a.coverFill(c, pod.PicURL, 600, 14)
+				a.coverFill(c, pod.PicURL, 600, radiusCard)
 			})
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
 				kind := "播客"

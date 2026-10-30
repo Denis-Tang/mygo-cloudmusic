@@ -1,14 +1,15 @@
 package app
 
 import (
-	"slices"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/netease"
 )
 
+// Song actions copy the chosen value without changing playback.
 func TestSongMenuCopies(t *testing.T) {
 	var copied string
 	real := copyText
@@ -33,8 +34,10 @@ func TestSongMenuCopies(t *testing.T) {
 		if err := tt.RightClick("宝船"); err != nil {
 			t.Fatal(err)
 		}
-		if err := tt.ChooseMenuItem(c.item); err != nil {
-			t.Fatalf("%v; the menu shows %q", err, tt.Menu())
+		tt.Advance(300 * time.Millisecond)
+		tt.Frame()
+		if err := tt.Click(c.item); err != nil {
+			t.Fatal(err)
 		}
 		tt.Frame()
 		if copied != c.want {
@@ -43,6 +46,7 @@ func TestSongMenuCopies(t *testing.T) {
 	}
 }
 
+// Right clicking opens song actions without playing the row.
 func TestSongMenuOnRightClick(t *testing.T) {
 	var copied string
 	real := copyText
@@ -62,10 +66,10 @@ func TestSongMenuOnRightClick(t *testing.T) {
 	if err := tt.RightClick("宝船"); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := tt.Menu(), []string{"复制歌名", "复制歌名和歌手", "-", "复制链接"}; !slices.Equal(got, want) {
-		t.Fatalf("the menu shows %q, want %q", got, want)
-	}
-	if err := tt.ChooseMenuItem("复制链接"); err != nil {
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+
+	if err := tt.Click("复制链接"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -74,5 +78,35 @@ func TestSongMenuOnRightClick(t *testing.T) {
 	}
 	if a.pl.Current() != nil {
 		t.Error("the right click played the song")
+	}
+}
+
+// The visible song button toggles its menu, and Escape dismisses it without playing.
+func TestSongMenuButtonAndDismiss(t *testing.T) {
+	a := editTestApp()
+	tt := ui.NewTester(a.view, 880, 580)
+	tt.Frame()
+	for range 2 {
+		if err := tt.Click("歌曲操作：宝船"); err != nil {
+			t.Fatal(err)
+		}
+		tt.Advance(300 * time.Millisecond)
+		tt.Frame()
+	}
+	if _, ok := tt.Find("复制链接"); ok {
+		t.Fatal("the second click left the menu open")
+	}
+	if err := tt.Click("歌曲操作：宝船"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if _, ok := tt.Find("复制链接"); ok {
+		t.Error("Escape left the menu open")
+	}
+	if a.pl.Current() != nil {
+		t.Error("the song action button played the row")
 	}
 }

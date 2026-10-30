@@ -244,38 +244,6 @@ func (a *app) removeFrom(pid int64, tr *netease.Track) {
 	}()
 }
 
-// playlistItems are the items of a song's menu that put it in the
-// listener's playlists, or take it out of pid, the one it is listed in, if
-// set.
-func (a *app) playlistItems(m *ui.Menu, tr *netease.Track, pid int64) {
-	if a.profile == nil {
-		return
-	}
-	m.Separator()
-	m.Submenu("添加到歌单", func(m *ui.Menu) {
-		if m.Item("新建歌单…").Chosen() {
-			a.newPlaylist(tr)
-		}
-		var to []*netease.Playlist
-		for i := range a.mine {
-			if pl := &a.mine[i]; pl.SpecialType != 5 && pl.ID != pid {
-				to = append(to, pl)
-			}
-		}
-		if len(to) > 0 {
-			m.Separator()
-		}
-		for _, pl := range to {
-			if m.Item(pl.Name).Chosen() {
-				a.addTo(pl.ID, tr)
-			}
-		}
-	})
-	if a.editable(pid) != nil && m.Item("从歌单中移除").Chosen() {
-		a.removeFrom(pid, tr)
-	}
-}
-
 // playlistNameDialog asks for the name of a playlist to make, or a new
 // name for one.
 func (a *app) playlistNameDialog(c *ui.Context) {

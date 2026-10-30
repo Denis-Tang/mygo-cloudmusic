@@ -151,7 +151,7 @@ func (a *app) coverCard(c *ui.Context, name, cover string, playCount float64, su
 		art.Children(func() {
 			a.coverFill(c, cover, 400, radiusCover)
 			if playCount > 0 {
-				ui.Row(c).Absolute().Top(8).Right(8).Padding(2, 7).Radius(999).Gap(3).AlignItems(ui.Center).
+				ui.Row(c).Absolute().Top(8).Right(8).Padding(2, 7).Radius(radiusPill).Gap(3).AlignItems(ui.Center).
 					Background(ui.RGBA(0, 0, 0, 0.35)).TextColor(ui.RGB(255, 255, 255)).Children(func() {
 					ui.Icon(c, iconHeadset).Size(10, 10)
 					ui.Text(c, plays(playCount)).FontSize(10.5).FontWeight(600)
@@ -183,7 +183,7 @@ func (a *app) coverFill(c *ui.Context, url string, px int, radius float32) {
 // coverPlayButton plays a playlist or a podcast from its card, without
 // opening it.
 func (a *app) coverPlayButton(c *ui.Context, shown bool, play func()) {
-	b := ui.ButtonBase(c.Key("play")).Absolute().Bottom(10).Right(10).Size(38, 38).Radius(999).Center().
+	b := ui.ButtonBase(c.Key("play")).Absolute().Bottom(10).Right(10).Size(38, 38).Radius(radiusPill).Center().
 		Background(a.pal.accent).TextColor(ui.RGB(255, 255, 255)).Label("播放").FocusRing(false).
 		Shadow(0, 4, 12, 0, ui.RGBA(0, 0, 0, 0.3))
 	pose := ui.Pose{Fade: 1, Scale: 0.8, Y: 6}
@@ -290,15 +290,7 @@ func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 				}
 				if mine := a.editable(pl.ID); mine != nil {
 					more := iconButton(c.Key("more"), iconMore, 18, p.muted, "更多")
-					more.Menu(func(m *ui.Menu) {
-						if m.Item("重命名…").Chosen() {
-							a.startRename(mine)
-						}
-						m.Separator()
-						if m.Item("删除歌单…").Chosen() {
-							a.confirmDelete(mine)
-						}
-					})
+					a.playlistMenu(c.Key("playlist-more"), more, mine, true)
 				}
 				switch {
 				case pl.SpecialType != 5:
@@ -356,8 +348,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 		i--
 		tr := &tracks[i]
 		playing := cur != nil && cur.ID == tr.ID
-		row := ui.ButtonBase(c.Key(tr.ID)).Height(54).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
-			ContextMenu(a.songItems(tr, pid))
+		row := ui.ButtonBase(c.Key(tr.ID)).Height(54).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
 		hovered := row.Hovered()
 		bg := ui.Transparent
 		switch {
@@ -396,11 +387,11 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				ui.RichText(c, spans...).FontSize(14).SingleLine()
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					if !tr.Playable() {
-						ui.Text(c, "VIP").FontSize(9).FontWeight(800).TextColor(p.accent).Padding(0, 4).Radius(3).Border(1, p.accent.Alpha(0.6))
+						ui.Text(c, "VIP").FontSize(9).FontWeight(800).TextColor(p.accent).Padding(0, 4).Radius(radiusTile/2).Border(1, p.accent.Alpha(0.6))
 					}
 					a.artistLinks(c, tr, p.muted, p.text).FontSize(12.5).SingleLine().Shrink(1).MinWidth(0)
 					if tr.Reason != "" {
-						ui.Text(c, tr.Reason).FontSize(10.5).FontWeight(600).TextColor(p.accent).Padding(1, 6).Radius(999).Background(p.accent.Alpha(0.1)).SingleLine()
+						ui.Text(c, tr.Reason).FontSize(10.5).FontWeight(600).TextColor(p.accent).Padding(1, 6).Radius(radiusPill).Background(p.accent.Alpha(0.1)).SingleLine()
 					}
 				})
 			})
@@ -421,6 +412,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				}
 			})
 			ui.Text(c, clock(tr.Length())).FontSize(12.5).FontFeatures("tnum").TextColor(p.faint).Width(44).TextAlign(ui.End)
+			a.songMenu(c, row, tr, pid, p.muted)
 		})
 		if row.Clicked() && tr.Playable() {
 			a.pl.PlayQueue(tracks, i)

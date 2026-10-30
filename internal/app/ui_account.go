@@ -315,6 +315,9 @@ func (a *app) accountMenu(c *ui.Context, row ui.Element) {
 // that does the same, if any.
 func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.Element {
 	p := a.pal
+	if a.npOpen {
+		p = paletteFor(&ui.Theme{Dark: true})
+	}
 	b := ui.ButtonBase(c.Key(label)).Role(ui.RoleMenuItem).Label(label).Height(36).PaddingX(9).Gap(10).Radius(radiusRow - 2).
 		AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
 	bg := ui.Transparent
@@ -323,7 +326,7 @@ func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.E
 	}
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).Children(func() {
 		ui.Icon(c, icon).Size(15, 15).TextColor(p.muted)
-		ui.Text(c, label).FontSize(sideFont(13)).Grow(1)
+		ui.Text(c, label).FontSize(sideFont(13)).TextColor(p.text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		if shortcut != "" {
 			ui.Text(c, shortcut).FontSize(sideFont(12)).TextColor(p.faint)
 		}
@@ -369,7 +372,7 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 	for i := range lists {
 		pl := &lists[i]
 		selected := a.route.page == pagePlaylist && a.route.id == pl.ID && !a.nowPlaying
-		b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 28).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+		b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
 		pb := ui.Transparent
 		switch {
 		case selected:
@@ -383,15 +386,7 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 			ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		})
 		if mine && pl.SpecialType != 5 {
-			b.ContextMenu(func(m *ui.Menu) {
-				if m.Item("重命名…").Chosen() {
-					a.startRename(pl)
-				}
-				m.Separator()
-				if m.Item("删除歌单…").Chosen() {
-					a.confirmDelete(pl)
-				}
-			})
+			a.playlistMenu(c.Key(pl.ID), b, pl, false)
 		}
 		if b.Clicked() {
 			a.open(route{page: pagePlaylist, id: pl.ID})

@@ -316,36 +316,55 @@ func TestVolumePopoverFrames(t *testing.T) {
 	}
 }
 
-// With NM_FRAMES set, saves the segmented control of the settings, light
-// and dark, at twice the scale.
-func TestSegmentedFrames(t *testing.T) {
+// With NM_FRAMES set, saves settings and their quality menu at desktop and narrow sizes.
+func TestSettingsFrames(t *testing.T) {
 	dir := os.Getenv("NM_FRAMES")
 	if dir == "" {
 		t.Skip()
 	}
-	for _, dark := range []bool{false, true} {
+	checks, downloads, checked := true, false, 0
+	defer fakeUpdater(&checks, &downloads, &checked)()
+	save := func(tt *ui.Tester, name string) {
+		f, err := os.Create(filepath.Join(dir, "settings-"+name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, tt.Image()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, scene := range []struct {
+		name  string
+		w, h  int
+		scale float32
+		dark  bool
+	}{
+		{"light", 1200, 800, 1.25, false},
+		{"dark", 1200, 800, 1.5, true},
+		{"narrow-light", 880, 580, 1.25, false},
+		{"narrow-dark", 880, 580, 1.5, true},
+	} {
 		a := newTestApp()
 		a.settings = defaultSettings()
 		a.settings.Appearance = "light"
-		tt := ui.NewTester(a.settingsView, 560, 640)
-		tt.SetScale(2)
-		tt.SetDark(dark)
+		a.updates = true
+		a.settingsOpen = true
+		tt := ui.NewTester(a.view, scene.w, scene.h)
+		tt.SetScale(scene.scale)
+		tt.SetDark(scene.dark)
+		tt.Advance(time.Second)
 		tt.Frame()
-		r, ok := tt.Find("跟随系统")
-		if !ok {
-			t.Fatal("no segmented control")
+		save(tt, scene.name)
+		if err := tt.Click("极高（320k）"); err != nil {
+			t.Fatal(err)
 		}
-		img := tt.Image()
-		crop := image.Rect(int((r.X-30)*2), int((r.Y-14)*2), int((r.X+250)*2), int((r.Y+r.H+14)*2))
-		out := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
-		draw.Draw(out, out.Bounds(), img, crop.Min, draw.Src)
-		name := "segmented-light.png"
-		if dark {
-			name = "segmented-dark.png"
-		}
-		f, _ := os.Create(filepath.Join(dir, name))
-		png.Encode(f, out)
-		f.Close()
+		tt.Frame()
+		save(tt, scene.name+"-quality")
+		tt.Key(0, ui.KeyEscape)
+		tt.Scroll(float32(scene.w/2), float32(scene.h/2), 0, 10000)
+		tt.Frame()
+		save(tt, scene.name+"-bottom")
 	}
 }
 

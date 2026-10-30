@@ -163,7 +163,7 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 // leaveButton is the pill at the top left of the playing page, which goes
 // back to the page under it.
 func leaveButton(c *ui.Context, label string) ui.Element {
-	b := ui.ButtonBase(c.Key("leave")).Height(32).PaddingX(12).Gap(4).Radius(999).FocusRing(false).
+	b := ui.ButtonBase(c.Key("leave")).Height(32).PaddingX(12).Gap(4).Radius(radiusPill).FocusRing(false).
 		AlignItems(ui.Center).Label(label).Margin(0, 0, 0, 14)
 	bg := ui.RGBA(0, 0, 0, 0.22)
 	if b.Hovered() {
@@ -297,7 +297,7 @@ func (a *app) radioChip(c *ui.Context, name string) {
 	if name == heartRadio {
 		icon, exit = iconHeartFill, "退出心动模式"
 	}
-	chip := ui.ButtonBase(c.Key("radio-chip")).Gap(5).Padding(3, 6, 3, 8).Margin(0, 0, 4, -8).Radius(999).
+	chip := ui.ButtonBase(c.Key("radio-chip")).Gap(5).Padding(3, 6, 3, 8).Margin(0, 0, 4, -8).Radius(radiusPill).
 		AlignItems(ui.Center).AlignSelf(ui.Start).FocusRing(false).Label(exit).Tooltip(exit)
 	bg, fg, cross := ui.Transparent, white.Alpha(0.6), float32(0.5)
 	if chip.Hovered() {
@@ -553,8 +553,7 @@ func (a *app) queuePane(c *ui.Context) {
 		for r, i := range order {
 			tr := &pl.Queue()[i]
 			playing := r == at
-			row := ui.ButtonBase(c.Key(i)).Height(52).PaddingX(10).Gap(12).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name).
-				ContextMenu(a.songItems(tr, 0))
+			row := ui.ButtonBase(c.Key(i)).Height(52).PaddingX(10).Gap(12).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
 			bg := ui.Transparent
 			switch {
 			case playing:
@@ -573,6 +572,7 @@ func (a *app) queuePane(c *ui.Context) {
 					a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(12).SingleLine()
 				})
 				ui.Text(c, clock(tr.Length())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.4))
+				a.songMenu(c, row, tr, 0, white.Alpha(0.6))
 			})
 			if row.Clicked() && tr.Playable() && !playing {
 				pl.Jump(i)
