@@ -45,6 +45,8 @@ type artCache struct {
 // through over a session show thousands.
 const artKeep = 5 * time.Minute
 
+const artRetry = 10 * time.Second
+
 func newArtCache(post func(func())) *artCache {
 	return &artCache{art: map[string]*artwork{}, busy: map[string]bool{}, sem: make(chan struct{}, 8), post: post, now: time.Now, swept: time.Now()}
 }
@@ -78,15 +80,26 @@ func (c *artCache) get(url string, backdrop bool) *artwork {
 	c.sweep(now)
 	c.asked = now
 	if a, ok := c.art[key]; ok {
-		a.used = now
-		return a
+		if !a.failed {
+			a.used = now
+			return a
+		}
+		if now.Sub(a.used) < artRetry {
+			return a
+		}
 	}
 	if c.busy[key] {
 		return nil
 	}
+	// Only start work that fits now. A completed load redraws the current
+	// page, so covers on pages already left never queue ahead of it.
+	select {
+	case c.sem <- struct{}{}:
+	default:
+		return nil
+	}
 	c.busy[key] = true
 	go func() {
-		c.sem <- struct{}{}
 		bmp, img, err := loadArt(url)
 		<-c.sem
 		var blurred *image.RGBA
@@ -101,6 +114,7 @@ func (c *artCache) get(url string, backdrop bool) *artwork {
 			delete(c.busy, key)
 			if err != nil {
 				c.art[key] = &artwork{failed: true, used: c.now()}
+				time.AfterFunc(artRetry, func() { c.post(func() {}) })
 				return
 			}
 			a := &artwork{bmp: bmp, tint: tint, used: c.now()}

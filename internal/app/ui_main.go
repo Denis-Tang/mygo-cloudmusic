@@ -425,19 +425,28 @@ func (a *app) centered(c *ui.Context, err string, retry func()) {
 
 func (a *app) loadHome() {
 	a.homeLoading, a.homeErr = true, ""
-	signedIn := a.profile != nil
+	profile := a.profile
 	at := time.Now()
+	if profile != nil {
+		go func() {
+			rec, err := netease.RecommendedPlaylists()
+			a.post(func() {
+				if err == nil && a.profile == profile {
+					a.recPlaylists = rec
+				}
+			})
+		}()
+	}
 	go func() {
 		daily, err := netease.DailySongs()
-		var rec []netease.Playlist
-		if signedIn {
-			rec, _ = netease.RecommendedPlaylists()
-		}
 		// The day's songs have albums published after the cutoff
 		// filtered out of them, their times kept.
 		a.filterKept(daily, func(kept []netease.Track) {
 			daily = kept
 			a.post(func() {
+				if a.profile != profile {
+					return
+				}
 				a.homeLoading = false
 				if err != nil && len(a.daily) == 0 {
 					// Loading the new day's again, what shows stays, to try
@@ -446,7 +455,7 @@ func (a *app) loadHome() {
 					return
 				}
 				a.homeErr = ""
-				a.daily, a.recPlaylists = daily, rec
+				a.daily = daily
 				a.homeAt = at
 			})
 		})

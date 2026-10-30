@@ -71,10 +71,11 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 	// cover sharp and its own blur, the two of one size, that the left of
 	// a wide view is the picture and its right the softness of the same
 	// one. Until the blur has loaded, the sharp stands for it.
+	sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1536), false))
+	if sharp == nil {
+		sharp = bitmap(art)
+	}
 	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
-		// The picture is the whole view, so it is asked for at a size that
-		// fills one: the service's own original where it has one.
-		sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1536), false))
 		if sharp == nil {
 			return
 		}

@@ -33,6 +33,10 @@ go test ./...        # 运行测试
 
 音乐播放的采样率转换在 `internal/player/resample.go`：非 48 kHz 音源先经过保留双声道的带限转换，再交给 MyGo 的 48 kHz 混音器；48 kHz 音源直接通过。字幕与频谱仍使用原始采样率，定位会补读滤波器需要的前后采样，保持播放时间不变。
 
+封面加载在 `internal/app/artwork.go`：最多同时下载 8 张，不把旧页面的图片排队到新页面前面；失败的封面在 10 秒后允许重新加载。播放页先用已加载的普通封面显示，再换成高清封面。首页的推荐歌单与每日歌曲分别加载，推荐歌单无需等待专辑日期查询。
+
+Logo 源文件为 `icon/note.svg`，颜色为 `#F3D99B`。程序和开发版使用 `resources/icon.png`、`resources/icon-dev.png`，托盘使用 `internal/app/tray/` 下的 PNG，网站使用 `website/public/favicon.svg` 和 `icon.png`；位图由同一 SVG 导出，Windows 可执行文件图标由 MyGo 打包时嵌入。
+
 ## 致谢
 
 - [egoist/mygo-cloudmusic](https://github.com/egoist/mygo-cloudmusic)：本项目 fork 自这个上游仓库，界面与功能都从它而来；感谢原作者 EGOIST 与所有贡献者

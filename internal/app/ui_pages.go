@@ -47,11 +47,9 @@ func (a *app) section(c *ui.Context, title string) ui.Element {
 
 func (a *app) homePage(c *ui.Context) {
 	loading := a.homeLoading
-	if loading || a.homeErr != "" {
-		if !loading {
-			a.centered(c, a.homeErr, a.loadHome)
-			return
-		}
+	if !loading && a.homeErr != "" && len(a.recPlaylists) == 0 {
+		a.centered(c, a.homeErr, a.loadHome)
+		return
 	}
 	now := c.Now()
 	top, bottom := a.insets(c)
@@ -63,11 +61,11 @@ func (a *app) homePage(c *ui.Context) {
 			hello += "，" + a.profile.Nickname
 		}
 		a.heading(c, hello, fmt.Sprintf("%d月%d日 %s", now.Month(), now.Day(), weekday(now)))
-		if loading {
-			a.homeSkeleton(c, a.pageShimmer(c))
-			return
+		if loading && len(a.daily) == 0 {
+			a.pageShimmer(c).bone(c.Key("daily"), dailyRadius).Height(dailyHeight)
+		} else {
+			a.dailyCard(c, now)
 		}
-		a.dailyCard(c, now)
 
 		if len(a.recPlaylists) > 0 {
 			a.section(c, "推荐歌单")
@@ -76,6 +74,9 @@ func (a *app) homePage(c *ui.Context) {
 					a.playlistCard(c.Key(a.recPlaylists[i].ID), &a.recPlaylists[i])
 				}
 			})
+		} else if loading && a.profile != nil {
+			a.section(c, "推荐歌单")
+			a.playlistCardsSkeleton(c.Key("rec"), a.pageShimmer(c), a.columns(c, 168), 168, false)
 		}
 	})
 }

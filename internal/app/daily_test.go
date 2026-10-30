@@ -3,7 +3,29 @@ package app
 import (
 	"testing"
 	"time"
+
+	"github.com/egoist/mygo/ui"
+
+	"netease-music-mygo/internal/netease"
 )
+
+// Recommendations stay usable while daily songs wait for their album dates.
+func TestHomeOpensRecommendationsWhileDailyLoads(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.homeLoading = true
+	a.recPlaylists = []netease.Playlist{{ID: 7, Name: "通勤"}}
+	a.playlists[7] = &a.recPlaylists[0]
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("通勤"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.route != (route{page: pagePlaylist, id: 7}) {
+		t.Fatalf("recommendation did not open: %+v", a.route)
+	}
+}
 
 // The daily songs count as new from 6:00 in Beijing, wherever the listener
 // is, so a home page loaded before then loads again.

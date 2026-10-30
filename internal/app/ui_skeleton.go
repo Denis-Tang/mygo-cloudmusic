@@ -94,15 +94,6 @@ func boneWidth(i int) float32 { return boneWidths[i%len(boneWidths)] }
 // Skeletons of the pages, shaped as homePage, chartsPage, trackRows and
 // the cards they show.
 
-func (a *app) homeSkeleton(c *ui.Context, s shimmer) {
-	s.bone(c.Key("daily"), dailyRadius).Height(dailyHeight)
-	cards := a.columns(c, 168)
-	if a.profile != nil {
-		a.section(c, "推荐歌单")
-		a.playlistCardsSkeleton(c.Key("rec"), s, cards, 168, false)
-	}
-}
-
 func (a *app) chartCardsSkeleton(c *ui.Context, s shimmer) {
 	cols := min(4, max(2, a.columns(c, 260)))
 	ui.Grid(c).Columns(cols).Gap(20).Children(func() {

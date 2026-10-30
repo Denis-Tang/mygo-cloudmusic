@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"image"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -13,6 +14,33 @@ import (
 	"netease-music-mygo/internal/lyrics"
 	"netease-music-mygo/internal/netease"
 )
+
+// The full-page cover used to stay blank until its separate high-resolution request finished.
+func TestFullCoverShowsWhileHighResolutionLoads(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	tr := netease.Track{ID: 1, Name: "宝船", Album: netease.Album{PicURL: "cover"}}
+	a.pl.Cue([]netease.Track{tr})
+	a.nowPlaying = true
+	// Keep the high-resolution request pending without using the network.
+	for range cap(a.art.sem) {
+		a.art.sem <- struct{}{}
+	}
+	red := ui.NewBitmap(&image.RGBA{Pix: []byte{220, 0, 0, 255}, Stride: 4, Rect: image.Rect(0, 0, 1, 1)})
+	a.art.art[netease.Sized("cover", 600)+"#backdrop"] = &artwork{bmp: red}
+	tt := nowPlayingFrame(t, a)
+	r, g, _, _ := tt.Image().At(200, 200).RGBA()
+	if r <= g || r < 0x4000 {
+		t.Fatal("ordinary cover did not fill the playing page while high resolution was pending")
+	}
+	green := ui.NewBitmap(&image.RGBA{Pix: []byte{0, 220, 0, 255}, Stride: 4, Rect: image.Rect(0, 0, 1, 1)})
+	a.art.art[netease.Sized("cover", 1536)] = &artwork{bmp: green}
+	tt.Frame()
+	r, g, _, _ = tt.Image().At(200, 200).RGBA()
+	if g <= r || g < 0x4000 {
+		t.Fatal("high-resolution cover did not replace the ordinary cover")
+	}
+}
 
 // The more panel folds each list, resizes at its divider, moves, and closes on an outside click.
 func TestDrawerCustomize(t *testing.T) {

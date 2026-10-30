@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -133,23 +132,29 @@ func (a *app) filterKept(songs []netease.Track, done func([]netease.Track)) {
 		}
 		for i := 0; i < len(unknown); i += albumAskAtOnce {
 			batch := unknown[i:min(i+albumAskAtOnce, len(unknown))]
-			var wg sync.WaitGroup
+			results := make(chan [2]int64, len(batch))
 			for _, id := range batch {
-				wg.Add(1)
 				go func(id int64) {
-					defer wg.Done()
-					if t, err := netease.AlbumPublishTime(id); err == nil && t > 0 {
-						a.post(func() {
-							a.loadAlbumTimes()
-							a.pubTimes[id] = t
-							a.pubDirty = true
-							a.keepAlbumTimes()
-						})
-						times[id] = t
+					t, err := netease.AlbumPublishTime(id)
+					if err != nil {
+						t = 0
 					}
+					results <- [2]int64{id, t}
 				}(id)
 			}
-			wg.Wait()
+			for range batch {
+				result := <-results
+				id, t := result[0], result[1]
+				if t > 0 {
+					times[id] = t
+					a.post(func() {
+						a.loadAlbumTimes()
+						a.pubTimes[id] = t
+						a.pubDirty = true
+						a.keepAlbumTimes()
+					})
+				}
+			}
 		}
 
 		// What the asks found now holds all the times known, known by
