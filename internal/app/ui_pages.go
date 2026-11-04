@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -276,7 +277,7 @@ func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 			if d := strings.TrimSpace(pl.Description); d != "" {
 				ui.Text(c, strings.ReplaceAll(d, "\n", " ")).FontSize(12.5).TextColor(p.muted).MaxLines(2).LineHeight(1.45).Margin(2, 0, 0, 0)
 			}
-			ui.Row(c).Gap(10).Margin(10, 0, 0, 0).Children(func() {
+			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				if pillButton(c.Key("play"), iconPlay, "播放", p.accent, p.onAccent).Clicked() {
 					if a.pl.Shuffle() {
 						a.pl.ToggleShuffle()
@@ -292,6 +293,17 @@ func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 				if mine := a.editable(pl.ID); mine != nil {
 					more := iconButton(c.Key("more"), iconMore, 18, p.muted, "更多")
 					a.playlistMenu(c.Key("playlist-more"), more, mine, true)
+				}
+				own := a.profile != nil && (pl.Creator.UserID == a.profile.UserID ||
+					slices.ContainsFunc(a.mine, func(p netease.Playlist) bool { return p.ID == pl.ID }))
+				if !own {
+					icon, label := iconCollect, "收藏歌单"
+					if pl.Subscribed {
+						icon, label = iconCheck, "取消收藏歌单"
+					}
+					if pillButton(c.Key("subscribe"), icon, label, p.hover.Over(p.bg), p.text).Clicked() {
+						a.togglePlaylistSubscription(pl)
+					}
 				}
 				switch {
 				case pl.SpecialType != 5:
@@ -333,7 +345,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 	rows := len(tracks) + 1 + len(footer)
 	ui.List(c.Key(a.route), &a.trackList, rows, func(i int) {
 		if i == 0 {
-			ui.Column(c).Children(func() {
+			ui.Column(c).PaddingX(12).Children(func() {
 				a.startMark(c)
 				header(c)
 			})

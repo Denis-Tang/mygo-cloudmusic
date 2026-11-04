@@ -31,6 +31,7 @@ type download struct {
 	data   []byte
 	n      int64 // the bytes in so far
 	size   int64 // expected, or 0 if unknown
+	buffer int64 // bytes to accumulate when the reader catches the download
 	done   bool
 	err    error
 	cancel context.CancelFunc
@@ -298,7 +299,13 @@ func (r *downloadReader) Read(p []byte) (int, error) {
 	d := r.d
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	for d.n <= r.pos && !d.done {
+	// Once starved, gather a few seconds before decoding again instead of
+	// playing each small network packet with another gap after it.
+	want := r.pos + int64(len(p))
+	if d.n < want {
+		want = r.pos + max(int64(len(p)), d.buffer)
+	}
+	for d.n < want && !d.done {
 		d.cond.Wait()
 	}
 	if d.n <= r.pos {
@@ -327,6 +334,13 @@ type stream interface {
 // openStream opens the song dl fetches, MP3 or FLAC, as its first bytes
 // say. An MP3 says nothing of its length: durationMs is it.
 func openStream(dl *download, durationMs int64) (stream, error) {
+	if durationMs > 0 {
+		dl.mu.Lock()
+		buffer := dl.size * 5000 / durationMs
+		dl.buffer = buffer
+		dl.mu.Unlock()
+		dl.waitFor(buffer)
+	}
 	off := id3Size(dl)
 	if dl.waitFor(off+4) >= off+4 && string(dl.peek(off, 4)) == "fLaC" {
 		return openFLACStream(dl)

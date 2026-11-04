@@ -349,7 +349,7 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 				// from the page itself; an episode belongs to none.
 				qualityBadge(c, pl.Stream())
 				if tr.ProgramID == 0 {
-					a.collectButton(c, tr)
+					a.collectButton(c, tr, white.Alpha(0.7))
 				}
 				// An episode has its description and its captions for a
 				// song's drawer.

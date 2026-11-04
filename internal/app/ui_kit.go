@@ -77,6 +77,30 @@ func paletteFor(t *ui.Theme) palette {
 	}
 }
 
+// statusToast keeps brief feedback above the player, in the page's colors.
+func (a *app) statusToast(c *ui.Context) {
+	p := a.collectPalette()
+	pop := popoverColors(p.dark)
+	left := a.sidebarWidth()
+	if a.npOpen {
+		left = 0
+	}
+	w, _ := c.Size()
+	ui.ToastViewportBase(c, func(viewport ui.Element, toasts []ui.Toast) {
+		viewport.Left(left).Bottom(playerBarHeight + 16).AlignItems(ui.Center)
+		for _, t := range toasts {
+			parts := ui.ToastBase(c, t)
+			parts.Root.Row().AlignItems(ui.Center).Gap(8).Padding(10, 16).MaxWidth(w-left-32).
+				Radius(radiusPill).Background(pop.fill).Border(1, pop.edge).TextColor(p.text).
+				Shadow(0, 4, 16, -4, p.cardShade).
+				Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Y: 6}, Exit: &ui.Motion{Y: 4}}).
+				Children(func() {
+					ui.Text(c, t.Title).FontSize(13).FontWeight(500).MaxLines(2)
+				})
+		}
+	})
+}
+
 // iconButton is a borderless button showing an icon, which a soft circle
 // marks under the pointer and which gives a little as it is pressed.
 func iconButton(c *ui.Context, icon *ui.SVG, size float32, color ui.Color, label string) ui.Element {

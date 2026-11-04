@@ -20,9 +20,9 @@ type collectDialog struct {
 	exclude int64 // the playlist already showing the song
 }
 
-// collectButton is the + of the playing page's bar.
-func (a *app) collectButton(c *ui.Context, tr *netease.Track) {
-	b := iconButton(c.Key("collect"), iconCollect, 17, white.Alpha(0.7), "收藏到歌单")
+// collectButton opens the playlist picker from either player bar.
+func (a *app) collectButton(c *ui.Context, tr *netease.Track, color ui.Color) {
+	b := iconButton(c.Key("collect"), iconCollect, 17, color, "收藏到歌单")
 	if b.Clicked() {
 		a.openCollect(tr)
 	}

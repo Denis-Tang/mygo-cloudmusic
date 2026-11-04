@@ -14,6 +14,15 @@ import (
 // ErrInPlaylist is what adding a song a playlist has already gives.
 var ErrInPlaylist = errors.New("the song is in the playlist already")
 
+// SubscribePlaylist saves another listener's playlist, or removes it.
+func SubscribePlaylist(id int64, subscribe bool) error {
+	path := "/api/playlist/unsubscribe"
+	if subscribe {
+		path = "/api/playlist/subscribe"
+	}
+	return eapiOK(path, map[string]any{"id": strconv.FormatInt(id, 10)})
+}
+
 // CreatePlaylist makes a playlist named name for the listener, and returns
 // it, empty.
 func CreatePlaylist(name string) (*Playlist, error) {

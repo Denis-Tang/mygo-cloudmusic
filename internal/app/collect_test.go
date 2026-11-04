@@ -72,6 +72,30 @@ func TestAddThePlayingSongToAPlaylist(t *testing.T) {
 	}
 }
 
+// The page's player bar opens the same picker and adds its current song;
+// previously this action was available only inside Now Playing.
+func TestCollectFromPlayerBar(t *testing.T) {
+	calls := make(chan int64, 1)
+	old := addToPlaylist
+	addToPlaylist = func(pid int64, songs ...int64) error { calls <- songs[0]; return nil }
+	defer func() { addToPlaylist = old }()
+	a := playingTestApp()
+	a.nowPlaying = false
+	tt := ui.NewTester(a.view, 880, 600)
+	tt.Frame()
+	if err := tt.Click("收藏到歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if err := tt.Click("添加到歌单：睡前"); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-calls; got != 2 || a.collecting.open || a.nowPlaying {
+		t.Fatalf("collected song %d, picker open=%v, now playing=%v", got, a.collecting.open, a.nowPlaying)
+	}
+}
+
 // The liked songs among the playlists like the song, rather than add it to
 // a playlist of the listener's.
 func TestCollectLikesTheSongFromTheLikedSongs(t *testing.T) {

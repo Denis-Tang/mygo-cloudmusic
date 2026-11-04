@@ -87,16 +87,17 @@ type app struct {
 	plErr     map[int64]string
 	// The albums the listener collects: asked for once the page opens,
 	// and kept, for the 收藏 album's page shows them again.
-	collected       []netease.AlbumProfile
-	collectedLoaded bool
-	collectedErr    string
-	artists         map[int64]*artistData
-	artistTab       int // what an artist's page lists: artistHot, artistLatest, artistAlbums or artistEvents
-	albums          map[int64]*albumData
-	users           map[int64]*userData
-	podcasts        map[int64]*podcastData
-	podcastTab      *podcastTab // the podcasts tab's lists
-	trackList       ui.ListState
+	collected        []netease.AlbumProfile
+	collectedLoaded  bool
+	collectedLoading bool
+	collectedErr     string
+	artists          map[int64]*artistData
+	artistTab        int // what an artist's page lists: artistHot, artistLatest, artistAlbums or artistEvents
+	albums           map[int64]*albumData
+	users            map[int64]*userData
+	podcasts         map[int64]*podcastData
+	podcastTab       *podcastTab // the podcasts tab's lists
+	trackList        ui.ListState
 	// Where the page and the sidebar are scrolled, kept while Now Playing
 	// covers them, unbuilt.
 	pageScroll ui.ScrollState

@@ -14,6 +14,9 @@ import (
 // fullSidebar is how wide the sidebar is, as the settings show it.
 const fullSidebar = 290
 
+// sidebarPad anchors the shared top controls and the sidebar's edges.
+const sidebarPad = 14
+
 // sideScale is how much larger the sidebar's words are than the rest of the
 // app's, and its entries with them: the sidebar reads at a glance, and the
 // pages keep their own sizes.
@@ -106,6 +109,9 @@ func (a *app) view(c *ui.Context) {
 				a.playerBar(c)
 			})
 		})
+		if !npOpen {
+			a.sidebarToggle(c)
+		}
 		a.nowPlayingLayer(c, npOpen, npSettled)
 	})
 	a.loginDialog(c)
@@ -114,9 +120,10 @@ func (a *app) view(c *ui.Context) {
 	a.deletePlaylistDialog(c)
 	a.settingsDialog(c)
 	if a.toast != "" {
-		c.Toast(a.toast)
+		c.AddToast(ui.Toast{ID: "status", Title: a.toast, Timeout: 2500 * time.Millisecond})
 		a.toast = ""
 	}
+	a.statusToast(c)
 	a.syncWindows()
 }
 
@@ -220,13 +227,13 @@ func (a *app) goForward() {
 func (a *app) sidebar(c *ui.Context) {
 	// Under the window buttons where they sit over the sidebar, as the
 	// traffic lights do; elsewhere, as close to the top as to the sides.
-	top := float32(14)
+	top := float32(sidebarPad)
 	if c.TitleBar().Left > 0 {
 		top = topBar(c) + 4
 	}
 	// Where nothing in it takes the press, the sidebar moves the window, as
 	// the title bar it reaches up into would.
-	ui.Column(c).Fill().Padding(top, 14, 14, 14).Gap(4).DragWindow().Children(func() {
+	ui.Column(c).Fill().Padding(top, sidebarPad, sidebarPad, sidebarPad).Gap(4).DragWindow().Children(func() {
 		a.searchField(c)
 
 		ui.Scroll(c.Key("nav")).TrackScroll(&a.navScroll).Grow(1).Margin(0, -6).Padding(0, 16, 0, 6).Gap(4).Children(func() {
@@ -298,7 +305,7 @@ const topEdgePad = 6
 
 // buttonsHeight is the height of the window buttons off macOS, which fill
 // the edge over a page.
-const buttonsHeight = topBarHeight + topEdgePad
+const buttonsHeight = topBarHeight + 2*sidebarPad
 
 // topBar returns the height of the strip along the top of the window, as
 // tall as the window buttons and the room above and below them, which
@@ -354,11 +361,12 @@ func (a *app) pageTop(c *ui.Context) {
 	edge := ui.Box(c.Key("top-edge")).Absolute().Top(0).Left(0).Right(0).Height(top).DragWindow().
 		Material(glass.ScrollEdge{Hard: true, Background: a.pal.bg})
 	edge.Opacity(edgeShown(edge, a.underTop))
-	if len(a.history) > 0 || len(a.forward) > 0 || !a.settings.Sidebar {
-		ui.Row(c).Absolute().Top(0).Left(20).Height(topBar(c)).AlignItems(ui.Center).Gap(2).Children(func() {
-			if !a.settings.Sidebar {
-				a.sidebarToggle(c, true)
-			}
+	if len(a.history) > 0 || len(a.forward) > 0 {
+		left := float32(pagePad - 17) // center the 34-point back button on the content edge
+		if !a.settings.Sidebar {
+			left = sidebarPad + 30 + 7 // the same gap after the logo as the search field
+		}
+		ui.Row(c).Absolute().Top(sidebarPad).Left(left).Height(topBarHeight).AlignItems(ui.Center).Gap(2).Children(func() {
 			back := iconButton(c.Key("back"), iconBack, 18, a.pal.muted, "返回").Disabled(len(a.history) == 0)
 			if len(a.history) == 0 {
 				back.Opacity(0.35)

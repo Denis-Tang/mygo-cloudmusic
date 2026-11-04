@@ -45,6 +45,41 @@ func wait[T any](t *testing.T, ch chan T, what string) T {
 	}
 }
 
+// Collecting an artist's album from its page adds it to My Collection,
+// and cancelling removes it; the page previously had no collection action.
+func TestCollectAlbumFromItsPage(t *testing.T) {
+	type request struct {
+		id      int64
+		collect bool
+	}
+	calls := make(chan request, 2)
+	old := collectAlbum
+	collectAlbum = func(id int64, collect bool) error { calls <- request{id, collect}; return nil }
+	defer func() { collectAlbum = old }()
+	a := catalogApp()
+	a.profile = &netease.Profile{UserID: 1}
+	a.collectedLoaded = true
+	a.route = route{page: pageAlbum, id: 8}
+	tt := ui.NewTester(a.view, 880, 780)
+	tt.Frame()
+	for _, collect := range []bool{true, false} {
+		label := "收藏专辑"
+		if !collect {
+			label = "取消收藏专辑"
+		}
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		if got := wait(t, calls, "album collection"); got != (request{8, collect}) {
+			t.Fatalf("request %+v", got)
+		}
+		if a.albumCollected(8) != collect {
+			t.Fatalf("collection did not become %v", collect)
+		}
+		tt.Frame()
+	}
+}
+
 // Enter searches songs for the query typed; a tab searches it for another
 // kind, which the next search keeps, and back leaves the search.
 func TestSearchKinds(t *testing.T) {

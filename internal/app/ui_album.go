@@ -44,6 +44,9 @@ func (a *app) loadAlbum(id int64) {
 }
 
 func (a *app) albumPage(c *ui.Context) {
+	if a.profile != nil && a.collectedErr == "" {
+		a.loadCollected()
+	}
 	id := a.route.id
 	d := a.albums[id]
 	if d.album == nil {
@@ -83,12 +86,26 @@ func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 			if d := strings.TrimSpace(al.Description); d != "" {
 				ui.Text(c, strings.ReplaceAll(d, "\n", " ")).FontSize(12.5).TextColor(p.muted).MaxLines(2).LineHeight(1.45).Margin(2, 0, 0, 0)
 			}
-			ui.Row(c).Gap(10).Margin(10, 0, 0, 0).Children(func() {
+			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				if pillButton(c.Key("play"), iconPlay, "播放", p.accent, p.onAccent).Clicked() {
 					if a.pl.Shuffle() {
 						a.pl.ToggleShuffle()
 					}
 					a.pl.PlayQueue(al.Songs, firstPlayable(al.Songs))
+				}
+				icon, label := iconCollect, "收藏专辑"
+				if a.albumCollected(al.ID) {
+					icon, label = iconCheck, "取消收藏专辑"
+				} else if a.collectedErr != "" {
+					icon, label = iconRepeat, "重试"
+				}
+				if pillButton(c.Key("collect-album"), icon, label, p.hover.Over(p.bg), p.text).
+					Disabled(a.collectedLoading).Clicked() {
+					if a.profile != nil && !a.collectedLoaded {
+						a.loadCollected()
+					} else {
+						a.toggleAlbumCollection(al)
+					}
 				}
 			})
 		})

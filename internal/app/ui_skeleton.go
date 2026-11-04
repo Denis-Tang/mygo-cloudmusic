@@ -139,7 +139,7 @@ func (a *app) trackSkeleton(c *ui.Context, s shimmer, covers bool, header func(c
 	a.underTop, a.underBottom = false, true
 	ui.Column(c.Key("skeleton")).Grow(1).Padding(top+pageGap, pagePad-12, bottom+32, pagePad-12).Children(func() {
 		a.startMark(c)
-		header(c)
+		ui.Column(c).PaddingX(12).Children(func() { header(c) })
 		for i := range max(8, int(h/54)) {
 			ui.Row(c.Key(i)).Height(54).Shrink(0).PaddingX(12).Gap(14).AlignItems(ui.Center).Children(func() {
 				ui.Box(c).Width(26).Center().Children(func() { s.text(c, 13, 1.3).Width(12) })

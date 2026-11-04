@@ -20,6 +20,7 @@ var (
 	addToPlaylist      = netease.AddToPlaylist
 	removeFromPlaylist = netease.RemoveFromPlaylist
 	deletePlaylist     = netease.DeletePlaylist
+	subscribePlaylist  = netease.SubscribePlaylist
 )
 
 // nameDialog asks for a playlist's name: a new one's, or one's new name.
@@ -59,6 +60,41 @@ func (a *app) loadMine(uid int64) {
 			}
 		})
 	}()
+}
+
+// togglePlaylistSubscription saves a playlist in the sidebar, undoing the
+// change if NetEase refuses it. Signed out, it opens the login dialog.
+func (a *app) togglePlaylistSubscription(pl *netease.Playlist) {
+	if a.profile == nil {
+		a.openLogin()
+		return
+	}
+	uid, sub := a.profile.UserID, !pl.Subscribed
+	a.setPlaylistSubscription(pl, sub)
+	go func() {
+		err := subscribePlaylist(pl.ID, sub)
+		a.post(func() {
+			if a.profile == nil || a.profile.UserID != uid {
+				return
+			}
+			if err != nil {
+				a.setPlaylistSubscription(pl, !sub)
+				a.toast = "操作失败，请稍后再试"
+			} else if sub {
+				a.toast = "已收藏歌单"
+			} else {
+				a.toast = "已取消收藏"
+			}
+		})
+	}()
+}
+
+func (a *app) setPlaylistSubscription(pl *netease.Playlist, sub bool) {
+	pl.Subscribed = sub
+	a.saved = slices.DeleteFunc(a.saved, func(p netease.Playlist) bool { return p.ID == pl.ID })
+	if sub {
+		a.saved = slices.Insert(a.saved, 0, *pl)
+	}
 }
 
 // playlistChanged forgets what was loaded of playlist id, which NetEase

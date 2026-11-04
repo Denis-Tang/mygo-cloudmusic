@@ -4,6 +4,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -23,13 +24,48 @@ func editTestApp() *app {
 		{ID: 10, Name: "通勤"},
 		{ID: 11, Name: "睡前"},
 	}
-	a.saved = []netease.Playlist{{ID: 20, Name: "飙升榜"}}
+	a.saved = []netease.Playlist{{ID: 20, Name: "飙升榜", Subscribed: true}}
 	a.playlists[10] = &netease.Playlist{ID: 10, Name: "通勤", Tracks: []netease.Track{
 		{ID: 1, Name: "一张相片", Artists: []netease.Artist{{Name: "林宥嘉"}}, Duration: 200000},
 		{ID: 2, Name: "宝船", Artists: []netease.Artist{{Name: "DOUDOU"}}, Duration: 200000},
 	}}
 	a.route = route{page: pagePlaylist, id: 10}
 	return a
+}
+
+// A playlist's collection button saves and unsaves it in the sidebar;
+// previously opening someone else's playlist offered no collection action.
+func TestSubscribePlaylistFromItsPage(t *testing.T) {
+	type request struct {
+		id  int64
+		sub bool
+	}
+	calls := make(chan request, 2)
+	old := subscribePlaylist
+	subscribePlaylist = func(id int64, sub bool) error { calls <- request{id, sub}; return nil }
+	defer func() { subscribePlaylist = old }()
+	a := editTestApp()
+	pl := &netease.Playlist{ID: 30, Name: "新歌单"}
+	a.playlists[30] = pl
+	a.route = route{page: pagePlaylist, id: 30}
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	for _, sub := range []bool{true, false} {
+		label := "收藏歌单"
+		if !sub {
+			label = "取消收藏歌单"
+		}
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		if got := <-calls; got != (request{30, sub}) {
+			t.Fatalf("request %+v", got)
+		}
+		if pl.Subscribed != sub || slices.ContainsFunc(a.saved, func(p netease.Playlist) bool { return p.ID == 30 }) != sub {
+			t.Fatalf("subscription and sidebar did not become %v", sub)
+		}
+		tt.Frame()
+	}
 }
 
 // A song action opens the collection dialog and adds to another playlist.

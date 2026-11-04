@@ -2,11 +2,36 @@ package app
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/netease"
 )
+
+// A newer operation replaces the previous feedback and expires, rather
+// than stacking contradictory messages as the default toast IDs did.
+func TestStatusToastReplacesPreviousMessage(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.toast = "first operation"
+	tt := ui.NewTester(a.view, 1000, 700)
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	a.toast = "second operation"
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+	tt.Frame()
+	if tt.HasText("first operation") || !tt.HasText("second operation") {
+		t.Fatal("the new message did not replace the old message")
+	}
+	tt.Advance(3 * time.Second)
+	tt.Frame()
+	if tt.HasText("second operation") {
+		t.Fatal("the message did not expire")
+	}
+}
 
 // The side buttons of a mouse go back and forward between pages.
 func TestBackAndForward(t *testing.T) {

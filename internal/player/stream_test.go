@@ -1,6 +1,7 @@
 package player
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -8,10 +9,53 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"netease-music-mygo/internal/netease"
 )
+
+// A starved download gathers a buffer before resuming instead of handing
+// each arriving packet to the decoder; closing still wakes the reader.
+func TestDownloadRefillsBeforeResuming(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := downloaded([]byte("abcd"))
+		d.done, d.buffer = false, 8
+		r := &downloadReader{d: d}
+		type result struct {
+			n   int
+			err error
+		}
+		got := make(chan result, 1)
+		buf := make([]byte, 4)
+		// Drain the first packet, then wait for more than a single packet.
+		if n, err := r.Read(buf); n != 4 || err != nil {
+			t.Fatalf("first read: %d, %v", n, err)
+		}
+		go func() { n, err := r.Read(buf); got <- result{n, err} }()
+		synctest.Wait()
+		d.write([]byte("efgh"))
+		synctest.Wait()
+		select {
+		case res := <-got:
+			t.Fatalf("resumed with only one packet: %+v", res)
+		default:
+		}
+		d.write([]byte("ijkl"))
+		if res := <-got; res.n != 4 || res.err != nil || string(buf) != "efgh" {
+			t.Fatalf("buffered read: %+v, %q", res, buf)
+		}
+		if n, err := r.Read(buf); n != 4 || err != nil || string(buf) != "ijkl" {
+			t.Fatalf("remaining buffer: %d, %v, %q", n, err, buf)
+		}
+		go func() { n, err := r.Read(buf); got <- result{n, err} }()
+		synctest.Wait()
+		d.Close()
+		if res := <-got; res.n != 0 || res.err != context.Canceled {
+			t.Fatalf("closed read: %+v", res)
+		}
+	})
+}
 
 func TestFrameSize(t *testing.T) {
 	// MPEG-1 layer III, 320 kbps, 44.1 kHz, no padding.

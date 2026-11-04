@@ -2,11 +2,70 @@ package app
 
 import (
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/netease"
 )
+
+// The sidebar toggle stays under the pointer in both states; its two
+// previous containers put it at different window coordinates.
+func TestSidebarToggleStaysUnderPointer(t *testing.T) {
+	for _, width := range []int{880, 1180} {
+		a := catalogApp()
+		a.route = route{page: pageAlbum, id: 8}
+		a.history = []route{{page: pageHome}}
+		tt := ui.NewTester(a.view, width, 780)
+		tt.Frame()
+		r, ok := tt.Find("收起侧栏")
+		if !ok {
+			t.Fatal("no sidebar toggle")
+		}
+		x, y := r.X+r.W/2, r.Y+r.H/2
+		for i := range 4 {
+			tt.ClickAt(x, y)
+			tt.Advance(time.Second)
+			tt.Frame()
+			want := i%2 != 0
+			if a.settings.Sidebar != want {
+				t.Fatalf("width %d: click %d did not toggle the sidebar", width, i)
+			}
+			label := "展开侧栏"
+			if want {
+				label = "收起侧栏"
+			}
+			got, ok := tt.Find(label)
+			if !ok || got.X+got.W/2 != x || got.Y+got.H/2 != y {
+				t.Fatalf("width %d: toggle moved from (%g,%g) to %+v", width, x, y, got)
+			}
+		}
+	}
+}
+
+// Changing an artist's tab keeps the header in place; track pages
+// previously started 12 points left of the album and event pages.
+func TestArtistTabsKeepHeaderPosition(t *testing.T) {
+	a := catalogApp()
+	a.artists[7].profile.Name = "test artist header"
+	a.route = route{page: pageArtist, id: 7}
+	tt := ui.NewTester(a.view, 1180, 780)
+	tt.Frame()
+	before, ok := tt.Find("test artist header")
+	if !ok {
+		t.Fatal("no artist header")
+	}
+	for _, tab := range []string{"专辑", "动态", "热门"} {
+		if err := tt.Click(tab); err != nil {
+			t.Fatal(err)
+		}
+		tt.Frame()
+		got, ok := tt.Find("test artist header")
+		if !ok || got.X != before.X || got.Y != before.Y {
+			t.Fatalf("tab %s moved the header from %+v to %+v", tab, before, got)
+		}
+	}
+}
 
 // Each playlist header hides only its own rows without changing the page
 // or queue, and Enter restores their navigation.

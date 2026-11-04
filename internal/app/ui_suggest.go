@@ -13,6 +13,8 @@ import (
 // suggestDelay is how long typing pauses before suggestions are asked for.
 const suggestDelay = 220 * time.Millisecond
 
+var sidebarLogo, _ = ui.DecodeBitmap(trayColor)
+
 // suggestState is what a search may be after, as its query is typed.
 type suggestState struct {
 	query   string // what they are for
@@ -95,10 +97,10 @@ func (a *app) searchField(c *ui.Context) {
 	p := a.pal
 	// The field of search, and, at its left, the button that folds the
 	// sidebar away, as the official client's is: over the box, not in it.
-	row := ui.Row(c).Height(40).Gap(7).AlignItems(ui.Center).Margin(0, 0, 16, 0)
+	row := ui.Row(c).Height(topBarHeight).Gap(7).AlignItems(ui.Center).Margin(0, 0, 16, 0)
 	row.Children(func() {
-		a.sidebarToggle(c, false)
-		field := ui.Row(c).Height(40).PaddingX(12).Gap(8).Radius(radiusField).AlignItems(ui.Center).Grow(1)
+		ui.Box(c).Width(30) // the logo is anchored to the window, over this space
+		field := ui.Row(c).Height(topBarHeight).PaddingX(12).Gap(8).Radius(radiusField).AlignItems(ui.Center).Grow(1)
 		if c.Focused(a.searchBox) {
 			field.Background(p.bg).Shadow(0, 0, 0, 3, p.accent.Alpha(0.25)).Border(1, p.accent.Alpha(0.6))
 		} else {
@@ -180,17 +182,21 @@ func (a *app) searchField(c *ui.Context) {
 	})
 }
 
-// sidebarToggle folds the sidebar away, or, expand, brings it back, as
-// the settings keep, for the pages to show.
-func (a *app) sidebarToggle(c *ui.Context, expand bool) {
-	icon, label := iconBack, "收起侧栏"
-	if expand {
-		icon, label = iconForward, "展开侧栏"
+// sidebarToggle stays at the same window coordinates in both sidebar states.
+func (a *app) sidebarToggle(c *ui.Context) {
+	label := "展开侧栏"
+	if a.settings.Sidebar {
+		label = "收起侧栏"
 	}
-	if iconButton(c.Key("toggle-sidebar"), icon, 14, a.pal.muted, label).Clicked() {
-		a.settings.Sidebar = !a.settings.Sidebar
-		a.changed()
-	}
+	ui.Box(c.Key("sidebar-toggle")).Absolute().Left(sidebarPad).Top(sidebarPad).Size(30, topBarHeight).Center().Children(func() {
+		b := roundButton(c, 14, a.pal.text, label)
+		b.Children(func() { ui.Image(c, sidebarLogo).Size(22, 22).Fit(ui.Contain) })
+		if b.Clicked() {
+			a.settings.Sidebar = !a.settings.Sidebar
+			a.settings.save()
+			a.redraw()
+		}
+	})
 }
 
 // choose goes where the option chosen in the search field's popup goes.

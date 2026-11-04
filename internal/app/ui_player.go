@@ -292,9 +292,9 @@ func (a *app) playerBar(c *ui.Context) {
 		Material(glass.ScrollEdge{Hard: true, Bottom: true, Background: p.bg})
 	edge.Opacity(edgeShown(edge, a.underBottom))
 	// The controls keep the middle, between sides that share what is left:
-	// narrower, the middle gives up to 140 DIPs, and what plays keeps room
+	// narrower, the middle shrinks, and what plays keeps room
 	// for its cover, some of its title and its heart.
-	const controls = 3*32 + 2*4 // lyrics, queue and the speaker
+	const controls = 33 + 3*32 + 3*4 // collection, lyrics, queue and the speaker
 	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).PaddingX(20).Gap(20).AlignItems(ui.Center).Children(func() {
 		// What plays.
 		ui.Row(c).Grow(1).Basis(0).MinWidth(150).Children(func() {
@@ -346,7 +346,7 @@ func (a *app) playerBar(c *ui.Context) {
 		})
 
 		// Controls over the progress.
-		ui.Column(c).Width(440).Shrink(1).MinWidth(300).Gap(0).AlignItems(ui.Stretch).Children(func() {
+		ui.Column(c).Width(440).Shrink(1).MinWidth(210).Gap(0).AlignItems(ui.Stretch).Children(func() {
 			a.transport(c, p.text, p.muted, p.accent, 18)
 			ui.Row(c).Gap(10).AlignItems(ui.Center).Margin(-4, 0, 0, 0).Children(func() {
 				ui.Text(c, clock(pl.Position())).FontSize(10.5).FontFeatures("tnum").TextColor(p.faint).Width(34).TextAlign(ui.End)
@@ -355,8 +355,11 @@ func (a *app) playerBar(c *ui.Context) {
 			})
 		})
 
-		// Lyrics and volume.
+		// Collection, lyrics and volume.
 		ui.Row(c).Grow(1).Basis(0).MinWidth(controls).Justify(ui.End).AlignItems(ui.Center).Gap(4).Children(func() {
+			if tr != nil && tr.ProgramID == 0 {
+				a.collectButton(c, tr, p.muted)
+			}
 			lyr := p.muted
 			if a.nowPlaying {
 				lyr = p.accent
