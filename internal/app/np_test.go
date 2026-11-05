@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -39,6 +40,61 @@ func TestFullCoverShowsWhileHighResolutionLoads(t *testing.T) {
 	r, g, _, _ = tt.Image().At(200, 200).RGBA()
 	if g <= r || g < 0x4000 {
 		t.Fatal("high-resolution cover did not replace the ordinary cover")
+	}
+}
+
+// A wide playing page keeps the left of the cover sharp and defocuses that
+// same picture toward the right. A square window stays sharp across.
+func TestWideCoverSoftensTowardTheRight(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	const n = 64
+	img := image.NewRGBA(image.Rect(0, 0, n, n))
+	for y := range n {
+		for x := range n {
+			c := color.RGBA{0, 210, 220, 255}
+			if x >= n/2 {
+				c = color.RGBA{210, 0, 200, 255}
+			}
+			img.SetRGBA(x, y, c)
+		}
+	}
+	bmp := ui.NewBitmap(img)
+	const pic = "split-cover"
+	a.art.art[netease.Sized(pic, 600)+"#backdrop"] = &artwork{bmp: bmp, stage: ui.NewBitmap(stageBlur(img))}
+	a.art.art[netease.Sized(pic, 1536)] = &artwork{bmp: bmp}
+	for range cap(a.art.sem) {
+		a.art.sem <- struct{}{}
+	}
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "对照", Album: netease.Album{PicURL: pic}, Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	a.nowPlaying = true
+
+	sample := func(tt *ui.Tester, xf, yf float64) (r, g, b uint32) {
+		t.Helper()
+		img := tt.Image()
+		bounds := img.Bounds()
+		r, g, b, _ = img.At(bounds.Min.X+int(float64(bounds.Dx())*xf), bounds.Min.Y+int(float64(bounds.Dy())*yf)).RGBA()
+		return r, g, b
+	}
+	wide := nowPlayingFrameAt(t, a, 1280, 720)
+	lr, lg, lb := sample(wide, 0.12, 0.28)
+	if lg < 0x8000 || lb < 0x8000 || lr > lg/2 {
+		t.Fatalf("left of a wide cover is not the sharp picture: rgb %d %d %d", lr, lg, lb)
+	}
+	_, mg, _ := sample(wide, 0.54, 0.28)
+	if mg < 0x800 {
+		t.Fatalf("the cover did not soften toward the right: green %d", mg)
+	}
+	fr, fg, fb := sample(wide, 0.92, 0.28)
+	if fr < 0x6000 || fb < 0x6000 || fg > fr/2 {
+		t.Fatalf("the right edge is no longer the cover's right side: rgb %d %d %d", fr, fg, fb)
+	}
+
+	square := nowPlayingFrameAt(t, a, 800, 800)
+	_, sg, _ := sample(square, 0.54, 0.28)
+	if sg > 0x400 {
+		t.Fatalf("a square cover softened toward the right: green %d", sg)
 	}
 }
 

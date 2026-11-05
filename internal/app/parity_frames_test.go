@@ -28,6 +28,7 @@ func TestNowPlayingAspectFrames(t *testing.T) {
 	cover := parityCover()
 	bmp := ui.NewBitmap(cover)
 	soft := ui.NewBitmap(blurImage(cover))
+	stage := ui.NewBitmap(stageBlur(cover))
 	tint := dominantColor(cover)
 	const pic = "parity-cover"
 	scenes := []struct {
@@ -49,7 +50,7 @@ func TestNowPlayingAspectFrames(t *testing.T) {
 	for _, scene := range scenes {
 		a := newTestApp()
 		a.settings = defaultSettings()
-		a.art.art[netease.Sized(pic, 600)+"#backdrop"] = &artwork{bmp: bmp, backdrop: soft, tint: tint}
+		a.art.art[netease.Sized(pic, 600)+"#backdrop"] = &artwork{bmp: bmp, backdrop: soft, stage: stage, tint: tint}
 		a.art.art[netease.Sized(pic, 1536)] = &artwork{bmp: bmp, tint: tint}
 		a.art.art[netease.Sized(pic, 120)] = &artwork{bmp: bmp, tint: tint}
 		// A size the page does not have stays empty instead of fetching.

@@ -11,6 +11,10 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
+// npCover is the square card that tilts and flings. The playing page does
+// not build it: that page is the full-window cover in immersive, and this
+// card would replace that picture. It stays for the gesture it implements.
+//
 // The cover of Now Playing is a thing to touch. It tilts toward the
 // pointer in depth, a glare following the pointer over it as light over a
 // card held up. Dragged or swiped across, it swings as it goes, and flung
