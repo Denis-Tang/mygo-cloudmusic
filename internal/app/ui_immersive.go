@@ -274,7 +274,7 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 		// The drawer's head: what it is, and the closing of it, which the
 		// same of its entry, and the escape key, do also.
 		ui.Row(c).Height(34).Padding(0, 4).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, title).FontSize(15).FontWeight(700).Grow(1).SingleLine()
+			ui.Text(c, title).FontSize(18).FontWeight(700).Grow(1).SingleLine()
 			if iconButton(c.Key("close-drawer"), iconX, 16, white.Alpha(0.6), "收起").Clicked() {
 				a.npPane = paneCover
 			}
@@ -296,9 +296,6 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 // room, and they show as their icons alone.
 const immBarWide = 1000
 
-// immBarEdge is the width reserved for each time label, before the gap to the progress bar.
-const immBarEdge = 52
-
 // immBar is the bar at the foot of the playing page: the progress, with
 // the times it stands between, and the controls, the summary of what
 // plays at their left, the entries of the page, the quality, its volume
@@ -313,27 +310,14 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 		// hiding pose.
 		c.After(npIdle - c.Now().Sub(a.npActiveAt) + 10*time.Millisecond)
 	}
-	reveal(c, ui.Column(c.Key("fc-bar")).Absolute().Left(0).Right(0).Bottom(18).Padding(0, 28).Gap(6), awake).Children(func() {
-		// The times stand outside the bar either side, on its middle: the
-		// rows below keep their room from them, so that what sits at the
-		// left of the one and the right of the other line up.
-		ui.Row(c).Gap(16).AlignItems(ui.Center).Children(func() {
-			ui.Box(c).Width(immBarEdge).Children(func() {
-				ui.Text(c, clock(pl.Position())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.55)).TextAlign(ui.End).Fill()
-			})
-			a.scrubber(c.Key("fc-scrub"), &a.coverScrub, white.Alpha(0.24), white.Alpha(0.92), 12, accent).Grow(1)
-			ui.Box(c).Width(immBarEdge).Children(func() {
-				ui.Text(c, clock(pl.Duration())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.55)).Fill()
-			})
-		})
-		ui.Row(c).Height(52).Padding(0, immBarEdge+16).AlignItems(ui.Center).Gap(14).Children(func() {
+	reveal(c, ui.Column(c.Key("fc-bar")).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).Background(ui.RGBA(20, 20, 22, 0.6)), awake).Children(func() {
+		ui.Row(c).Height(playerBarHeight).Padding(8, 28, 0, 28).AlignItems(ui.Center).Gap(14).Children(func() {
 			// The summary of what plays, at the left, and what one may
 			// think of it; the words it takes have room, and give it up.
 			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Size(44, 44).Radius(radiusTile).Children(func() { a.coverFill(c, tr.Album.PicURL, 120, radiusTile) })
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, tr.Name).FontSize(13.5).FontWeight(700).SingleLine()
-					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(11.5).SingleLine()
+					ui.Text(c, tr.Name).FontSize(17).FontWeight(700).SingleLine()
+					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(14).SingleLine()
 				})
 				a.likeButton(c.Key("like"), tr, 17, white.Alpha(0.7))
 			})
@@ -363,6 +347,9 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 				a.volumeButton(c.Key("volume"), white.Alpha(0.7))
 			})
 		})
+		a.scrubber(c.Key("fc-scrub"), &a.coverScrub, white.Alpha(0.18), white.Alpha(0.8), 16).
+			Absolute().Left(0).Right(0).Top(-8)
+
 	})
 }
 
@@ -461,8 +448,8 @@ func (a *app) drawerList(c *ui.Context, title string, icon *ui.SVG, collapsed *b
 		}
 		head.Background(head.AnimateColor("bg", bg, hoverFade))
 		head.Children(func() {
-			ui.Icon(c, icon).Size(13, 13)
-			ui.Text(c, title).FontSize(14).FontWeight(700).Grow(1).SingleLine()
+			ui.Icon(c, icon).Size(18, 18)
+			ui.Text(c, title).FontSize(17).FontWeight(700).Grow(1).SingleLine()
 			if roll != nil {
 				n := a.commentCount()
 				text := ""
@@ -475,7 +462,7 @@ func (a *app) drawerList(c *ui.Context, title string, icon *ui.SVG, collapsed *b
 			if *collapsed {
 				arrow = iconForward
 			}
-			ui.Icon(c, arrow).Size(13, 13)
+			ui.Icon(c, arrow).Size(18, 18)
 		})
 		if *collapsed {
 			return

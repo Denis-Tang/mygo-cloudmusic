@@ -22,6 +22,10 @@ func TestAccountMenu(t *testing.T) {
 	a.profile = &netease.Profile{UserID: 1, Nickname: "小明"}
 	tt := ui.NewTester(a.view, 1000, 700)
 	tt.Frame()
+	avatar, ok := tt.Find("小明")
+	if !ok || avatar.Y > topBarHeight || avatar.X < 500 {
+		t.Fatalf("avatar is not in the top bar: %+v", avatar)
+	}
 
 	if err := tt.Click("小明"); err != nil {
 		t.Fatal(err)
@@ -51,6 +55,15 @@ func TestAccountMenu(t *testing.T) {
 	tt.Frame()
 	if a.accountOpen {
 		t.Fatal("a second click left the menu open")
+	}
+	a.settings.Sidebar = false
+	tt.Frame()
+	if err := tt.Click("小明"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !a.accountOpen {
+		t.Fatal("avatar menu is unavailable with the sidebar hidden")
 	}
 }
 

@@ -302,7 +302,7 @@ func (a *app) artistPage(c *ui.Context) {
 			header = func(c *ui.Context) {
 				a.artistHeader(c, d)
 				ui.Column(c).Padding(40, 0).Gap(12).AlignItems(ui.Center).Children(func() {
-					ui.Text(c, d.latestErr).TextColor(a.pal.muted).FontSize(13)
+					ui.Text(c, d.latestErr).TextColor(a.pal.muted).FontSize(16)
 					if ui.Button(c.Key("retry"), "重试").Clicked() {
 						a.loadLatest(d.profile.ID)
 					}
@@ -320,14 +320,13 @@ func (a *app) scrollPage(c *ui.Context, content func()) {
 	top, bottom := a.insets(c)
 	ui.Scroll(c.Key(a.route)).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
-		defer a.endMark(c)
 		content()
 	})
 }
 
 // empty says a list has nothing in it.
 func (a *app) empty(c *ui.Context, msg string) {
-	ui.Text(c, msg).FontSize(13).TextColor(a.pal.muted).Padding(40, 0).AlignSelf(ui.Center)
+	ui.Text(c, msg).FontSize(16).TextColor(a.pal.muted).Padding(40, 0).AlignSelf(ui.Center)
 }
 
 // artistPhotoSize is the width of an artist's round photo on their page.
@@ -362,11 +361,11 @@ func (a *app) artistHeader(c *ui.Context, d *artistData) {
 			if ar.AlbumSize > 0 {
 				meta = append(meta, fmt.Sprintf("%d 张专辑", ar.AlbumSize))
 			}
-			ui.Text(c, strings.Join(meta, " · ")).FontSize(13).TextColor(p.muted)
+			ui.Text(c, strings.Join(meta, " · ")).FontSize(16).TextColor(p.muted)
 			if d := strings.TrimSpace(ar.BriefDesc); d != "" {
-				ui.Text(c, strings.ReplaceAll(d, "\n", " ")).FontSize(12.5).TextColor(p.muted).MaxLines(2).LineHeight(1.45).Margin(2, 0, 0, 0)
+				a.introduction(c, d)
 			}
-			ui.Row(c).Gap(10).Margin(10, 0, 0, 0).Children(func() {
+			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				if pillButton(c.Key("play"), iconPlay, "播放", p.accent, p.onAccent).Clicked() {
 					if a.pl.Shuffle() {
 						a.pl.ToggleShuffle()
@@ -411,7 +410,7 @@ func (a *app) artistHeaderSkeleton(c *ui.Context, s shimmer) {
 				s.text(c, 12.5, 1.45).WidthPercent(78)
 				s.text(c, 12.5, 1.45).WidthPercent(52)
 			})
-			ui.Row(c).Gap(10).Margin(10, 0, 0, 0).Children(func() {
+			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				s.bone(c, 18).Size(92, 36)
 				s.bone(c, 18).Size(120, 36)
 			})

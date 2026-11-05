@@ -110,7 +110,7 @@ func (a *app) searchField(c *ui.Context) {
 			ui.Icon(c, iconSearch).Size(17, 17).TextColor(p.muted)
 			cb := ui.ComboboxBase(c.Key("search"), &a.query)
 			in := cb.Input.Bind(&a.searchBox).Grow(1).MinWidth(0).
-				Placeholder("搜索歌曲、歌手、播客").FontSize(sideFont(13)).Label("搜索")
+				Placeholder("搜索音乐").FontSize(sideFont(13)).Label("搜索")
 			q := strings.TrimSpace(a.query)
 			s := &a.suggestions
 			switch {
@@ -153,9 +153,9 @@ func (a *app) searchField(c *ui.Context) {
 				}
 				panel.Label("搜索建议")
 				// The query first, which Enter searches as typed.
-				option("query", "搜索“"+q+"”").Children(func() {
+				option("query", "搜索 "+q).Children(func() {
 					ui.Icon(c, iconSearch).Size(15, 15).TextColor(p.muted)
-					ui.Text(c, "搜索“"+q+"”").FontSize(sideFont(13)).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
+					ui.Text(c, "搜索 "+q).FontSize(sideFont(13)).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
 				})
 				if s.query == q {
 					for _, sg := range s.items {

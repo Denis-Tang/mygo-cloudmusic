@@ -262,9 +262,9 @@ func TestPlayerBarWidths(t *testing.T) {
 		tt.Frame()
 		img := tt.Image()
 		s := float32(img.Bounds().Dx()) / float32(w)
-		bar := image.Rect(int(float32(a.sidebarWidth())*s), int(float32(600-playerBarHeight)*s), img.Bounds().Dx(), img.Bounds().Dy())
+		bar := image.Rect(0, int(float32(600-playerBarHeight)*s), img.Bounds().Dx(), img.Bounds().Dy())
 		if i == 0 {
-			strip = image.NewRGBA(image.Rect(0, 0, int(float32(1180-a.sidebarWidth())*s), bar.Dy()*len(widths)))
+			strip = image.NewRGBA(image.Rect(0, 0, int(float32(1180)*s), bar.Dy()*len(widths)))
 			draw.Draw(strip, strip.Bounds(), image.NewUniform(color.RGBA{60, 60, 60, 255}), image.Point{}, draw.Src)
 		}
 		draw.Draw(strip, image.Rect(0, y, bar.Dx(), y+bar.Dy()), img, bar.Min, draw.Src)

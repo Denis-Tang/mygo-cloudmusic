@@ -101,9 +101,9 @@ func (a *app) chartCardsSkeleton(c *ui.Context, s shimmer) {
 			ui.Row(c.Key(i)).Gap(14).Padding(12).Radius(radiusCard).AlignItems(ui.Center).Background(a.pal.hover).Children(func() {
 				s.bone(c, 9).Size(84, 84)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(5).Children(func() {
-					s.text(c, 14, 1.3).WidthPercent(46)
+					s.text(c, 17, 1.3).WidthPercent(46)
 					for j := range 3 {
-						s.text(c, 12, 1.3).WidthPercent(boneWidth(i*3 + j))
+						s.text(c, 14, 1.3).WidthPercent(boneWidth(i*3 + j))
 					}
 				})
 			})
@@ -119,11 +119,11 @@ func (a *app) playlistCardsSkeleton(c *ui.Context, s shimmer, n int, min float32
 			ui.Column(c.Key(i)).Gap(10).AlignItems(ui.Stretch).Children(func() {
 				s.bone(c, 10).AspectRatio(1)
 				ui.Column(c).Gap(0).Children(func() {
-					s.text(c, 13, 1.35).WidthPercent(92)
-					s.text(c, 13, 1.35).WidthPercent(boneWidth(i))
+					s.text(c, 16, 1.35).WidthPercent(92)
+					s.text(c, 16, 1.35).WidthPercent(boneWidth(i))
 				})
 				if freq {
-					s.text(c, 12, 1.3).WidthPercent(40).Margin(-6, 0, 0, 0)
+					s.text(c, 14, 1.3).WidthPercent(40).Margin(-6, 0, 0, 0)
 				}
 			})
 		}
@@ -136,27 +136,27 @@ func (a *app) trackSkeleton(c *ui.Context, s shimmer, covers bool, header func(c
 	w, h := c.Size()
 	wide := w-a.sidebarWidth() > 820
 	top, bottom := a.insets(c)
-	a.underTop, a.underBottom = false, true
+	a.underTop = false
 	ui.Column(c.Key("skeleton")).Grow(1).Padding(top+pageGap, pagePad-12, bottom+32, pagePad-12).Children(func() {
 		a.startMark(c)
 		ui.Column(c).PaddingX(12).Children(func() { header(c) })
-		for i := range max(8, int(h/54)) {
-			ui.Row(c.Key(i)).Height(54).Shrink(0).PaddingX(12).Gap(14).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Width(26).Center().Children(func() { s.text(c, 13, 1.3).Width(12) })
+		for i := range max(8, int(h/66)) {
+			ui.Row(c.Key(i)).Height(66).Shrink(0).PaddingX(12).Gap(14).AlignItems(ui.Center).Children(func() {
+				ui.Box(c).Width(26).Center().Children(func() { s.text(c, 16, 1.3).Width(12) })
 				if covers {
-					s.bone(c, 6).Size(38, 38)
+					s.bone(c, 6).Size(44, 44)
 				}
 				ui.Column(c).Grow(3).Basis(0).MinWidth(0).Gap(3).Children(func() {
-					s.text(c, 14, 1.3).WidthPercent(boneWidth(i) * 0.8)
-					s.text(c, 12.5, 1.3).WidthPercent(boneWidth(i+5) * 0.55)
+					s.text(c, 17, 1.3).WidthPercent(boneWidth(i) * 0.8)
+					s.text(c, 15, 1.3).WidthPercent(boneWidth(i+5) * 0.55)
 				})
 				if wide {
 					ui.Box(c).Grow(2).Basis(0).MinWidth(0).Children(func() {
-						s.text(c, 12.5, 1.3).WidthPercent(boneWidth(i+3) * 0.8)
+						s.text(c, 15, 1.3).WidthPercent(boneWidth(i+3) * 0.8)
 					})
 				}
 				ui.Box(c).Size(32, 32)
-				ui.Row(c).Width(44).Justify(ui.End).Children(func() { s.text(c, 12.5, 1.3).Width(30) })
+				ui.Row(c).Width(44).Justify(ui.End).Children(func() { s.text(c, 15, 1.3).Width(30) })
 			})
 		}
 	})
@@ -167,12 +167,12 @@ func (a *app) playlistHeaderSkeleton(c *ui.Context, s shimmer) {
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
 		s.bone(c, 14).Size(212, 212)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
-			s.text(c, 12, 1.3).Width(36)
+			s.text(c, 14, 1.3).Width(36)
 			s.text(c, 30, 1.2).WidthPercent(48)
-			s.text(c, 13, 1.3).Width(180)
+			s.text(c, 16, 1.3).Width(180)
 			ui.Column(c).Margin(2, 0, 0, 0).Children(func() {
-				s.text(c, 12.5, 1.45).WidthPercent(78)
-				s.text(c, 12.5, 1.45).WidthPercent(52)
+				s.text(c, 15, 1.45).WidthPercent(78)
+				s.text(c, 15, 1.45).WidthPercent(52)
 			})
 			ui.Row(c).Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				s.bone(c, 18).Size(92, 36)
@@ -190,7 +190,7 @@ func commentSkeleton(c *ui.Context, s shimmer, n int) {
 		ui.Row(c.Key(i)).Padding(12).Gap(12).AlignItems(ui.Start).Children(func() {
 			s.bone(c, 17).Size(34, 34)
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
-				s.text(c, 13, 1.3).Width(60 + boneWidth(i))
+				s.text(c, 16, 1.3).Width(60 + boneWidth(i))
 				ui.Column(c).Children(func() {
 					s.text(c, 15, 1.55).WidthPercent(94)
 					if i%3 != 2 {

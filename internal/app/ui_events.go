@@ -36,16 +36,16 @@ func (a *app) event(c *ui.Context, e *netease.Event) {
 		ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 			a.cover(c, e.User.AvatarURL, 120, 40, 20)
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
-				ui.Text(c, e.User.Nickname).FontSize(14).FontWeight(600).SingleLine()
-				ui.Text(c, time.UnixMilli(e.Time).Format("2006-01-02 15:04")).FontSize(12).TextColor(p.muted)
+				ui.Text(c, e.User.Nickname).FontSize(17).FontWeight(600).SingleLine()
+				ui.Text(c, time.UnixMilli(e.Time).Format("2006-01-02 15:04")).FontSize(14).TextColor(p.muted)
 			})
 		})
 		ct := &e.Content
 		if msg := strings.TrimSpace(ct.Msg); msg != "" {
-			ui.Text(c, msg).FontSize(14).LineHeight(1.6)
+			ui.Text(c, msg).FontSize(17).LineHeight(1.6)
 		}
 		if ct.Forwarded != "" {
-			ui.Text(c, ct.Forwarded).FontSize(13).LineHeight(1.5).TextColor(p.muted).Padding(10, 12).Radius(radiusTile).Background(p.hover)
+			ui.Text(c, ct.Forwarded).FontSize(16).LineHeight(1.5).TextColor(p.muted).Padding(10, 12).Radius(radiusTile).Background(p.hover)
 		}
 		if len(e.Pictures) > 0 {
 			ui.Grid(c).Columns(3).Gap(8).MaxWidth(480).Children(func() {
@@ -66,7 +66,7 @@ func (a *app) event(c *ui.Context, e *netease.Event) {
 		case ct.Artist != nil:
 			a.shared(c, ct.Artist.Name, "歌手", ct.Artist.Avatar, route{page: pageArtist, id: ct.Artist.ID})
 		case ct.Video:
-			ui.Text(c, "分享了视频，暂不支持在应用内观看").FontSize(12.5).TextColor(p.muted)
+			ui.Text(c, "分享了视频，暂不支持在应用内观看").FontSize(15).TextColor(p.muted)
 		}
 		ui.Text(c, fmt.Sprintf("%s 赞 · %s 评论 · %s 转发", count(e.Info.LikedCount), count(e.Info.CommentCount), count(e.Info.ShareCount))).
 			FontSize(12).TextColor(p.muted)
@@ -87,8 +87,8 @@ func (a *app) shared(c *ui.Context, name, sub, pic string, r route) {
 	card.Children(func() {
 		a.cover(c, pic, 120, 44, radiusTile)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
-			ui.Text(c, name).FontSize(13.5).FontWeight(600).SingleLine()
-			ui.Text(c, sub).FontSize(12).TextColor(p.muted).SingleLine()
+			ui.Text(c, name).FontSize(17).FontWeight(600).SingleLine()
+			ui.Text(c, sub).FontSize(14).TextColor(p.muted).SingleLine()
 		})
 	})
 	if card.Clicked() {

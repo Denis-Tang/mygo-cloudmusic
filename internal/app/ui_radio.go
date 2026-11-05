@@ -211,7 +211,6 @@ func (a *app) fmPage(c *ui.Context) {
 	top, bottom := a.insets(c)
 	ui.Scroll(c.Key("fm")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
-		defer a.endMark(c)
 		// The mode the FM plays in, if it plays.
 		for i, m := range fmModes {
 			if a.pl.Radio() == fmRadio(m.mode) {
@@ -276,7 +275,7 @@ func (a *app) fmCard(c *ui.Context) {
 				}
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					ui.Icon(c, iconRadio).Size(14, 14).TextColor(white.Alpha(0.75))
-					ui.Text(c, label).FontSize(12).FontWeight(600).TextColor(white.Alpha(0.75))
+					ui.Text(c, label).FontSize(14).FontWeight(600).TextColor(white.Alpha(0.75))
 				})
 				if tr == nil {
 					ui.Text(c, "听见更多好音乐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6)
@@ -294,11 +293,11 @@ func (a *app) fmCard(c *ui.Context) {
 				ui.Text(c, tr.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 				switch {
 				case pl.Loading():
-					ui.Text(c, "正在缓冲…").FontSize(14).TextColor(white.Alpha(0.7)).SingleLine()
+					ui.Text(c, "正在缓冲…").FontSize(17).TextColor(white.Alpha(0.7)).SingleLine()
 				case pl.Err() != "":
-					ui.Text(c, pl.Err()).FontSize(14).TextColor(white).SingleLine()
+					ui.Text(c, pl.Err()).FontSize(17).TextColor(white).SingleLine()
 				default:
-					a.artistLinks(c, tr, white.Alpha(0.7), white, true).FontSize(14).SingleLine()
+					a.artistLinks(c, tr, white.Alpha(0.7), white, true).FontSize(17).SingleLine()
 				}
 				ui.Row(c).Gap(14).AlignItems(ui.Center).Margin(20, 0, 0, -8).Children(func() {
 					if a.profile != nil {
@@ -373,8 +372,8 @@ func (a *app) heartCard(c *ui.Context, p palette) {
 			LinearGradient(ui.LinearGradient{Angle: 135, Oklab: true, From: ui.Oklch(0.72, 0.17, 10), To: ui.Oklch(0.58, 0.22, 350)}).
 			TextColor(white).Children(func() { ui.Icon(c, iconHeartFill).Size(26, 26) })
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, "从你喜欢的音乐出发").FontSize(15).FontWeight(700)
-			ui.Text(c, "根据你红心过的歌曲，智能推荐风格相似的音乐，与你的喜欢穿插播放").FontSize(12.5).TextColor(p.muted)
+			ui.Text(c, "从你喜欢的音乐出发").FontSize(18).FontWeight(700)
+			ui.Text(c, "根据你红心过的歌曲，智能推荐风格相似的音乐，与你的喜欢穿插播放").FontSize(15).TextColor(p.muted)
 		})
 		if on {
 			if pillButton(c.Key("exit-heart"), iconX, "退出心动模式", p.press.Over(p.bg), p.text).Clicked() {

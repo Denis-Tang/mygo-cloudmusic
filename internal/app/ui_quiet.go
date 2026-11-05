@@ -159,16 +159,16 @@ func (a *app) hotCard(c *ui.Context, dim, size float32, place func(ui.Element)) 
 	card.Children(func() {
 		ui.Row(c).Gap(6).AlignItems(ui.Center).TextColor(white.Alpha(0.5)).Children(func() {
 			ui.Icon(c, iconComment).Size(14, 14)
-			ui.Text(c, "热评").FontSize(12.5).FontWeight(700).LetterSpacing(0.6)
+			ui.Text(c, "热评").FontSize(15).FontWeight(700).LetterSpacing(0.6)
 		})
 		ui.Text(c, cm.Content).FontSize(size).FontWeight(600).LineHeight(1.5).TextColor(white.Alpha(0.92)).MaxLines(6)
 		ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
 			a.avatar(c, cm.User.AvatarURL, 22, white.Alpha(0.1))
-			ui.Text(c, cm.User.Nickname).FontSize(13).TextColor(white.Alpha(0.6)).SingleLine().Shrink(1).MinWidth(0)
+			ui.Text(c, cm.User.Nickname).FontSize(16).TextColor(white.Alpha(0.6)).SingleLine().Shrink(1).MinWidth(0)
 			if cm.LikedCount > 0 {
 				ui.Row(c).Gap(4).AlignItems(ui.Center).Margin(0, 0, 0, 6).TextColor(white.Alpha(0.45)).Children(func() {
 					ui.Icon(c, iconThumb).Size(13, 13)
-					ui.Text(c, count(cm.LikedCount)).FontSize(12).FontFeatures("tnum")
+					ui.Text(c, count(cm.LikedCount)).FontSize(14).FontFeatures("tnum")
 				})
 			}
 		})

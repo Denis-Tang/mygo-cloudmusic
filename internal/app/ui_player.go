@@ -3,7 +3,6 @@ package app
 import (
 	"time"
 
-	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/player"
@@ -22,7 +21,7 @@ func secs(s float64) time.Duration { return time.Duration(s * float64(time.Secon
 
 // scrubber shows how far the track is, and seeks where it is dragged or
 // clicked: the bar thickens under the pointer, and its knob shows.
-func (a *app) scrubber(c *ui.Context, st *scrubState, track, fill ui.Color, height float32, smoke ui.Color) ui.Element {
+func (a *app) scrubber(c *ui.Context, st *scrubState, track, fill ui.Color, height float32) ui.Element {
 	pl := a.pl
 	dur := pl.Duration().Seconds()
 	if !st.active && !st.held {
@@ -53,7 +52,7 @@ func (a *app) scrubber(c *ui.Context, st *scrubState, track, fill ui.Color, heig
 		pl.Seek(secs(min(st.v, max(0, dur-1))))
 	}
 	hot := s.Hovered() || pressed
-	thick := float32(4)
+	thick := float32(2)
 	if hot {
 		thick = 6
 	}
@@ -84,7 +83,7 @@ func (a *app) scrubber(c *ui.Context, st *scrubState, track, fill ui.Color, heig
 		if knob > 0.01 {
 			k := 12 * knob
 			p.Shadow(ui.Rect{X: head - k/2, Y: r.Y + (r.H-k)/2, W: k, H: k}, k/2, 0, 1, 3, 0, ui.RGBA(0, 0, 0, 0.3))
-			p.Fill(ui.Rect{X: head - k/2, Y: r.Y + (r.H-k)/2, W: k, H: k}, fill, k/2)
+			p.Fill(ui.Rect{X: head - k/2, Y: r.Y + (r.H-k)/2, W: k, H: k}, white, k/2)
 		}
 		switch {
 		case pl.Playing() && !st.active && dur > 0:
@@ -94,6 +93,19 @@ func (a *app) scrubber(c *ui.Context, st *scrubState, track, fill ui.Color, heig
 			p.After(max(16*time.Millisecond, secs(perPixel)))
 		}
 	})
+	if hot {
+		width := s.Bounds().W
+		x := float32(0)
+		if dur > 0 {
+			x = width * float32(st.v/dur)
+		}
+		s.Children(func() {
+			ui.Text(c, clock(secs(st.v))+" / "+clock(pl.Duration())).Absolute().
+				Left(max(8, min(width-120, x-56))).Bottom(height+8).Padding(6, 12).
+				Radius(radiusPill).Background(ui.RGBA(0, 0, 0, 0.85)).TextColor(white).
+				FontSize(12).FontWeight(600).FontFeatures("tnum").SingleLine().PassThrough()
+		})
+	}
 	return s
 }
 
@@ -111,7 +123,7 @@ func (a *app) tickTimes(c *ui.Context) {
 // percent over it. The wheel over the speaker turns it up and down
 // without opening it.
 func (a *app) volumeButton(c *ui.Context, color ui.Color) {
-	b := iconButton(c.Key("volume-button"), volumeIcon(a.volume), 16, color, "音量")
+	b := iconButton(c.Key("volume-button"), volumeIcon(a.volume), 20, color, "音量")
 	if b.Clicked() {
 		a.volumeOpen = !a.volumeOpen
 	}
@@ -133,7 +145,7 @@ func (a *app) volumeButton(c *ui.Context, color ui.Color) {
 				QuadTo(cx, foot+arrow, cx+1.2, foot+arrow-1.2).LineTo(cx+arrow+1, foot)
 			p.StrokePath(edge, 0.5, pop.edge)
 		})
-		ui.Textf(c, "%d%%", int(a.volume*100+0.5)).FontSize(11).FontWeight(500).FontFeatures("tnum").TextColor(a.pal.muted)
+		ui.Textf(c, "%d%%", int(a.volume*100+0.5)).FontSize(13).FontWeight(500).FontFeatures("tnum").TextColor(a.pal.muted)
 		a.nativeVolumeSlider(c, pop)
 	})
 }
@@ -288,14 +300,13 @@ func (a *app) playerBar(c *ui.Context) {
 	}
 	// Over the foot of the page: while content is under it, its edge frosts
 	// it, with a hairline along the top.
-	edge := ui.Box(c.Key("bottom-edge")).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).
-		Material(glass.ScrollEdge{Hard: true, Bottom: true, Background: p.bg})
-	edge.Opacity(edgeShown(edge, a.underBottom))
+	ui.Box(c.Key("bottom-edge")).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).
+		Background(p.bg).BorderWidth(1, 0, 0, 0).BorderColor(p.hairline)
 	// The controls keep the middle, between sides that share what is left:
 	// narrower, the middle shrinks, and what plays keeps room
 	// for its cover, some of its title and its heart.
-	const controls = 33 + 3*32 + 3*4 // collection, lyrics, queue and the speaker
-	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).PaddingX(20).Gap(20).AlignItems(ui.Center).Children(func() {
+	const controls = 38 + 3*36 + 3*4 // collection, lyrics, queue and the speaker
+	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).Padding(8, 28, 0, 28).Gap(20).AlignItems(ui.Center).Children(func() {
 		// What plays.
 		ui.Row(c).Grow(1).Basis(0).MinWidth(150).Children(func() {
 			if tr == nil {
@@ -303,7 +314,7 @@ func (a *app) playerBar(c *ui.Context) {
 					ui.Box(c).Size(48, 48).Radius(radiusTile).Background(p.hover).Center().Children(func() {
 						ui.Icon(c, iconNote).Size(18, 18).TextColor(p.faint)
 					})
-					ui.Text(c, "未在播放").FontSize(13).TextColor(p.muted)
+					ui.Text(c, "未在播放").FontSize(16).TextColor(p.muted)
 				})
 				return
 			}
@@ -320,7 +331,7 @@ func (a *app) playerBar(c *ui.Context) {
 					}
 				})
 				ui.Column(c).Shrink(1).MinWidth(0).Gap(3).Children(func() {
-					ui.Text(c, tr.Name).FontSize(13.5).FontWeight(600).SingleLine()
+					ui.Text(c, tr.Name).FontSize(17).FontWeight(600).SingleLine()
 					// What it is waiting on shows in place of the artists.
 					var sub string
 					color := p.muted
@@ -333,27 +344,19 @@ func (a *app) playerBar(c *ui.Context) {
 						sub, color = pl.Err(), p.accent
 					}
 					if sub == "" {
-						a.artistLinks(c, tr, p.muted, p.text).FontSize(12).SingleLine()
+						a.artistLinks(c, tr, p.muted, p.text).FontSize(14).SingleLine()
 					} else {
-						ui.Text(c, sub).FontSize(12).TextColor(color).SingleLine()
+						ui.Text(c, sub).FontSize(14).TextColor(color).SingleLine()
 					}
 				})
 			})
 			if info.Clicked() {
 				a.nowPlaying = true
 			}
-			a.likeButton(c.Key("like"), tr, 16, p.muted).Margin(0, 0, 0, 4).Shrink(0)
+			a.likeButton(c.Key("like"), tr, 20, p.muted).Margin(0, 0, 0, 4).Shrink(0)
 		})
 
-		// Controls over the progress.
-		ui.Column(c).Width(440).Shrink(1).MinWidth(210).Gap(0).AlignItems(ui.Stretch).Children(func() {
-			a.transport(c, p.text, p.muted, p.accent, 18)
-			ui.Row(c).Gap(10).AlignItems(ui.Center).Margin(-4, 0, 0, 0).Children(func() {
-				ui.Text(c, clock(pl.Position())).FontSize(10.5).FontFeatures("tnum").TextColor(p.faint).Width(34).TextAlign(ui.End)
-				a.scrubber(c.Key("bar-scrub"), &a.barScrub, p.press, p.text.Alpha(0.75), 14, p.accent).Grow(1)
-				ui.Text(c, clock(pl.Duration())).FontSize(10.5).FontFeatures("tnum").TextColor(p.faint).Width(34)
-			})
-		})
+		a.transport(c, p.text, p.muted, p.accent, 24)
 
 		// Collection, lyrics and volume.
 		ui.Row(c).Grow(1).Basis(0).MinWidth(controls).Justify(ui.End).AlignItems(ui.Center).Gap(4).Children(func() {
@@ -368,13 +371,16 @@ func (a *app) playerBar(c *ui.Context) {
 			if tr != nil && tr.ProgramID != 0 {
 				label = "节目简介"
 			}
-			if iconButton(c.Key("lyrics"), iconLyrics, 16, lyr, label).Clicked() && tr != nil {
+			if iconButton(c.Key("lyrics"), iconLyrics, 20, lyr, label).Clicked() && tr != nil {
 				a.nowPlaying, a.npPane = true, a.lyricsPaneChosen()
 			}
-			if iconButton(c.Key("queue"), iconQueue, 16, p.muted, "播放队列").Clicked() && tr != nil {
+			if iconButton(c.Key("queue"), iconQueue, 20, p.muted, "播放队列").Clicked() && tr != nil {
 				a.nowPlaying, a.npPane = true, paneQueue
 			}
 			a.volumeButton(c, p.text.Alpha(0.75))
 		})
 	})
+	a.scrubber(c.Key("bar-scrub"), &a.barScrub, p.press, p.accent, 16).
+		Absolute().Left(0).Right(0).Bottom(playerBarHeight - 8)
+
 }

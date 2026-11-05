@@ -42,6 +42,7 @@ func (a *app) view(c *ui.Context) {
 	p := a.pal
 	t.Accent, t.AccentText = p.accent, p.onAccent
 	t.Selection = p.accent.Alpha(0.3)
+	t.FontSize = 16
 	c.SetTheme(&t)
 
 	a.shortcuts(c)
@@ -106,9 +107,11 @@ func (a *app) view(c *ui.Context) {
 				// The bars float over the page, which scrolls under them:
 				// positioned, they paint over it.
 				a.pageTop(c)
-				a.playerBar(c)
 			})
 		})
+		if !npOpen || !npSettled {
+			a.playerBar(c)
+		}
 		if !npOpen {
 			a.sidebarToggle(c)
 		}
@@ -233,7 +236,7 @@ func (a *app) sidebar(c *ui.Context) {
 	}
 	// Where nothing in it takes the press, the sidebar moves the window, as
 	// the title bar it reaches up into would.
-	ui.Column(c).Fill().Padding(top, sidebarPad, sidebarPad, sidebarPad).Gap(4).DragWindow().Children(func() {
+	ui.Column(c).Fill().Padding(top, sidebarPad, playerBarHeight+sidebarPad, sidebarPad).Gap(4).DragWindow().Children(func() {
 		a.searchField(c)
 
 		ui.Scroll(c.Key("nav")).TrackScroll(&a.navScroll).Grow(1).Margin(0, -6).Padding(0, 16, 0, 6).Gap(4).Children(func() {
@@ -246,8 +249,6 @@ func (a *app) sidebar(c *ui.Context) {
 			a.myPlaylists(c, "我的歌单", a.mine, true, &a.mineCollapsed)
 			a.myPlaylists(c, "收藏的歌单", a.saved, false, &a.savedCollapsed)
 		})
-
-		a.accountRow(c)
 	})
 }
 
@@ -332,17 +333,6 @@ func (a *app) startMark(c *ui.Context) {
 	}
 }
 
-// endMark marks where a page's content ends, last in what scrolls: while it
-// is below the top of the player, content is under the player.
-func (a *app) endMark(c *ui.Context) {
-	b := ui.Box(c.Key("end-mark")).Height(0).Bounds()
-	if b.W > 0 {
-		_, h := c.Size()
-		_, bottom := a.insets(c)
-		a.underBottom = b.Y > h-bottom+0.5
-	}
-}
-
 // edgeShown returns how much of a scroll edge shows over el: fully while
 // content is under its bar, and none at rest, as AppKit shows its edges.
 func edgeShown(el ui.Element, under bool) float32 {
@@ -361,6 +351,9 @@ func (a *app) pageTop(c *ui.Context) {
 	edge := ui.Box(c.Key("top-edge")).Absolute().Top(0).Left(0).Right(0).Height(top).DragWindow().
 		Material(glass.ScrollEdge{Hard: true, Background: a.pal.bg})
 	edge.Opacity(edgeShown(edge, a.underTop))
+	ui.Row(c.Key("top-account")).Absolute().Top(sidebarPad).Right(c.TitleBar().Right + sidebarPad).Height(topBarHeight).AlignItems(ui.Center).Children(func() {
+		a.accountRow(c)
+	})
 	if len(a.history) > 0 || len(a.forward) > 0 {
 		left := float32(pagePad - 17) // center the 34-point back button on the content edge
 		if !a.settings.Sidebar {
@@ -388,7 +381,7 @@ func (a *app) content(c *ui.Context) {
 		a.trackList, a.pageScroll, a.scrolled = ui.ListState{}, ui.ScrollState{}, a.route
 	}
 	// Pages mark where their content is, as they scroll.
-	a.underTop, a.underBottom = false, false
+	a.underTop = false
 	switch a.route.page {
 	case pageHome:
 		a.homePage(c)

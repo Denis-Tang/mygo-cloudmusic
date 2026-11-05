@@ -298,7 +298,7 @@ func (a *app) playlistNameDialog(c *ui.Context) {
 			action = "正在创建…"
 		}
 		ui.Text(c, title).FontSize(17).FontWeight(700)
-		in := ui.TextInput(c.Key("name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(14).Radius(radiusField).AutoFocus()
+		in := ui.TextInput(c.Key("name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(17).Radius(radiusField).AutoFocus()
 		if in.Submitted() {
 			a.submitName()
 		}
@@ -328,7 +328,7 @@ func (a *app) deletePlaylistDialog(c *ui.Context) {
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		ui.Text(c, "删除歌单").FontSize(17).FontWeight(700)
-		ui.Text(c, "确定删除歌单“"+d.name+"”吗？删除后无法恢复。").FontSize(13).TextColor(p.muted).LineHeight(1.45)
+		ui.Text(c, "确定删除歌单“"+d.name+"”吗？删除后无法恢复。").FontSize(16).TextColor(p.muted).LineHeight(1.45)
 		ui.Row(c).Gap(10).Justify(ui.End).Margin(8, 0, 0, 0).Children(func() {
 			if pillButton(c.Key("cancel"), nil, "取消", p.hover.Over(p.bg), p.text).Clicked() {
 				d.open = false

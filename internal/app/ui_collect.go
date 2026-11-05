@@ -22,7 +22,7 @@ type collectDialog struct {
 
 // collectButton opens the playlist picker from either player bar.
 func (a *app) collectButton(c *ui.Context, tr *netease.Track, color ui.Color) {
-	b := iconButton(c.Key("collect"), iconCollect, 17, color, "收藏到歌单")
+	b := iconButton(c.Key("collect"), iconCollect, 20, color, "收藏到歌单")
 	if b.Clicked() {
 		a.openCollect(tr)
 	}
@@ -76,7 +76,7 @@ func (a *app) collectDialogBody(c *ui.Context) {
 			// beside the title that the title centers on.
 			ui.Row(c).Height(56).Padding(0, 14).Gap(10).AlignItems(ui.Center).Children(func() {
 				ui.Box(c).Width(31)
-				ui.Text(c, "收藏到歌单").FontSize(15).FontWeight(700).Grow(1).TextAlign(ui.Center).TextColor(p.text).SingleLine()
+				ui.Text(c, "收藏到歌单").FontSize(18).FontWeight(700).Grow(1).TextAlign(ui.Center).TextColor(p.text).SingleLine()
 				if iconButton(c.Key("close-collect"), iconX, 15, p.muted, "关闭").Clicked() {
 					d.open = false
 				}
@@ -113,9 +113,9 @@ func (a *app) collectCreateRow(c *ui.Context, d *collectDialog) {
 	row := collectRow(c, p, "create", "创建新歌单")
 	row.Children(func() {
 		ui.Box(c).Size(40, 40).Radius(radiusTile).Center().Background(p.hover).Children(func() {
-			ui.Icon(c, iconPlus).Size(16, 16).TextColor(p.muted)
+			ui.Icon(c, iconPlus).Size(18, 18).TextColor(p.muted)
 		})
-		ui.Text(c, "创建新歌单").FontSize(13.5).FontWeight(600).TextColor(p.text)
+		ui.Text(c, "创建新歌单").FontSize(17).FontWeight(600).TextColor(p.text)
 	})
 	if row.Clicked() {
 		d.open = false
@@ -136,14 +136,14 @@ func (a *app) collectPlaylistRow(c *ui.Context, pl *netease.Playlist, d *collect
 			cov.Background(p.accent.Alpha(0.14))
 			cov.Children(func() {
 				ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Center().Children(func() {
-					ui.Icon(c, iconHeartFill).Size(14, 14).TextColor(p.accent)
+					ui.Icon(c, iconHeartFill).Size(18, 18).TextColor(p.accent)
 				})
 			})
 		}
 		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
-			ui.Text(c, pl.Name).FontSize(13.5).FontWeight(600).TextColor(p.text).SingleLine()
+			ui.Text(c, pl.Name).FontSize(17).FontWeight(600).TextColor(p.text).SingleLine()
 			if n := pl.TrackCount; n > 0 {
-				ui.Text(c, count(n)+"首").FontSize(11.5).TextColor(p.muted).SingleLine()
+				ui.Text(c, count(n)+"首").FontSize(14).TextColor(p.muted).SingleLine()
 			}
 		})
 	})

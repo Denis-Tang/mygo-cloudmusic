@@ -138,18 +138,17 @@ type app struct {
 	mutedFrom  float64
 
 	rowBars barState
-	// underTop and underBottom say whether the page has content under its
-	// bars, which show their scroll edges then.
-	underTop, underBottom bool
-	barScrub              scrubState
-	npScrub               scrubState
-	backdropCache         backdropCache // the backdrop of Now Playing, as last painted
-	npArt                 *artwork      // the cover whose colors Now Playing shows
-	npCoverState          coverState    // the cover of Now Playing, as it is tilted and flicked
-	quiet                 quietState    // the quiet parts of the song playing, for its hot comments
-	captions              captionState  // the episode playing's captions, and the model that writes them
-	sig                   playerSig
-	quitting              bool
+	// underTop says whether content has scrolled under the top bar.
+	underTop      bool
+	barScrub      scrubState
+	npScrub       scrubState
+	backdropCache backdropCache // the backdrop of Now Playing, as last painted
+	npArt         *artwork      // the cover whose colors Now Playing shows
+	npCoverState  coverState    // the cover of Now Playing, as it is tilted and flicked
+	quiet         quietState    // the quiet parts of the song playing, for its hot comments
+	captions      captionState  // the episode playing's captions, and the model that writes them
+	sig           playerSig
+	quitting      bool
 
 	settings     settings
 	settingsOpen bool

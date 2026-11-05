@@ -32,6 +32,9 @@ func TestScrubSeeksOnRelease(t *testing.T) {
 	if !ok {
 		t.Fatal("no progress bar")
 	}
+	if bar.X != 0 || bar.W != 1200 {
+		t.Fatalf("progress bar does not span the window: %+v", bar)
+	}
 	y := bar.Y + bar.H/2
 	at := func(f float32) float32 { return bar.X + bar.W*f }
 

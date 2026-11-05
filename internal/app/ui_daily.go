@@ -113,9 +113,9 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 		})
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Padding(0, dailyPadX).Gap(28).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
-				ui.Textf(c, "%d月%d日 %s · %s", now.Month(), now.Day(), weekday(now), a.dailyNote()).FontSize(12).FontWeight(600).LetterSpacing(0.3).TextColor(white.Alpha(0.66)).MaxLines(1)
+				ui.Textf(c, "%d月%d日 %s · %s", now.Month(), now.Day(), weekday(now), a.dailyNote()).FontSize(14).FontWeight(600).LetterSpacing(0.3).TextColor(white.Alpha(0.66)).MaxLines(1)
 				ui.Text(c, "每日推荐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.8).LineHeight(1.15)
-				ui.Text(c, dailyArtists(songs)).FontSize(13).TextColor(white.Alpha(0.8)).MaxLines(1)
+				ui.Text(c, dailyArtists(songs)).FontSize(16).TextColor(white.Alpha(0.8)).MaxLines(1)
 				ui.Row(c).Gap(10).Margin(12, 0, 0, 0).Children(func() {
 					a.dailyPlayButton(c.Key("play"), songs, ours, playing)
 					if a.profile == nil && pillButton(c.Key("login"), iconUser, "登录", white.Alpha(0.16), white).Clicked() {
@@ -332,9 +332,9 @@ func (a *app) dailyPlayButton(c *ui.Context, songs []netease.Track, ours, playin
 			if playing {
 				icon = iconPause
 			}
-			ui.Icon(c, icon).Size(14, 14)
+			ui.Icon(c, icon).Size(18, 18)
 		}
-		ui.Text(c, label).FontSize(14).FontWeight(650).SingleLine()
+		ui.Text(c, label).FontSize(17).FontWeight(650).SingleLine()
 	})
 	if b.Clicked() {
 		if ours {
@@ -364,12 +364,12 @@ func (a *app) dailyPicks(c *ui.Context, songs []netease.Track, ours bool) {
 					if current {
 						ui.Icon(c, iconPlay).Size(11, 11).TextColor(white)
 					} else {
-						ui.Textf(c, "%02d", i+1).FontSize(12).FontWeight(700).FontFeatures("tnum").TextColor(white.Alpha(0.45))
+						ui.Textf(c, "%02d", i+1).FontSize(14).FontWeight(700).FontFeatures("tnum").TextColor(white.Alpha(0.45))
 					}
 				})
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
-					ui.Text(c, tr.Name).FontSize(13).FontWeight(600).MaxLines(1)
-					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(11.5).MaxLines(1)
+					ui.Text(c, tr.Name).FontSize(16).FontWeight(600).MaxLines(1)
+					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(14).MaxLines(1)
 				})
 				a.songMenu(c, row, tr, 0, white.Alpha(0.6))
 			})
@@ -495,7 +495,7 @@ func (a *app) dailyPage(c *ui.Context) {
 					})
 					return
 				}
-				ui.Text(c, fmt.Sprintf("%d 首 · %s", len(songs), a.dailyBlurb())).FontSize(13).TextColor(p.muted)
+				ui.Text(c, fmt.Sprintf("%d 首 · %s", len(songs), a.dailyBlurb())).FontSize(16).TextColor(p.muted)
 				ui.Row(c).Gap(10).Margin(8, 0, 0, 0).Children(func() {
 					if pillButton(c.Key("play"), iconPlay, "播放全部", p.accent, p.onAccent).Clicked() {
 						if a.pl.Shuffle() {

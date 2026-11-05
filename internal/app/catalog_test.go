@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -80,8 +81,8 @@ func TestCollectAlbumFromItsPage(t *testing.T) {
 	}
 }
 
-// Enter searches songs for the query typed; a tab searches it for another
-// kind, which the next search keeps, and back leaves the search.
+// Enter loads the overview categories; selecting a category keeps that kind
+// for the next search, and back leaves the search.
 func TestSearchKinds(t *testing.T) {
 	asked := fakeSearch(t)
 	a := newTestApp()
@@ -94,17 +95,23 @@ func TestSearchKinds(t *testing.T) {
 	tt.Type("春日影")
 	tt.Key(0, ui.KeyEnter)
 	tt.Frame()
-	if got := wait(t, asked, "the search"); got != (searchRequest{"春日影", netease.SearchSongs, 0}) {
-		t.Fatalf("searched %+v", got)
+	want := map[netease.SearchType]bool{netease.SearchSongs: true, netease.SearchPlaylists: true, netease.SearchAlbums: true, netease.SearchArtists: true}
+	for range 4 {
+		got := wait(t, asked, "overview search")
+		if got.query != "春日影" || got.offset != 0 || !want[got.kind] {
+			t.Fatalf("searched %+v", got)
+		}
+		delete(want, got.kind)
 	}
 
 	if err := tt.Click("歌手"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if got := wait(t, asked, "the artists"); got != (searchRequest{"春日影", netease.SearchArtists, 0}) {
-		t.Fatalf("searched %+v", got)
+	if a.route.kind != netease.SearchArtists || len(asked) != 0 {
+		t.Fatal("artist tab did not reuse the overview results")
 	}
+
 	a.search("迷星叫")
 	if got := wait(t, asked, "the next search"); got.kind != netease.SearchArtists {
 		t.Errorf("the next search looked for kind %d", got.kind)
@@ -162,6 +169,55 @@ func TestSearchLoadsMore(t *testing.T) {
 	a.search("春日影")
 	if got := wait(t, asked, "the search again"); got.offset != 0 {
 		t.Errorf("searched again from %d", got.offset)
+	}
+}
+
+// Opening a top album or all songs from the overview keeps each action's destination.
+func TestSearchOverviewNavigation(t *testing.T) {
+	for _, label := range []string{"专辑：迷跡波", "更多单曲"} {
+		a := catalogApp()
+		a.route = route{page: pageSearch, query: "MyGO"}
+		tt := ui.NewTester(a.view, 1180, 780)
+		tt.Frame()
+		if err := tt.Click(label); err != nil {
+			t.Fatal(err)
+		}
+		if label == "更多单曲" {
+			if a.route.page != pageSearch || a.route.kind != netease.SearchSongs || a.route.query != "MyGO" {
+				t.Fatalf("song category opened %+v", a.route)
+			}
+		} else if a.route.page != pageAlbum || a.route.id != 20 {
+			t.Fatalf("top album opened %+v", a.route)
+		}
+		tt.Frame()
+	}
+}
+
+// Long introductions expand without losing their original paragraphs and collapse again.
+func TestIntroductionExpands(t *testing.T) {
+	a := newTestApp()
+	text := strings.Repeat("这是一段较长的介绍，", 25) + "\n最后一段介绍。"
+	tt := ui.NewTester(func(c *ui.Context) {
+		a.pal = paletteFor(c.Theme())
+		ui.Column(c).Width(300).Children(func() { a.introduction(c, text) })
+	}, 500, 900)
+	tt.Frame()
+	before, _ := tt.Find("展开简介")
+	if err := tt.Click("展开简介"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	after, ok := tt.Find("收起简介")
+	if !ok || after.Y <= before.Y+100 || !tt.HasText(text) {
+		t.Fatalf("introduction did not expand: before %+v after %+v", before, after)
+	}
+	if err := tt.Click("收起简介"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	collapsed, _ := tt.Find("展开简介")
+	if collapsed.Y != before.Y {
+		t.Fatalf("introduction did not collapse: %+v", collapsed)
 	}
 }
 
@@ -521,7 +577,7 @@ func catalogApp() *app {
 		{netease.SearchArtists, netease.SearchResult{Artists: []netease.ArtistProfile{*a.artists[7].profile, {Artist: netease.Artist{ID: 10, Name: "Ave Mujica"}}}, Total: 2}},
 		{netease.SearchAlbums, netease.SearchResult{Albums: albums, Total: 6}},
 		{netease.SearchUsers, netease.SearchResult{Users: []netease.User{user, {UserID: 10, Nickname: "夏日来信"}}, Total: 2}},
-		{netease.SearchPodcasts, netease.SearchResult{Podcasts: []netease.Podcast{*pod}, Total: 1}},
+		{netease.SearchPlaylists, netease.SearchResult{Playlists: []netease.Playlist{{ID: 30, Name: "通勤路上", TrackCount: 40}, {ID: 31, Name: "睡前", TrackCount: 12}}, Total: 2}},
 	} {
 		a.searches[route{page: pageSearch, query: "MyGO", kind: res.kind}] = &searchData{res: res.res, page: paged{loaded: true}}
 	}
@@ -538,7 +594,8 @@ var catalogScenes = []struct {
 	{"search-artists", route{page: pageSearch, query: "MyGO", kind: netease.SearchArtists}, 0},
 	{"search-albums", route{page: pageSearch, query: "MyGO", kind: netease.SearchAlbums}, 0},
 	{"search-users", route{page: pageSearch, query: "MyGO", kind: netease.SearchUsers}, 0},
-	{"search-podcasts", route{page: pageSearch, query: "MyGO", kind: netease.SearchPodcasts}, 0},
+	{"search-overview", route{page: pageSearch, query: "MyGO"}, 0},
+	{"search-playlists", route{page: pageSearch, query: "MyGO", kind: netease.SearchPlaylists}, 0},
 	{"artist", route{page: pageArtist, id: 7}, artistHot},
 	{"artist-albums", route{page: pageArtist, id: 7}, artistAlbums},
 	{"artist-events", route{page: pageArtist, id: 7}, artistEvents},

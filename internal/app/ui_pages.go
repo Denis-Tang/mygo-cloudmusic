@@ -22,8 +22,8 @@ const pagePad = 40
 // weight, and the sections under them read as one smaller size.
 const (
 	headTitle = 30
-	headSub   = 12
-	sectionAt = 19
+	headSub   = 15
+	sectionAt = 21
 )
 
 // columns returns how many cards of at least min DIPs fit across the page.
@@ -56,7 +56,6 @@ func (a *app) homePage(c *ui.Context) {
 	top, bottom := a.insets(c)
 	ui.Scroll(c.Key("home")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
-		defer a.endMark(c)
 		hello := greeting(now)
 		if a.profile != nil {
 			hello += "，" + a.profile.Nickname
@@ -95,7 +94,6 @@ func (a *app) chartsPage(c *ui.Context) {
 	top, bottom := a.insets(c)
 	ui.Scroll(c.Key("charts")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
-		defer a.endMark(c)
 		a.heading(c, "排行榜", "每日更新")
 		if loading {
 			s := a.pageShimmer(c)
@@ -156,14 +154,14 @@ func (a *app) coverCard(c *ui.Context, name, cover string, playCount float64, su
 				ui.Row(c).Absolute().Top(8).Right(8).Padding(2, 7).Radius(radiusPill).Gap(3).AlignItems(ui.Center).
 					Background(ui.RGBA(0, 0, 0, 0.35)).TextColor(ui.RGB(255, 255, 255)).Children(func() {
 					ui.Icon(c, iconHeadset).Size(10, 10)
-					ui.Text(c, plays(playCount)).FontSize(10.5).FontWeight(600)
+					ui.Text(c, plays(playCount)).FontSize(12).FontWeight(600)
 				})
 			}
 			a.coverPlayButton(c, hovered, play)
 		})
-		ui.Text(c, name).FontSize(13).FontWeight(500).MaxLines(2).LineHeight(1.35)
+		ui.Text(c, name).FontSize(16).FontWeight(500).MaxLines(2).LineHeight(1.35)
 		if sub != "" {
-			ui.Text(c, sub).FontSize(12).TextColor(p.muted).SingleLine().Margin(-6, 0, 0, 0)
+			ui.Text(c, sub).FontSize(14).TextColor(p.muted).SingleLine().Margin(-6, 0, 0, 0)
 		}
 	})
 	return card.Clicked()
@@ -218,16 +216,16 @@ func (a *app) chartCard(c *ui.Context, pl *netease.Playlist) {
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(5).Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Baseline).Children(func() {
-				ui.Text(c, pl.Name).FontSize(14).FontWeight(700).SingleLine()
-				ui.Text(c, pl.UpdateFreq).FontSize(11).TextColor(p.faint).SingleLine()
+				ui.Text(c, pl.Name).FontSize(17).FontWeight(700).SingleLine()
+				ui.Text(c, pl.UpdateFreq).FontSize(13).TextColor(p.faint).SingleLine()
 			})
 			for i, line := range pl.Preview {
 				ui.Row(c).Gap(7).Children(func() {
-					ui.Textf(c, "%d", i+1).FontSize(12).FontWeight(700).Width(10).FontFeatures("tnum").TextColor(p.muted)
+					ui.Textf(c, "%d", i+1).FontSize(14).FontWeight(700).Width(10).FontFeatures("tnum").TextColor(p.muted)
 					ui.RichText(c,
 						ui.Span{Text: line.First, Weight: 500},
 						ui.Span{Text: "  " + line.Second, Color: p.muted},
-					).FontSize(12).SingleLine().Shrink(1).MinWidth(0)
+					).FontSize(14).SingleLine().Shrink(1).MinWidth(0)
 				})
 			}
 		})
@@ -273,9 +271,9 @@ func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 			if pl.PlayCount > 0 {
 				meta = append(meta, plays(pl.PlayCount)+" 次播放")
 			}
-			ui.Text(c, strings.Join(meta, " · ")).FontSize(13).TextColor(p.muted)
+			ui.Text(c, strings.Join(meta, " · ")).FontSize(16).TextColor(p.muted)
 			if d := strings.TrimSpace(pl.Description); d != "" {
-				ui.Text(c, strings.ReplaceAll(d, "\n", " ")).FontSize(12.5).TextColor(p.muted).MaxLines(2).LineHeight(1.45).Margin(2, 0, 0, 0)
+				a.introduction(c, d)
 			}
 			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				if pillButton(c.Key("play"), iconPlay, "播放", p.accent, p.onAccent).Clicked() {
@@ -341,7 +339,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 	top, bottom := a.insets(c)
 	// Rows out of view are not built, their marks with them: a list
 	// scrolled away from its start or end has content under the bars.
-	a.underTop, a.underBottom = true, true
+	a.underTop = true
 	rows := len(tracks) + 1 + len(footer)
 	ui.List(c.Key(a.route), &a.trackList, rows, func(i int) {
 		if i == 0 {
@@ -351,9 +349,6 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 			})
 			return
 		}
-		if i == rows-1 {
-			defer a.endMark(c)
-		}
 		if i > len(tracks) {
 			footer[i-len(tracks)-1](c)
 			return
@@ -361,7 +356,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 		i--
 		tr := &tracks[i]
 		playing := cur != nil && cur.ID == tr.ID
-		row := ui.ButtonBase(c.Key(tr.ID)).Height(54).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
+		row := ui.ButtonBase(c.Key(tr.ID)).Height(66).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
 		hovered := row.Hovered()
 		bg := ui.Transparent
 		switch {
@@ -382,11 +377,11 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				case hovered && tr.Playable():
 					ui.Icon(c, iconPlay).Size(13, 13).TextColor(p.text)
 				default:
-					ui.Textf(c, "%d", i+1).FontSize(13).FontFeatures("tnum").TextColor(p.faint)
+					ui.Textf(c, "%d", i+1).FontSize(16).FontFeatures("tnum").TextColor(p.faint)
 				}
 			})
 			if covers {
-				a.cover(c, tr.Album.PicURL, 96, 38, radiusTile)
+				a.cover(c, tr.Album.PicURL, 120, 44, radiusTile)
 			}
 			ui.Column(c).Grow(3).Basis(0).MinWidth(0).Gap(3).Children(func() {
 				name := p.text
@@ -397,19 +392,19 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				if len(tr.Alias) > 0 {
 					spans = append(spans, ui.Span{Text: "（" + tr.Alias[0] + "）", Color: p.faint})
 				}
-				ui.RichText(c, spans...).FontSize(14).SingleLine()
+				ui.RichText(c, spans...).FontSize(17).SingleLine()
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					if !tr.Playable() {
-						ui.Text(c, "VIP").FontSize(9).FontWeight(800).TextColor(p.accent).Padding(0, 4).Radius(radiusTile/2).Border(1, p.accent.Alpha(0.6))
+						ui.Text(c, "VIP").FontSize(11).FontWeight(800).TextColor(p.accent).Padding(0, 4).Radius(radiusTile/2).Border(1, p.accent.Alpha(0.6))
 					}
-					a.artistLinks(c, tr, p.muted, p.text).FontSize(12.5).SingleLine().Shrink(1).MinWidth(0)
+					a.artistLinks(c, tr, p.muted, p.text).FontSize(15).SingleLine().Shrink(1).MinWidth(0)
 					if tr.Reason != "" {
-						ui.Text(c, tr.Reason).FontSize(10.5).FontWeight(600).TextColor(p.accent).Padding(1, 6).Radius(radiusPill).Background(p.accent.Alpha(0.1)).SingleLine()
+						ui.Text(c, tr.Reason).FontSize(12).FontWeight(600).TextColor(p.accent).Padding(1, 6).Radius(radiusPill).Background(p.accent.Alpha(0.1)).SingleLine()
 					}
 				})
 			})
 			if wide {
-				album := ui.RichText(c).Grow(2).Basis(0).MinWidth(0).FontSize(12.5).TextColor(p.muted).SingleLine()
+				album := ui.RichText(c).Grow(2).Basis(0).MinWidth(0).FontSize(15).TextColor(p.muted).SingleLine()
 				album.Children(func() {
 					if tr.Album.ID == 0 {
 						ui.Text(c, tr.Album.Name)
@@ -421,10 +416,10 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 			// A liked song's heart shows; the others' as the pointer is on them.
 			ui.Box(c).Size(32, 32).Center().Children(func() {
 				if a.liked[tr.ID] || hovered {
-					a.likeButton(c.Key("like"), tr, 15, p.muted)
+					a.likeButton(c.Key("like"), tr, 18, p.muted)
 				}
 			})
-			ui.Text(c, clock(tr.Length())).FontSize(12.5).FontFeatures("tnum").TextColor(p.faint).Width(44).TextAlign(ui.End)
+			ui.Text(c, clock(tr.Length())).FontSize(15).FontFeatures("tnum").TextColor(p.faint).Width(44).TextAlign(ui.End)
 			a.songMenu(c, row, tr, pid, p.muted)
 		})
 		if row.Clicked() && tr.Playable() {

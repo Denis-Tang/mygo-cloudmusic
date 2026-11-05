@@ -70,7 +70,7 @@ func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
 			ui.Text(c, "专辑").FontSize(headSub).FontWeight(600).TextColor(p.accent)
 			ui.Text(c, al.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
-			ui.RichText(c).FontSize(13).TextColor(p.muted).Children(func() {
+			ui.RichText(c).FontSize(16).TextColor(p.muted).Children(func() {
 				for i, ar := range al.Artists {
 					if i > 0 {
 						ui.Text(c, ", ")
@@ -84,7 +84,7 @@ func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 				ui.Text(c, meta)
 			})
 			if d := strings.TrimSpace(al.Description); d != "" {
-				ui.Text(c, strings.ReplaceAll(d, "\n", " ")).FontSize(12.5).TextColor(p.muted).MaxLines(2).LineHeight(1.45).Margin(2, 0, 0, 0)
+				a.introduction(c, d)
 			}
 			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				if pillButton(c.Key("play"), iconPlay, "播放", p.accent, p.onAccent).Clicked() {
@@ -138,7 +138,7 @@ func (a *app) albumCard(c *ui.Context, al *netease.AlbumProfile) {
 		}
 		art.AnimatePose(lift, ui.Snappy)
 		art.Children(func() { a.coverFill(c, al.PicURL, 400, radiusCover) })
-		ui.Text(c, al.Name).FontSize(13).FontWeight(500).MaxLines(2).LineHeight(1.35)
+		ui.Text(c, al.Name).FontSize(16).FontWeight(500).MaxLines(2).LineHeight(1.35)
 		var meta []string
 		if a.route.page != pageArtist {
 			meta = append(meta, al.ArtistNames())
@@ -146,7 +146,7 @@ func (a *app) albumCard(c *ui.Context, al *netease.AlbumProfile) {
 		if al.PublishTime > 0 {
 			meta = append(meta, time.UnixMilli(al.PublishTime).Format("2006"))
 		}
-		ui.Text(c, strings.Join(meta, " · ")).FontSize(12).TextColor(p.muted).SingleLine().Margin(-6, 0, 0, 0)
+		ui.Text(c, strings.Join(meta, " · ")).FontSize(14).TextColor(p.muted).SingleLine().Margin(-6, 0, 0, 0)
 	})
 	if card.Clicked() {
 		a.open(route{page: pageAlbum, id: al.ID})

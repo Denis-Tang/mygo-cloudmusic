@@ -68,7 +68,7 @@ func (a *app) captionsPane(c *ui.Context, tr *netease.Track, h float32) {
 	scroll := ui.Scroll(c.Key("captions")).Grow(1).TrackScroll(&a.lyricScroll).Padding(0, 8, h*0.5, 0)
 	a.timedLines(c, scroll, lines, pos, cur, lag, linesStyle{size: 24, weight: 700, lineHeight: 1.4}, func() {
 		if cs.work != nil {
-			ui.Text(c, "正在识别…").FontSize(14).FontWeight(600).TextColor(white.Alpha(0.35)).Padding(16, 12)
+			ui.Text(c, "正在识别…").FontSize(17).FontWeight(600).TextColor(white.Alpha(0.35)).Padding(16, 12)
 		}
 	})
 }
@@ -101,7 +101,7 @@ func (a *app) modelCard(c *ui.Context) {
 				ui.Box(c).Height(6).Radius(3).WidthPercent(share * 100).Background(white.Alpha(0.85))
 			})
 			ui.Row(c).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, fmt.Sprintf("正在下载 %s / %s", megabytes(m.done), megabytes(m.total))).FontSize(12.5).FontFeatures("tnum").TextColor(white.Alpha(0.5))
+				ui.Text(c, fmt.Sprintf("正在下载 %s / %s", megabytes(m.done), megabytes(m.total))).FontSize(15).FontFeatures("tnum").TextColor(white.Alpha(0.5))
 				ui.Spacer(c)
 				if pillButton(c.Key("cancel"), nil, "取消", white.Alpha(0.14), white).Clicked() {
 					a.cancelModelDownload()
@@ -110,7 +110,7 @@ func (a *app) modelCard(c *ui.Context) {
 			return
 		}
 		if m.err != "" {
-			ui.Text(c, m.err).FontSize(13).TextColor(ui.Hex("#ff8a80"))
+			ui.Text(c, m.err).FontSize(16).TextColor(ui.Hex("#ff8a80"))
 		}
 		label := "下载模型"
 		if m.err != "" {

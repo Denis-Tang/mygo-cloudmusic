@@ -163,16 +163,15 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 // leaveButton is the pill at the top left of the playing page, which goes
 // back to the page under it.
 func leaveButton(c *ui.Context, label string) ui.Element {
-	b := ui.ButtonBase(c.Key("leave")).Height(32).PaddingX(12).Gap(4).Radius(radiusPill).FocusRing(false).
-		AlignItems(ui.Center).Label(label).Margin(0, 0, 0, 14)
+	b := ui.ButtonBase(c.Key("leave")).Size(40, 40).Radius(radiusPill).FocusRing(false).
+		Center().Label(label).Margin(0, 0, 0, 14)
 	bg := ui.RGBA(0, 0, 0, 0.22)
 	if b.Hovered() {
 		bg = ui.RGBA(0, 0, 0, 0.36)
 	}
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(white)
 	b.Children(func() {
-		ui.Icon(c, iconDown).Size(15, 15)
-		ui.Text(c, label).FontSize(13).FontWeight(600).TextColor(white)
+		ui.Icon(c, iconDown).Size(22, 22)
 	})
 	return b
 }
@@ -192,9 +191,9 @@ func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok
 	// elements' too, as the song's menu's items are.
 	b, fg := barButton(c, label, named, at, label+"面板")
 	b.Children(func() {
-		ui.Icon(c, icon).Size(13, 13)
+		ui.Icon(c, icon).Size(18, 18)
 		if named {
-			ui.Text(c, label).FontSize(13).FontWeight(600).TextColor(fg)
+			ui.Text(c, label).FontSize(16).FontWeight(600).TextColor(fg)
 		}
 	})
 	if b.Clicked() {
@@ -236,9 +235,9 @@ func (a *app) drawerButton(c *ui.Context, tr *netease.Track, named bool) {
 	}
 	b, fg := barButton(c, "more", named, open, label)
 	b.Children(func() {
-		ui.Icon(c, iconMore).Size(15, 15)
+		ui.Icon(c, iconMore).Size(18, 18)
 		if named {
-			ui.Text(c, "更多").FontSize(13).FontWeight(600).TextColor(fg)
+			ui.Text(c, "更多").FontSize(16).FontWeight(600).TextColor(fg)
 		}
 	})
 	if b.Clicked() {
@@ -306,7 +305,7 @@ func (a *app) radioChip(c *ui.Context, name string) {
 	chip.Background(chip.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
 	chip.Children(func() {
 		ui.Icon(c, icon).Size(12, 12)
-		ui.Text(c, radioLabel(name)).FontSize(11.5).FontWeight(700).LetterSpacing(0.3)
+		ui.Text(c, radioLabel(name)).FontSize(14).FontWeight(700).LetterSpacing(0.3)
 		ui.Icon(c, iconX).Size(11, 11).Opacity(cross)
 	})
 	if chip.Clicked() {
@@ -568,10 +567,10 @@ func (a *app) queuePane(c *ui.Context) {
 			row.Children(func() {
 				a.cover(c, tr.Album.PicURL, 96, 34, radiusTile)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-					ui.Text(c, tr.Name).FontSize(13.5).FontWeight(600).SingleLine()
-					a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(12).SingleLine()
+					ui.Text(c, tr.Name).FontSize(17).FontWeight(600).SingleLine()
+					a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(14).SingleLine()
 				})
-				ui.Text(c, clock(tr.Length())).FontSize(12).FontFeatures("tnum").TextColor(white.Alpha(0.4))
+				ui.Text(c, clock(tr.Length())).FontSize(14).FontFeatures("tnum").TextColor(white.Alpha(0.4))
 				a.songMenu(c, row, tr, 0, white.Alpha(0.6))
 			})
 			if row.Clicked() && tr.Playable() && !playing {

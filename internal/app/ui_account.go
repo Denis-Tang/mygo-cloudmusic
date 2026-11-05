@@ -243,12 +243,10 @@ func (a *app) profileName() string {
 	return a.profile.Nickname
 }
 
-// accountRow sits at the foot of the sidebar: who is signed in, with a
-// dropdown to open their page or the settings or sign out, or a way to
-// sign in.
+// accountRow shows only the avatar in the top bar, opening the account menu.
 func (a *app) accountRow(c *ui.Context) {
 	p := a.pal
-	b := ui.ButtonBase(c.Key("account")).Height(48).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	b := ui.ButtonBase(c.Key("account")).Size(40, 40).Radius(radiusPill).Center().FocusRing(false)
 	bg := ui.Transparent
 	if b.Hovered() || a.accountOpen && a.profile != nil {
 		bg = p.hover
@@ -260,7 +258,6 @@ func (a *app) accountRow(c *ui.Context) {
 			ui.Box(c).Size(32, 32).Radius(16).Background(p.press).Center().Children(func() {
 				ui.Icon(c, iconUser).Size(14, 14).TextColor(p.muted)
 			})
-			ui.Text(c, "登录网易云音乐").FontSize(sideFont(13)).FontWeight(500).TextColor(p.muted).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		})
 		if b.Clicked() {
 			a.openLogin()
@@ -269,9 +266,7 @@ func (a *app) accountRow(c *ui.Context) {
 	}
 	prof := a.profile
 	b.Label(prof.Nickname).Expanded(a.accountOpen).Children(func() {
-		a.avatar(c, prof.AvatarURL, 26, p.press)
-		ui.Text(c, prof.Nickname).FontSize(sideFont(13)).FontWeight(600).SingleLine().Grow(1).Shrink(1).MinWidth(0)
-		ui.Icon(c, iconUpDown).Size(13, 13).TextColor(p.faint)
+		a.avatar(c, prof.AvatarURL, 32, p.press)
 	})
 	if b.Clicked() {
 		a.accountOpen = !a.accountOpen
@@ -279,19 +274,14 @@ func (a *app) accountRow(c *ui.Context) {
 	a.accountMenu(c, b)
 }
 
-// accountMenu drops up from the account row, as wide as it, in the colors
-// of the volume popover: the listener's own page and the settings, then
-// signing out.
+// accountMenu opens below the avatar, towards the center of the window.
 func (a *app) accountMenu(c *ui.Context, row ui.Element) {
 	pop := popoverColors(a.pal.dark)
 	ui.PopoverBase(c.Key("account-menu"), row, &a.accountOpen, func(panel ui.Element) {
-		panel.AttachTo(row, ui.AnchorTopStart, ui.AnchorBottomStart).Margin(0, 0, 6, 0).Padding(5).Gap(1).
+		panel.AttachTo(row, ui.AnchorBottomEnd, ui.AnchorTopEnd).Margin(6, 0, 0, 0).Width(240).Padding(5).Gap(1).
 			Radius(radiusCard).Background(pop.fill).Border(0.5, pop.edge).Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2)).
-			Role(ui.RoleMenu).FocusGroup(ui.Vertical).Label("账户").TransformOrigin(0.5, 1).
-			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96, Y: 4}, Exit: &ui.Motion{Scale: 0.98}})
-		if w := row.Bounds().W; w > 0 {
-			panel.Width(w)
-		}
+			Role(ui.RoleMenu).FocusGroup(ui.Vertical).Label("账户").TransformOrigin(1, 0).
+			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96, Y: -4}, Exit: &ui.Motion{Scale: 0.98}})
 		shortcut := "Ctrl+,"
 		if runtime.GOOS == "darwin" {
 			shortcut = "⌘,"
@@ -326,7 +316,7 @@ func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.E
 		bg = p.press
 	}
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).Children(func() {
-		ui.Icon(c, icon).Size(15, 15).TextColor(p.muted)
+		ui.Icon(c, icon).Size(20, 20).TextColor(p.muted)
 		ui.Text(c, label).FontSize(sideFont(13)).TextColor(p.text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		if shortcut != "" {
 			ui.Text(c, shortcut).FontSize(sideFont(12)).TextColor(p.faint)

@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -161,7 +162,7 @@ func roundButton(c *ui.Context, size float32, color ui.Color, label string) ui.E
 
 // pillButton is a rounded button with an icon and a label.
 func pillButton(c *ui.Context, icon *ui.SVG, label string, bg, fg ui.Color) ui.Element {
-	b := ui.ButtonBase(c).Height(36).PaddingX(18).Gap(8).Radius(radiusPill).AlignItems(ui.Center).TextColor(fg)
+	b := ui.ButtonBase(c).Height(40).PaddingX(18).Gap(8).Radius(radiusPill).AlignItems(ui.Center).TextColor(fg)
 	fill := bg
 	if b.Hovered() {
 		fill = bg.Mix(ui.RGB(255, 255, 255), 0.12)
@@ -174,9 +175,9 @@ func pillButton(c *ui.Context, icon *ui.SVG, label string, bg, fg ui.Color) ui.E
 	b.AnimatePose(pose, ui.Snappy)
 	b.Children(func() {
 		if icon != nil {
-			ui.Icon(c, icon).Size(14, 14)
+			ui.Icon(c, icon).Size(18, 18)
 		}
-		ui.Text(c, label).FontSize(14).FontWeight(600).SingleLine()
+		ui.Text(c, label).FontSize(17).FontWeight(600).SingleLine()
 	})
 	return b
 }
@@ -332,12 +333,12 @@ func drawBars(p *ui.Painter, r ui.Rect, st *barState, n int, color ui.Color, min
 // the user chose another.
 func segmented(c *ui.Context, selected *int, labels ...string) bool {
 	t := c.Theme()
-	const inset, radius = 2, radiusTile
-	height, fontSize := t.Space(6), t.Rem(1)
+	const inset, radius = 3, radiusRow
+	height, fontSize := float32(36), float32(16)
 	width := float32(0)
 	for _, l := range labels {
 		w, _ := c.MeasureText(0, ui.Span{Text: l, Size: fontSize})
-		width = max(width, w+26)
+		width = max(width, w+24)
 	}
 	track, capsule, divider := ui.RGBA(0, 0, 0, 0.06), ui.RGB(255, 255, 255), ui.RGBA(0, 0, 0, 0.13)
 	if t.Dark {
@@ -369,7 +370,7 @@ func segmented(c *ui.Context, selected *int, labels ...string) bool {
 			if seg.Pressed() && i != *selected {
 				seg.Background(divider)
 			}
-			seg.Children(func() { ui.Text(c, l).FontSize(fontSize).TextColor(t.Text).SingleLine() })
+			seg.Children(func() { ui.Text(c, l).FontSize(fontSize).FontWeight(500).TextColor(t.Text).SingleLine() })
 		}
 	})
 	return *selected != before
@@ -403,4 +404,33 @@ func (a *app) pageFoot(c *ui.Context, pg *paged, next func()) {
 	if b := foot.Bounds(); pg.more && !pg.loading && pg.err == "" && b.W > 0 && b.Y < 2*h {
 		next()
 	}
+}
+
+// introduction keeps long biographies and descriptions readable in their page.
+func (a *app) introduction(c *ui.Context, text string) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return
+	}
+	section := ui.Column(c.Key("introduction")).Gap(4).Margin(2, 0, 0, 0)
+	expanded := ui.Local(section, "expanded", func() bool { return false })
+	section.Children(func() {
+		shown := text
+		if !*expanded {
+			shown = strings.ReplaceAll(text, "\n", " ")
+		}
+		body := ui.Text(c, shown).FontSize(15).TextColor(a.pal.muted).LineHeight(1.5)
+		if !*expanded {
+			body.MaxLines(2)
+		}
+		label := "展开简介"
+		if *expanded {
+			label = "收起简介"
+		}
+		if ui.ButtonBase(c.Key("expand")).Label(label).AlignSelf(ui.Start).Padding(4, 0).Children(func() {
+			ui.Text(c, label).FontSize(14).TextColor(a.pal.muted)
+		}).Clicked() {
+			*expanded = !*expanded
+		}
+	})
 }
