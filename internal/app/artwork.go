@@ -342,8 +342,11 @@ func stageBlur(img image.Image) *image.RGBA {
 		px[i] = [3]float64{float64(small.Pix[4*i]), float64(small.Pix[4*i+1]), float64(small.Pix[4*i+2])}
 	}
 	tmp := make([][3]float64, n*n)
+	// Three passes of radius 18. Scaled across a 1280-wide window this is
+	// about a 90px gaussian: the heavy defocus on the lyric side of
+	// NetEase's desktop player, with the cover's large shapes still in it.
 	for range 3 {
-		boxBlur(px, tmp, n, 14)
+		boxBlur(px, tmp, n, 18)
 	}
 	out := image.NewRGBA(image.Rect(0, 0, n, n))
 	for i, p := range px {

@@ -13,8 +13,8 @@ The first look at this cloud checkout, then at `106cd3c`, found a clean tree. No
 The page that opens with Ctrl+L is `nowPlayingView` (`internal/app/ui_nowplaying.go`) and `immersive` (`internal/app/ui_immersive.go`).
 
 - The cover is scaled to cover the whole window (proportions kept, edges cropped). It is not a centered square card.
-- Wider than height × 1.15, the same picture stays sharp through the left third and falls out of focus from 34% to 80% of the width (`smoothstep` in `blendSource`). Square and tall windows stay sharp across. The crop is still centered cover-fit: proportions kept, overflow cut equally.
-- The soft side is `stageBlur` (`internal/app/artwork.go`): the real cover shrunk to 256×256, three box blurs of radius 14, its own colors. The old 48×48 saturated `blurImage` is only the faint wash under the page, and the shader does not use it. Until `stage` has loaded, the sharp cover stands in for the soft side.
+- Wider than height × 1.15, the same picture stays sharp through 42% of the width and is only the defocus from 72% (`smoothstep(0.42, 0.72)` in `blendSource`). That ramp is the one the playing page was given when it was written to follow NetEase’s desktop player. Square and tall windows stay sharp across. The crop stays centered cover-fit.
+- The soft side is `stageBlur` (`internal/app/artwork.go`): the real cover at 256×256, three box blurs of radius 18, its own colors. Across a 1280-wide window that is about a 90px gaussian, so the lyric side is heavily soft and the cover’s large shapes remain. The 48×48 saturated `blurImage` is only the faint wash under the page. Until `stage` has loaded, the sharp cover stands in for the soft side.
 - Under that, `backdrop` (`internal/app/backdrop.go`) paints a deep gradient of the cover’s main colour, lighter at the top, plus the blurred cover at 10% opacity, into a canvas an eighth of the window across. The full-bleed cover is drawn over it, so the gradient shows only where the cover does not. Comments in `backdrop.go` describe this gradient as matching NetEase’s player; the picture on top is a later full-bleed poster.
 - Title, artist, and the current lyric line are centered just above the bottom bar (name 34px, or 26px when the window is shorter than 680). Lyrics sit in a right column when the window is at least 1120px wide and at least 1.3 times as wide as it is tall; otherwise they are a centered panel.
 - The playing-page bar is now a full-width strip flush with the bottom, 84px tall (`playerBarHeight`), filled with `rgba(20, 20, 22, 0.6)`. It has no cover thumbnail. The song name is 17px and the artist 14px. The progress line is a full-width scrubber along the top edge of that strip (`Top(-8)`). Elapsed and remaining time show only while the pointer is on the scrubber. Transport, like, collect, quality, volume, and “更多” sit in the strip. The back control is a 40px round icon, still labeled “返回”, with no word beside the chevron. The strip hides after 2.75s idle.
@@ -28,10 +28,9 @@ The bar on ordinary pages (`playerBar` in `internal/app/ui_player.go`) is a sepa
 
 Likely places a paired screenshot will disagree, to confirm rather than to fix yet:
 
-1. Official art is often described as one picture, sharper on one side. Here that side is the left, and the right is the same centered crop out of focus. A square card over a fully blurred field is the unused `npCover` path.
-2. The falloff (sharp until 34% of the width, fully soft by 80%) and the box blur are stand-ins. See the questions below.
-3. Motion: no disc spin and no pointer tilt on the page that actually shows.
-4. Text sits low and centered. Lyric layout still changes with the thresholds above. The bar was not part of this pass.
+1. The wide page is one centered crop, sharp on the left and the same picture defocused from 42% to 72% of the width. A square card over a fully blurred field is the unused `npCover` path.
+2. Motion: no disc spin and no pointer tilt on the page that actually shows.
+3. Text sits low and centered. Lyric layout still changes with the thresholds above. The 84px bar was not part of this pass.
 
 ## Screenshots from this VM
 
@@ -41,7 +40,7 @@ The official NetEase Windows client does not run here. This app was not logged i
 
 What those frames show, which matches the code above:
 
-- `16x9-1280x720.png` and `16x9-1920x1080.png`: the disc’s left edge stays sharp and its right edge softens into the same picture, still a disc. The red square is cropped off the top.
+- `16x9-1280x720.png` and `16x9-1920x1080.png`: the disc’s left edge stays sharp; from about the middle the same disc eases into the defocus, and the right side is that defocus only. The red square is cropped off the top.
 - `4x3-1024x768.png` and `default-1180x780.png`: same side blur. The red square is cut by the top edge.
 - `1x1-800x800.png` and `1x1-1080x1080.png`: the red square is fully in frame, and the disc stays sharp all the way around. No side blur.
 - `9x16-720x1280.png`: the red square is cropped off the side. The disc stays sharp.
@@ -49,19 +48,13 @@ What those frames show, which matches the code above:
 - `lyrics-1x1-800x800.png`: the lyric line sits in a centered dark panel.
 - The bottom strip is full width, flush with the window, and has no cover thumbnail. The pointer in these frames sits in the middle of the picture, so the time tooltip on the progress line is not showing. Controls are the awake state. Nothing here is a recording of the open or close spring.
 
-Left-edge stair-steps, where the disc is sharp, come from drawing a 512×512 fixture into a larger window. A real 1536 cover would be smoother there. The soft right side is the 256×256 defocus.
+Left-edge stair-steps, where the disc is sharp, come from drawing a 512×512 fixture into a larger window. A real 1536 cover would be smoother there. The soft right side is the 256×256 defocus of radius 18.
+
+Tuned from the previous stand-in (sharp until 34%, fully soft by 80%, box radius 14) back to NetEase’s ramp in this file’s history, 42% to 72%, and a heavier defocus (radius 18, about 90px on a 1280-wide window). Center crop is unchanged.
 
 ## Tests on this VM
 
 `TestWideCoverSoftensTowardTheRight` passed five times: on a wide window the left stays the sharp cover and a point in the falloff picks up the other half; a square window does not. `TestFullCoverShowsWhileHighResolutionLoads` still passes. `TestNowPlayingAspectFrames` was run with `NM_FRAMES` set to `docs/ui-parity/frames/mygo`. `go test ./internal/app/ -skip TestNotch` passed.
-
-## Open questions
-
-These are the official details this pass did not guess past. The numbers above are the stand-in.
-
-1. On a wide window, should the cover stay center-cropped (what this page does), or should the left edge of the art stay pinned to the left of the window?
-2. How far across should the picture stay fully sharp? This page is sharp until 34% of the width and fully soft by 80%.
-3. How strong is the soft side: a light defocus that still reads as the photo, or a heavy blur? This page is three box passes of radius 14 on a 256×256 copy.
 
 ## Next, on the Windows machine
 

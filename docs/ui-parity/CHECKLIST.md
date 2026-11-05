@@ -67,7 +67,7 @@ Check each pair, official on the left. Write a one-line note in STATUS rather th
 - Does blur fill the window behind a sharp card, or is the sharp picture itself the background?
 - How heavy is the blur, and does it band or look like a small image scaled up?
 - Is there a separate colour wash (a gradient of one hue) on top of the blur?
-- This app paints a gradient backdrop in `backdrop.go`, then draws the real cover over the whole window, center-cropped. On a wide window the shader keeps that cover sharp until 34% of the width and mixes in a defocus of the same picture by 80% (`blendSource` in `ui_immersive.go`). The mix runs only when width > height × 1.15. Square and tall windows stay sharp. The defocus is three box passes of radius 14 on a 256×256 copy, in the cover’s own colors (`stageBlur` in `artwork.go`). The older 48×48 saturated blur is only the faint wash underneath.
+- This app paints a gradient backdrop in `backdrop.go`, then draws the real cover over the whole window, center-cropped. On a wide window the shader keeps that cover sharp through 42% of the width and uses only its defocus from 72% (`blendSource` in `ui_immersive.go`). The mix runs only when width > height × 1.15. Square and tall windows stay sharp. The defocus is three box passes of radius 18 on a 256×256 copy, in the cover’s own colors (`stageBlur` in `artwork.go`), about a 90px gaussian on a 1280-wide window. The older 48×48 saturated blur is only the faint wash underneath.
 
 **Type and controls**
 

@@ -50,14 +50,13 @@ func Fragment(dst vec4, pos vec2) vec4 {
 	k1 := max(s.x/c1.x, s.y/c1.y)
 	o1 := (s - c1*k1) * 0.5
 	blur := image1Sample((pos - o1) / k1)
-	// A wide view keeps the picture sharp through the left third and lets
-	// it fall out of focus across the rest, so the right, where the words
-	// sit, is the same cover softened rather than a second picture. A
-	// taller view keeps the cover sharp across. The split is a stand-in
-	// for the official player's until a capture says otherwise.
+	// A wide view keeps the picture whole at its left and eases it into
+	// its blur before its right, as NetEase's own player does; a taller
+	// one keeps it whole. Fully sharp through 42% of the width, and the
+	// blur alone from 72%, which is where the words sit.
 	t := 0.0
 	if s.x > s.y*1.15 {
-		t = smoothstep(0.34, 0.80, pos.x/s.x)
+		t = smoothstep(0.42, 0.72, pos.x/s.x)
 	}
 	return mix(sharp, blur, t)
 }
