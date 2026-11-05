@@ -51,7 +51,9 @@ func Fragment(dst vec4, pos vec2) vec4 {
 	o1 := (s - c1*k1) * 0.5
 	blur := image1Sample((pos - o1) / k1)
 	// A wide view keeps the picture whole at its left and eases it into
-	// its blur before its right; a taller one keeps it whole.
+	// its blur before its right, as NetEase's own player does; a taller
+	// one keeps it whole. Fully sharp through 42% of the width, and the
+	// blur alone from 72%, which is where the words sit.
 	t := 0.0
 	if s.x > s.y*1.15 {
 		t = smoothstep(0.42, 0.72, pos.x/s.x)
@@ -68,9 +70,10 @@ var blendShader = sync.OnceValue(func() *shader.Shader { return shader.MustCompi
 // picture.
 func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32) {
 	// The picture itself, over the backdrop the view keeps behind it: the
-	// cover sharp and its own blur, the two of one size, that the left of
-	// a wide view is the picture and its right the softness of the same
-	// one. Until the blur has loaded, the sharp stands for it.
+	// real cover, sharp, and the same cover defocused, mapped the same
+	// way, so a wide view is one picture falling out of focus toward the
+	// right. The small saturated wash is not this blur. Until the defocus
+	// has loaded, the sharp cover stands for it.
 	sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1536), false))
 	if sharp == nil {
 		sharp = bitmap(art)
@@ -80,8 +83,8 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 			return
 		}
 		soft := sharp
-		if art != nil && art.backdrop != nil {
-			soft = art.backdrop
+		if art != nil && art.stage != nil {
+			soft = art.stage
 		}
 		blendShader().Draw(p, r, shader.Options{Images: [4]*ui.Bitmap{sharp, soft}})
 	})
