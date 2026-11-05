@@ -73,8 +73,10 @@ Check each pair, official on the left. Write a one-line note in STATUS rather th
 
 - Where the title, artist, and current lyric line sit (under a card, centered low, or to one side).
 - Whether the translation line is present, and its size.
-- Progress bar, times, transport, small cover thumbnail, quality, volume.
+- Progress line, transport, quality, volume. On this app the playing-page bar is a full-width 84px strip flush with the bottom, `rgba(20, 20, 22, 0.6)`, with no cover thumbnail. The progress line runs the full width along the top of that strip. Elapsed and remaining time appear only while the pointer is on the line, so take one still with the pointer there.
+- The back control is a round icon. Its accessible name is still “返回”.
 - Lyrics: a column on the right, or a panel over the middle. Here, the right column is used when width ≥ 1120 and width/height ≥ 1.3 (`reading` in `ui_immersive.go`). Otherwise the lyrics are a centered panel.
+- The bar on other pages is separate: also 84px, with a full-width progress line, and a solid background plus a hairline rather than a frosted edge. Capture it only if the comparison is meant to include the mini player.
 
 **Motion** (from the recording, not from the stills)
 
@@ -93,7 +95,7 @@ NM_FRAMES="$PWD/docs/ui-parity/frames/mygo" go test ./internal/app/ -run TestNow
 
 `go test` runs with the package directory as its working directory. A relative `NM_FRAMES` would write under `internal/app/`. Use the absolute path above.
 
-`TestNowPlayingAspectFrames` skips unless `NM_FRAMES` is set. It does not call NetEase. The cover is drawn in the test (512×512). The window shapes match the table above, except the filenames use the pixel size (`16x9-1280x720.png`, and so on). Controls are awake. Two extra files open the lyrics pane. The bar’s small cover is the same fixture. Any other size stays empty instead of being fetched.
+`TestNowPlayingAspectFrames` skips unless `NM_FRAMES` is set. It does not call NetEase. The cover is drawn in the test (512×512). The window shapes match the table above, except the filenames use the pixel size (`16x9-1280x720.png`, and so on). Controls are awake. The pointer sits in the middle of the picture, so the time tooltip is absent. Two extra files open the lyrics pane. Any cover size the page does not already have stays empty instead of being fetched.
 
 These frames show layout, crop, and the wide-window blur. They do not show a real song, the official client, or motion.
 
