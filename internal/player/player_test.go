@@ -1,16 +1,102 @@
 package player
 
 import (
+	"errors"
+	"fmt"
+	"io"
 	"math"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/egoist/mygo/audio"
 
 	"netease-music-mygo/internal/netease"
 )
+
+type playbackTransport func(*http.Request) (*http.Response, error)
+
+func (f playbackTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// Selection stays on a failed song; advancing skips unavailable streams, not network errors.
+func TestSelectedTrackDoesNotSkipOnFailure(t *testing.T) {
+	old := http.DefaultTransport
+	defer func() { http.DefaultTransport = old }()
+	for _, unavailable := range []bool{false, true} {
+		for _, action := range []string{"queue", "shuffle", "jump", "retry", "restore", "next"} {
+			t.Run(fmt.Sprintf("%s/unavailable=%v", action, unavailable), func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					requests := 0
+					http.DefaultTransport = playbackTransport(func(r *http.Request) (*http.Response, error) {
+						if strings.Contains(r.URL.Path, "/song/enhance/player/url/") {
+							requests++
+							if unavailable && requests == 1 {
+								return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"code":200,"data":[]}`)), Header: http.Header{}}, nil
+							}
+						}
+						return nil, errors.New("offline")
+					})
+					ch := make(chan func(), 32)
+					p := New(func(fn func()) { ch <- fn })
+					tracks := []netease.Track{{ID: 1}, {ID: 2}, {ID: 3}}
+					switch action {
+					case "queue", "shuffle":
+						p.shuffle = action == "shuffle"
+						p.PlayQueue(tracks, 1)
+					case "jump":
+						p.Cue(tracks)
+						p.Jump(1)
+					case "retry":
+						p.Cue(tracks)
+						p.at, p.track = 1, &p.queue[1]
+						p.TogglePlay()
+					case "restore":
+						p.Restore(Session{Queue: tracks, Order: []int{0, 1, 2}, At: 1})
+					case "next":
+						p.Cue(tracks)
+						p.Next()
+					}
+					for p.Loading() {
+						next(t, ch)
+					}
+					synctest.Wait()
+					wantID, wantRequests := int64(2), 1
+					if action == "next" && unavailable {
+						wantID, wantRequests = 3, 2
+					}
+					if p.Current().ID != wantID || requests != wantRequests || p.Playing() || p.Err() == "" {
+						t.Fatalf("current %d, playing %v, error %q", p.Current().ID, p.Playing(), p.Err())
+					}
+				})
+			})
+		}
+	}
+}
+
+// A filtered selection stops on that song; a radio exposes its scope before filtering.
+func TestBlockedSelectionAndRadio(t *testing.T) {
+	p := New(func(func()) {})
+	tracks := []netease.Track{{ID: 1}, {ID: 2}, {ID: 3}}
+	p.Blocked = func(netease.Track) bool { return true }
+	p.PlayQueue(tracks, 1)
+	if p.Current().ID != 2 || p.Playing() || p.Loading() || p.Err() == "" {
+		t.Fatalf("filtered selection: %+v, playing %v, loading %v, error %q", p.Current(), p.Playing(), p.Loading(), p.Err())
+	}
+	p.Blocked = func(netease.Track) bool {
+		if p.Radio() != "fm:DEFAULT" {
+			t.Fatal("radio scope not set before filtering")
+		}
+		return true
+	}
+	p.PlayRadio("fm:DEFAULT", tracks, func(got func([]netease.Track)) { got(nil) })
+	if p.Playing() || p.Loading() || p.Ready() || p.Err() == "" {
+		t.Fatalf("filtered radio: playing %v, loading %v, ready %v, error %q", p.Playing(), p.Loading(), p.Ready(), p.Err())
+	}
+}
 
 func TestPlayEmptyQueue(t *testing.T) {
 	p := &Player{at: -1}

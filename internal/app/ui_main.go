@@ -427,6 +427,7 @@ func (a *app) centered(c *ui.Context, err string, retry func()) {
 func (a *app) loadHome() {
 	a.homeLoading, a.homeErr = true, ""
 	profile := a.profile
+	filter := a.settings.FilterDaily
 	at := time.Now()
 	if profile != nil {
 		go func() {
@@ -440,12 +441,9 @@ func (a *app) loadHome() {
 	}
 	go func() {
 		daily, err := netease.DailySongs()
-		// The day's songs have albums published after the cutoff
-		// filtered out of them, their times kept.
-		a.filterKept(daily, func(kept []netease.Track) {
-			daily = kept
+		done := func(songs []netease.Track) {
 			a.post(func() {
-				if a.profile != profile {
+				if a.profile != profile || a.settings.FilterDaily != filter {
 					return
 				}
 				a.homeLoading = false
@@ -456,10 +454,15 @@ func (a *app) loadHome() {
 					return
 				}
 				a.homeErr = ""
-				a.daily = daily
+				a.daily = songs
 				a.homeAt = at
 			})
-		})
+		}
+		if filter {
+			a.filterKept(daily, done)
+		} else {
+			done(daily)
+		}
 	}()
 }
 
@@ -485,9 +488,27 @@ func dailyRenewed(loaded, now time.Time) bool {
 	return loaded.Before(six)
 }
 
+// requestPlay keeps the newest asynchronous play request and the selection it began with.
+func (a *app) requestPlay(r route) {
+	a.pendingPlay, a.pendingTrack = r, a.pl.Current()
+	a.radioStarting = ""
+}
+
+func (a *app) takePlay(r route) bool {
+	if a.pendingPlay != r {
+		return false
+	}
+	a.pendingPlay = route{}
+	return a.pendingTrack == a.pl.Current()
+}
+
 func (a *app) loadPlaylist(id int64, thenPlay bool) {
+	r := route{page: pagePlaylist, id: id}
+	if thenPlay {
+		a.requestPlay(r)
+	}
 	if pl := a.playlists[id]; pl != nil {
-		if thenPlay {
+		if thenPlay && a.takePlay(r) {
 			a.pl.PlayQueue(pl.Tracks, firstPlayable(pl.Tracks))
 		}
 		return
@@ -506,7 +527,7 @@ func (a *app) loadPlaylist(id int64, thenPlay bool) {
 				return
 			}
 			a.playlists[id] = pl
-			if thenPlay {
+			if a.takePlay(r) {
 				a.pl.PlayQueue(pl.Tracks, firstPlayable(pl.Tracks))
 			}
 		})

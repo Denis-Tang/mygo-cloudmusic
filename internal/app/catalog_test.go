@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image/png"
@@ -15,6 +16,52 @@ import (
 
 	"netease-music-mygo/internal/netease"
 )
+
+// Changing filter scopes changes playback independently and persists the checkbox choices.
+func TestDateFilterScopes(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.settings.path = filepath.Join(t.TempDir(), "settings.json")
+	a.pubLoaded = true
+	a.pubTimes = map[int64]int64{8: blockCutoff.UnixMilli()}
+	a.pl.Blocked = a.blocked
+	songs := []netease.Track{{ID: 1, Album: netease.Album{ID: 8}}}
+	a.pl.PlayQueue(songs, 0)
+	if !a.pl.Loading() || a.pl.Err() != "" {
+		t.Fatal("manual selection was filtered before enabling its scope")
+	}
+	tt := ui.NewTester(a.settingsView, 620, 2500)
+	tt.Frame()
+	if err := tt.Click("其他播放（搜索、歌单等）"); err != nil {
+		t.Fatal(err)
+	}
+	a.pl.PlayQueue(songs, 0)
+	if a.pl.Loading() || a.pl.Err() == "" {
+		t.Fatal("enabled manual scope did not stop the filtered song")
+	}
+	a.pl.PlayRadio(fmRadio(netease.FMDefault), songs, func(got func([]netease.Track)) { got(nil) })
+	if a.pl.Loading() || a.pl.Err() == "" {
+		t.Fatal("FM did not filter the song")
+	}
+	if err := tt.Click("私人 FM"); err != nil {
+		t.Fatal(err)
+	}
+	a.pl.PlayRadio(fmRadio(netease.FMDefault), songs, func(got func([]netease.Track)) { got(nil) })
+	if !a.pl.Loading() || a.pl.Err() != "" {
+		t.Fatal("disabled FM scope still used the manual scope's filter")
+	}
+	b, err := os.ReadFile(a.settings.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved settings
+	if err := json.Unmarshal(b, &saved); err != nil {
+		t.Fatal(err)
+	}
+	if !saved.FilterDaily || saved.FilterFM || !saved.FilterOther {
+		t.Fatal("scope choices were not saved independently")
+	}
+}
 
 // searchRequest is a search asked of NetEase.
 type searchRequest struct {
@@ -190,6 +237,60 @@ func TestSearchOverviewNavigation(t *testing.T) {
 			t.Fatalf("top album opened %+v", a.route)
 		}
 		tt.Frame()
+	}
+}
+
+// Song clicks across catalog pages select that song even with shuffle enabled.
+func TestSongSelectionAcrossPages(t *testing.T) {
+	for _, page := range []route{
+		{page: pageSearch, query: "MyGO"},
+		{page: pageSearch, query: "MyGO", kind: netease.SearchSongs},
+		{page: pagePlaylist, id: 30},
+		{page: pageAlbum, id: 8},
+		{page: pageArtist, id: 7},
+		{page: pageDaily},
+	} {
+		for _, shuffle := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%v/shuffle=%v", page, shuffle), func(t *testing.T) {
+				a := catalogApp()
+				songs := a.albums[8].album.Songs
+				a.playlists[30] = &netease.Playlist{ID: 30, Name: "歌单", Tracks: songs}
+				a.daily = songs
+				a.route = page
+				if shuffle {
+					a.pl.ToggleShuffle()
+				}
+				tt := ui.NewTester(a.view, 1180, 1000)
+				tt.Frame()
+				if err := tt.Click(songs[1].Name); err != nil {
+					t.Fatal(err)
+				}
+				if cur := a.pl.Current(); cur == nil || cur.ID != songs[1].ID {
+					t.Fatalf("clicked %d, selected %+v", songs[1].ID, cur)
+				}
+				order, at := a.pl.PlayOrder()
+				wantNext := a.pl.Queue()[order[at+1]].ID
+				a.pl.Next()
+				if a.pl.Current().ID != wantNext {
+					t.Fatalf("next song %+v, want %d", a.pl.Current(), wantNext)
+				}
+			})
+		}
+	}
+}
+
+// A podcast finishing its load must not replace a song selected afterwards.
+func TestPendingPodcastDoesNotReplaceSelection(t *testing.T) {
+	a := catalogApp()
+	d := a.podcasts[5]
+	d.page.loaded, d.page.loading = false, true
+	a.playPodcast(5)
+	songs := a.albums[8].album.Songs
+	a.pl.PlayQueue(songs, 1)
+	d.page.loaded = true
+	a.playLoaded(d)
+	if cur := a.pl.Current(); cur == nil || cur.ID != songs[1].ID {
+		t.Fatalf("pending podcast replaced selection with %+v", cur)
 	}
 }
 

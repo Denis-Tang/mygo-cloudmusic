@@ -91,10 +91,12 @@ func (a *app) nowPlayingView(c *ui.Context) {
 	if shown != nil && !shown.failed {
 		tint = shown.tint
 	}
-	accent := tint.Mix(white, 0.45)
+	hue, saturation, _ := hsv(float64(tint.R)/255, float64(tint.G)/255, float64(tint.B)/255)
+	accent := hsvColor(hue, min(saturation, 0.28), 0.96)
 
 	root := ui.Box(c.Key("now-playing")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
 		Background(ui.Hex("#0b0b0d")).TextColor(white)
+	accent = root.AnimateColor("cover-accent", accent, ui.Snappy)
 	// Resting, the page hides the pointer with its controls, as a video
 	// does: the pointer is the only thing left of the listener over the
 	// picture.

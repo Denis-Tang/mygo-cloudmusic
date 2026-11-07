@@ -157,6 +157,25 @@ func (a *app) settingsView(c *ui.Context) {
 			})
 		})
 
+		group("发行日期过滤（2026-02-27 起）", func() {
+			ui.Box(c.Key("filter-daily")).Padding(16, 20).Children(func() {
+				if ui.Checkbox(c, &s.FilterDaily, "每日推荐").Changed() {
+					s.save()
+					a.loadHome()
+				}
+			})
+			ui.Box(c.Key("filter-fm")).Padding(16, 20).Children(func() {
+				if ui.Checkbox(c, &s.FilterFM, "私人 FM").Changed() {
+					s.save()
+				}
+			})
+			ui.Box(c.Key("filter-other")).Padding(16, 20).Children(func() {
+				if ui.Checkbox(c, &s.FilterOther, "其他播放（搜索、歌单等）").Changed() {
+					s.save()
+				}
+			})
+		})
+
 		group("缓存", func() {
 			row("歌曲缓存", "听过的歌曲保存在本机，再次播放无需等待，也不耗流量；"+a.cacheUsage(), func() {
 				labels := make([]string, len(cacheLimits))

@@ -159,6 +159,10 @@ func (p *Player) PlayQueue(tracks []netease.Track, start int) {
 		return
 	}
 	p.endRadio()
+	p.playQueue(tracks, start, false)
+}
+
+func (p *Player) playQueue(tracks []netease.Track, start int, skip bool) {
 	start = min(max(start, 0), len(tracks)-1)
 	p.queue = append([]netease.Track(nil), tracks...)
 	p.order = make([]int, len(p.queue))
@@ -167,10 +171,9 @@ func (p *Player) PlayQueue(tracks []netease.Track, start int) {
 	}
 	if p.shuffle {
 		p.shuffleOrder(start)
-		p.load(0)
-		return
+		start = 0
 	}
-	p.load(start)
+	p.loadSkipping(start, 0, true, 0, skip)
 }
 
 // PlayRadio plays tracks in their order, then goes on with those feed
@@ -182,9 +185,10 @@ func (p *Player) PlayRadio(name string, tracks []netease.Track, feed func(got fu
 	}
 	shuffle := p.shuffle
 	p.shuffle = false
-	p.PlayQueue(tracks, 0)
+	p.endRadio()
+	p.radio, p.feed = name, feed
+	p.playQueue(tracks, 0, true)
 	p.shuffle = shuffle
-	p.AttachRadio(name, feed)
 }
 
 // RadioFrom makes the track playing the first of a radio's queue, which
@@ -257,7 +261,7 @@ func (p *Player) refill() {
 		case !p.awaiting:
 		case p.at+1 < len(p.order):
 			p.awaiting = false
-			p.load(p.at + 1)
+			p.loadSkipping(p.at+1, 0, true, 0, true)
 		default:
 			// The radio has nothing more: it stops at its end.
 			p.awaiting, p.playing = false, false
@@ -395,7 +399,7 @@ func (p *Player) Next() {
 		}
 		at = 0
 	}
-	p.load(at)
+	p.loadSkipping(at, 0, true, 0, true)
 }
 
 // Prev plays the track before this one, however far this one has played:
@@ -431,7 +435,7 @@ func (p *Player) TogglePlay() {
 			p.playing = !p.playing
 			p.sync()
 		case len(p.order) > 0:
-			p.loadSkipping(max(p.at, 0), 0, true, p.pending)
+			p.loadSkipping(max(p.at, 0), 0, true, p.pending, false)
 		}
 		return
 	}
@@ -572,27 +576,23 @@ func (p *Player) stop() {
 	p.fade.attach(nil, 1)
 }
 
-// load plays the track at order[at], skipping those that cannot play.
+// load selects the track at order[at], keeping it selected if loading fails.
 func (p *Player) load(at int) {
-	p.loadSkipping(at, 0, true, 0)
+	p.loadSkipping(at, 0, true, 0, false)
 }
 
 // loadSkipping loads the track at order[at], to play or not, from from,
-// skipping those that cannot play: skipped of them so far.
-func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration) {
+// optionally skipping unavailable streams: skipped of them so far.
+func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, skip bool) {
 	t := p.queue[p.order[at]]
-	if p.Blocked != nil && p.Blocked(t) {
-		// A kept track skips over like one that cannot play: to the next
-		// in order, unless the round of them is already spent.
-		if skipped+1 < len(p.order) {
-			next := at + 1
-			if next >= len(p.order) {
-				next = 0
-			}
-			p.loadSkipping(next, skipped+1, play, 0)
-			return
+	blocked := p.Blocked != nil && p.Blocked(t)
+	if blocked && skip && skipped+1 < len(p.order) {
+		next := at + 1
+		if next >= len(p.order) {
+			next = 0
 		}
-		play = false
+		p.loadSkipping(next, skipped+1, play, 0, skip)
+		return
 	}
 	p.stop()
 	p.gen++
@@ -604,6 +604,12 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration) {
 	p.lyrics, p.lyricsLoaded = nil, false
 	p.pending = from
 	p.announce(&t, nil)
+	if blocked {
+		p.loading, p.playing = false, false
+		p.err = "这首歌已被发行日期过滤"
+		p.sync()
+		return
+	}
 	p.refill()
 
 	go func() {
@@ -653,13 +659,13 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration) {
 				default:
 					p.err = "这首歌需要 VIP 才能播放"
 				}
-				// Skip what cannot play, unless nothing in the queue can.
-				if skipped+1 < len(p.order) {
-					next := at + 1
+				// Automatic advance skips unavailable songs, never network or decoder errors.
+				if skip && errors.Is(err, netease.ErrUnavailable) && skipped+1 < len(p.order) {
+					next := p.at + 1
 					if next >= len(p.order) {
 						next = 0
 					}
-					p.loadSkipping(next, skipped+1, p.playing, 0)
+					p.loadSkipping(next, skipped+1, p.playing, 0, skip)
 				} else {
 					p.playing = false
 					p.sync()
@@ -759,5 +765,5 @@ func (p *Player) Restore(s Session) {
 	}
 	p.queue, p.order = s.Queue, s.Order
 	p.shuffle, p.repeat = s.Shuffle, s.Repeat%3
-	p.loadSkipping(s.At, 0, false, time.Duration(s.Position)*time.Millisecond)
+	p.loadSkipping(s.At, 0, false, time.Duration(s.Position)*time.Millisecond, false)
 }

@@ -90,8 +90,7 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 	})
 
 	// The reading protections: the top, under the window's buttons; the
-	// foot, broad and smooth, over the bar and the song's name, so that
-	// white reads on the brightest of covers too.
+	// foot, broad and smooth, so the cover-colored words read on bright covers too.
 	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(h * 0.16).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
 		p.FillGradient(r, ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{
 			{Color: ui.RGBA(0, 0, 0, 0.30), At: 0}, {Color: ui.RGBA(0, 0, 0, 0), At: 1},
@@ -99,7 +98,7 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 	})
 	ui.Box(c).Absolute().Left(0).Right(0).Bottom(0).Top(h * 0.44).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
 		p.FillGradient(r, ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{
-			{Color: ui.RGBA(0, 0, 0, 0), At: 0.28}, {Color: ui.RGBA(0, 0, 0, 0.34), At: 0.62}, {Color: ui.RGBA(0, 0, 0, 0.48), At: 1},
+			{Color: ui.RGBA(0, 0, 0, 0), At: 0.05}, {Color: ui.RGBA(0, 0, 0, 0.74), At: 0.50}, {Color: ui.RGBA(0, 0, 0, 0.78), At: 1},
 		}}, 0)
 	})
 
@@ -124,7 +123,7 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 	// picture above the bar. Reading the lyrics, that line reads there,
 	// and the single line steps aside.
 	if a.npPane != paneLyrics {
-		a.infoColumn(c, tr, w, h)
+		a.infoColumn(c, tr, accent, w, h)
 	}
 
 	// The lyrics, reading where there is room; an episode's program or its
@@ -163,7 +162,7 @@ func infoCol(compact bool) float32 {
 // infoColumn sets the song's name, its singer and the line it sings at,
 // over the picture, above the bar: big to read, kept to a width, and
 // nearer the foot of a small window than of a large one.
-func (a *app) infoColumn(c *ui.Context, tr *netease.Track, w, h float32) {
+func (a *app) infoColumn(c *ui.Context, tr *netease.Track, accent ui.Color, w, h float32) {
 	compact := h < 680
 	name := float32(34)
 	artist, line := float32(16), float32(20)
@@ -176,8 +175,8 @@ func (a *app) infoColumn(c *ui.Context, tr *netease.Track, w, h float32) {
 			a.radioChip(c, r)
 		}
 		ui.Text(c, tr.Name).FontSize(name).FontWeight(750).LetterSpacing(-0.4).MaxLines(2).LineHeight(1.2).
-			Width(width).TextAlign(ui.Center)
-		a.artistLinks(c, tr, white.Alpha(0.85), white).FontSize(artist).SingleLine()
+			Width(width).TextAlign(ui.Center).TextColor(accent)
+		a.artistLinks(c, tr, accent, accent.Mix(white, 0.15)).FontSize(artist).SingleLine()
 		a.nowLine(c, tr, line, lineWidth)
 	})
 }
@@ -319,8 +318,8 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 			// think of it; the words it takes have room, and give it up.
 			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Gap(10).AlignItems(ui.Center).Children(func() {
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
-					ui.Text(c, tr.Name).FontSize(17).FontWeight(700).SingleLine()
-					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(14).SingleLine()
+					ui.Text(c, tr.Name).FontSize(17).FontWeight(700).SingleLine().TextColor(accent)
+					a.artistLinks(c, tr, accent.Alpha(0.85), accent).FontSize(14).SingleLine()
 				})
 				a.likeButton(c.Key("like"), tr, 17, white.Alpha(0.7))
 			})
@@ -350,7 +349,7 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 				a.volumeButton(c.Key("volume"), white.Alpha(0.7))
 			})
 		})
-		a.scrubber(c.Key("fc-scrub"), &a.coverScrub, white.Alpha(0.18), white.Alpha(0.8), 16).
+		a.scrubber(c.Key("fc-scrub"), &a.coverScrub, accent.Alpha(0.20), accent, 16).
 			Absolute().Left(0).Right(0).Top(-8)
 
 	})

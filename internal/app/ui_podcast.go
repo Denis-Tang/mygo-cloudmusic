@@ -34,7 +34,6 @@ type podcastData struct {
 	programs    []netease.Program
 	page        paged
 	subscribing bool // a subscription or its end is on its way
-	thenPlay    bool // its card's play button waits for it to load
 }
 
 func (a *app) loadPodcast(id int64) {
@@ -55,7 +54,7 @@ func (a *app) loadPodcast(id int64) {
 		a.post(func() {
 			d.loading = false
 			if err != nil {
-				d.err, d.thenPlay = "播客加载失败", false
+				d.err = "播客加载失败"
 				return
 			}
 			d.podcast = pod
@@ -77,7 +76,7 @@ func (a *app) loadPrograms(id int64) {
 		a.post(func() {
 			d.page.loading = false
 			if err != nil {
-				d.page.err, d.thenPlay = "节目加载失败", false
+				d.page.err = "节目加载失败"
 				return
 			}
 			d.programs = append(d.programs, programs...)
@@ -115,16 +114,15 @@ func (a *app) playProgram(d *podcastData, i int) {
 // playPodcast plays a podcast's episodes from the newest, from its card,
 // once it and they have loaded.
 func (a *app) playPodcast(id int64) {
+	a.requestPlay(route{page: pagePodcast, id: id})
 	a.loadPodcast(id)
 	d := a.podcasts[id]
-	d.thenPlay = true
 	a.playLoaded(d)
 }
 
 // playLoaded plays a podcast its card asked to play, once it can.
 func (a *app) playLoaded(d *podcastData) {
-	if d.thenPlay && d.podcast != nil && d.page.loaded {
-		d.thenPlay = false
+	if d.podcast != nil && d.page.loaded && a.takePlay(route{page: pagePodcast, id: d.podcast.ID}) {
 		a.playProgram(d, 0)
 	}
 }

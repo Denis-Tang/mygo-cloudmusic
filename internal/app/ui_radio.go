@@ -62,8 +62,10 @@ func (a *app) likedPlaylist() int64 {
 func (a *app) radioFeed(name string) func(got func([]netease.Track)) {
 	return func(got func([]netease.Track)) {
 		var fetch func() ([]netease.Track, error)
+		filter := a.settings.FilterOther
 		switch {
 		case strings.HasPrefix(name, "fm:"):
+			filter = a.settings.FilterFM
 			mode := strings.TrimPrefix(name, "fm:")
 			fetch = func() ([]netease.Track, error) { return netease.PersonalFM(mode) }
 		case name == heartRadio:
@@ -90,7 +92,11 @@ func (a *app) radioFeed(name string) func(got func([]netease.Track)) {
 				}
 				tracks = playable(more)
 			}
-			a.post(func() { got(tracks) })
+			if filter {
+				a.filterKept(tracks, func(kept []netease.Track) { a.post(func() { got(kept) }) })
+			} else {
+				a.post(func() { got(tracks) })
+			}
 		}()
 	}
 }
@@ -98,6 +104,8 @@ func (a *app) radioFeed(name string) func(got func([]netease.Track)) {
 // playFM plays the personal FM in the mode chosen, or goes on playing it.
 func (a *app) playFM() {
 	name := fmRadio(fmModes[a.fmMode].mode)
+	r := route{page: pageFM, query: name}
+	a.requestPlay(r)
 	if a.pl.Radio() == name {
 		if !a.pl.Playing() {
 			a.pl.TogglePlay()
@@ -107,7 +115,10 @@ func (a *app) playFM() {
 	a.radioStarting = name
 	feed := a.radioFeed(name)
 	feed(func(tracks []netease.Track) {
-		if a.radioStarting != name {
+		if !a.takePlay(r) {
+			if a.radioStarting == name {
+				a.radioStarting = ""
+			}
 			return
 		}
 		a.radioStarting = ""
@@ -168,6 +179,8 @@ func (a *app) startHeartMode() {
 		seed, fromPlaying = &s, true
 	}
 	liked := a.playlists[pid]
+	r := route{page: pageFM, query: heartRadio}
+	a.requestPlay(r)
 	a.radioStarting = heartRadio
 	go func() {
 		if seed == nil {
@@ -186,7 +199,10 @@ func (a *app) startHeartMode() {
 			more, err = netease.HeartMode(seed.ID, seed.ID, pid)
 		}
 		a.post(func() {
-			if a.radioStarting != heartRadio {
+			if !a.takePlay(r) {
+				if a.radioStarting == heartRadio {
+					a.radioStarting = ""
+				}
 				return
 			}
 			a.radioStarting = ""

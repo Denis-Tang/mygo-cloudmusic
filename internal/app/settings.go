@@ -50,12 +50,16 @@ type settings struct {
 	CacheMB int `json:"cacheMB"`
 	// SearchHistory keeps submitted keywords, most recent first.
 	SearchHistory []string `json:"searchHistory,omitempty"`
+	// FilterDaily, FilterFM and FilterOther choose where the publish-date cutoff applies.
+	FilterDaily bool `json:"filterDaily"`
+	FilterFM    bool `json:"filterFM"`
+	FilterOther bool `json:"filterOther"`
 
 	path string // where they were loaded from, and are saved to
 }
 
 func defaultSettings() settings {
-	return settings{NotchActivity: true, Quality: "exhigh", Appearance: "system", Volume: 0.8, Normalize: true, AppIcon: "dock-and-menubar", CacheMB: 2048, Captions: true, Sidebar: true}
+	return settings{NotchActivity: true, Quality: "exhigh", Appearance: "system", Volume: 0.8, Normalize: true, AppIcon: "dock-and-menubar", CacheMB: 2048, Captions: true, Sidebar: true, FilterDaily: true, FilterFM: true}
 }
 
 func settingsPath() (string, error) {

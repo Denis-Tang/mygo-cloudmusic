@@ -130,6 +130,8 @@ type app struct {
 
 	fmMode        int    // the FM mode chosen, in fmModes
 	radioStarting string // the radio asked for its first songs, or ""
+	pendingPlay   route  // the last source asked to play once loaded
+	pendingTrack  *netease.Track
 
 	scrub      float64
 	scrubbing  bool

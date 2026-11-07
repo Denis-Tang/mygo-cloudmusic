@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -89,10 +90,16 @@ func (a *app) albumTime(id int64) (int64, bool) {
 	return 0, false
 }
 
-// blocked reports whether the track is kept from playing: one whose album
-// is known published on 2026-02-27 or after. An album whose time is still
-// unknown is let, and its time asked for, so the next pass of it is right.
+// blocked applies the cutoff only to enabled playback scopes. Daily recommendations
+// and FM batches also filter their lists before queuing them.
 func (a *app) blocked(t netease.Track) bool {
+	enabled := a.settings.FilterOther
+	if strings.HasPrefix(a.pl.Radio(), "fm:") {
+		enabled = a.settings.FilterFM
+	}
+	if !enabled || t.ProgramID != 0 {
+		return false
+	}
 	t0, known := a.albumTime(t.Album.ID)
 	return known && t0 >= blockCutoff.UnixMilli()
 }
