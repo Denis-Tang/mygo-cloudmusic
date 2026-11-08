@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"math/cmplx"
@@ -105,7 +106,7 @@ func (d *download) run(ctx context.Context, url string) {
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		finish(errors.New(res.Status))
+		finish(fmt.Errorf("音频下载失败（HTTP %d）", res.StatusCode))
 		return
 	}
 	buf := make([]byte, 64<<10)

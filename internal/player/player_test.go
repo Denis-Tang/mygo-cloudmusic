@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,6 +23,62 @@ type playbackTransport func(*http.Request) (*http.Response, error)
 
 func (f playbackTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+// Risk control and transport failures used to look like VIP restrictions and skip to another song.
+func TestPlaybackFailureKeepsSelectedSong(t *testing.T) {
+	old := http.DefaultTransport
+	defer func() { http.DefaultTransport = old }()
+	for _, tc := range []struct {
+		name, body  string
+		network     error
+		audioStatus int
+	}{
+		{"risk control", `{"code":-460}`, nil, 0},
+		{"missing stream", `{"code":200,"data":[]}`, nil, 0},
+		{"signed out", `{"code":301}`, nil, 0},
+		{"server error", `{"code":503}`, nil, 0},
+		{"timeout", "", &net.DNSError{IsTimeout: true}, 0},
+		{"DNS", "", &net.DNSError{IsNotFound: true}, 0},
+		{"connection", "", errors.New("offline"), 0},
+		{"audio denied", "", nil, 403},
+		{"audio not found", "", nil, 404},
+		{"decoder", "", nil, 200},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				requests := 0
+				http.DefaultTransport = playbackTransport(func(r *http.Request) (*http.Response, error) {
+					if r.URL.Host == "example.com" {
+						return &http.Response{StatusCode: tc.audioStatus, Body: io.NopCloser(strings.NewReader("not audio")), Header: http.Header{}}, nil
+					}
+					if !strings.Contains(r.URL.Path, "/song/enhance/player/url/") {
+						return nil, errors.New("offline")
+					}
+					requests++
+					if tc.network != nil {
+						return nil, tc.network
+					}
+					body := tc.body
+					if tc.audioStatus != 0 {
+						body = `{"code":200,"data":[{"url":"https://example.com/full.mp3?sensitive-signature","type":"mp3","level":"exhigh"}]}`
+					}
+					return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}, nil
+				})
+				ch := make(chan func(), 32)
+				p := New(func(fn func()) { ch <- fn })
+				p.Cue([]netease.Track{{ID: 1}, {ID: 2, Fee: 1, Privilege: &netease.Privilege{Pl: 320000}}, {ID: 3}})
+				p.Next()
+				for p.Loading() {
+					next(t, ch)
+				}
+				synctest.Wait()
+				if requests != 1 || p.Current().ID != 2 || p.Playing() || p.Err() == "" || strings.Contains(p.Err(), "sensitive-signature") {
+					t.Fatalf("requests %d, current %d, playing %v, error %q", requests, p.Current().ID, p.Playing(), p.Err())
+				}
+			})
+		})
+	}
+}
+
 // Selection stays on a failed song; advancing skips unavailable streams, not network errors.
 func TestSelectedTrackDoesNotSkipOnFailure(t *testing.T) {
 	old := http.DefaultTransport
@@ -35,7 +92,7 @@ func TestSelectedTrackDoesNotSkipOnFailure(t *testing.T) {
 						if strings.Contains(r.URL.Path, "/song/enhance/player/url/") {
 							requests++
 							if unavailable && requests == 1 {
-								return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"code":200,"data":[]}`)), Header: http.Header{}}, nil
+								return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"code":200,"data":[{"code":-110,"fee":1,"payed":0}]}`)), Header: http.Header{}}, nil
 							}
 						}
 						return nil, errors.New("offline")

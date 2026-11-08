@@ -159,6 +159,29 @@ type apiError struct {
 	Msg     string `json:"msg"`
 }
 
+func (e *apiError) Error() string {
+	switch e.Code {
+	case -460:
+		return "网易云暂时限制了当前请求，请稍后再试（-460）"
+	case 301, 401:
+		return "网易云登录状态已失效，请重新登录"
+	case 429:
+		return "网易云请求过于频繁，请稍后再试（429）"
+	case 403:
+		return "网易云拒绝了当前请求（403）"
+	case 500, 502, 503, 504:
+		return fmt.Sprintf("网易云服务暂时异常，请稍后再试（%d）", e.Code)
+	}
+	msg := e.Message
+	if msg == "" {
+		msg = e.Msg
+	}
+	if msg != "" {
+		return fmt.Sprintf("网易云返回：%s（%d）", msg, e.Code)
+	}
+	return fmt.Sprintf("网易云返回未知错误（%d）", e.Code)
+}
+
 func get(path string, query url.Values, out any) error {
 	u := apiBase + path
 	if len(query) > 0 {
@@ -385,7 +408,7 @@ func ArtistLatestSongs(id int64, limit int) ([]Track, error) {
 	return SongDetails(ids)
 }
 
-var ErrUnavailable = errors.New("this song isn't available to stream")
+var ErrUnavailable = errors.New("当前内容无法完整播放")
 
 // Stream is where a track streams from, and what it is.
 type Stream struct {
@@ -406,7 +429,6 @@ type Stream struct {
 var Levels = []string{"standard", "higher", "exhigh", "lossless", "hires", "jymaster"}
 
 // Lossless reports whether level streams FLAC.
-// Lossless reports whether level streams FLAC.
 func Lossless(level string) bool {
 	return level == "lossless" || level == "hires" || level == "jymaster"
 }
@@ -416,9 +438,13 @@ func Lossless(level string) bool {
 // the eapi, which carries the session, so VIP songs play for subscribers.
 func SongURL(id int64, level string) (*Stream, error) {
 	var res struct {
-		Code int `json:"code"`
+		apiError
 		Data []struct {
 			Stream
+			Code          int             `json:"code"`
+			Fee           int             `json:"fee"`
+			Payed         int             `json:"payed"`
+			Message       string          `json:"message"`
 			URL           string          `json:"url"`
 			Peak          *float64        `json:"peak"`
 			FreeTrialInfo json.RawMessage `json:"freeTrialInfo"`
@@ -432,18 +458,40 @@ func SongURL(id int64, level string) (*Stream, error) {
 	if err := eapiPost("/api/song/enhance/player/url/v1", data, &res); err != nil {
 		return nil, err
 	}
-	if len(res.Data) == 0 || res.Data[0].URL == "" {
-		return nil, ErrUnavailable
+	if res.Code != 200 {
+		return nil, &res.apiError
+	}
+	if len(res.Data) == 0 {
+		return nil, errors.New("网易云未返回音源信息，请稍后再试")
 	}
 	d := res.Data[0]
-	// A preview of a VIP song is no song.
-	if len(d.FreeTrialInfo) > 0 && string(d.FreeTrialInfo) != "null" {
-		return nil, ErrUnavailable
+	if d.Code != 0 && d.Code != 200 && d.Code != -110 && d.Code != 404 {
+		return nil, &apiError{Code: d.Code, Message: d.Message}
+	}
+	trial := len(d.FreeTrialInfo) > 0 && string(d.FreeTrialInfo) != "null"
+	if d.Code == 404 {
+		return nil, fmt.Errorf("%w：平台未找到音源（404）", ErrUnavailable)
+	}
+	if d.URL == "" || trial {
+		switch {
+		case d.Fee == 4 && d.Payed == 0:
+			return nil, fmt.Errorf("%w：需要单独购买，VIP 不包含此项购买权限", ErrUnavailable)
+		case d.Fee == 1 && d.Payed == 0:
+			return nil, fmt.Errorf("%w：平台未授予当前账号这首歌的 VIP 播放权限", ErrUnavailable)
+		case trial && d.Payed != 0:
+			return nil, errors.New("当前音质仅提供试听，请切换音质或核对会员权益")
+		case trial:
+			return nil, fmt.Errorf("%w：平台仅提供试听片段", ErrUnavailable)
+		case d.Code == -110:
+			return nil, fmt.Errorf("%w：平台暂无可用音源（-110）", ErrUnavailable)
+		default:
+			return nil, fmt.Errorf("网易云未返回播放地址，请稍后再试（%d）", d.Code)
+		}
 	}
 	s := d.Stream
 	s.Type = strings.ToLower(s.Type)
 	if s.Type != "" && s.Type != "mp3" && s.Type != "flac" {
-		return nil, fmt.Errorf("unsupported format %s", s.Type)
+		return nil, fmt.Errorf("暂不支持平台返回的音频格式：%s", s.Type)
 	}
 	if d.Peak != nil {
 		s.Peak = *d.Peak

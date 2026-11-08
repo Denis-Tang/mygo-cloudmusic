@@ -29,7 +29,7 @@ import (
 const (
 	eapiDomain = "https://interfacepc.music.163.com"
 	eapiKey    = "e82ckenh8dichen8"
-	eapiUA     = "NeteaseMusic 9.0.90/5038 (iPhone; iOS 16.2; zh_CN)"
+	eapiUA     = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Safari/537.36 Chrome/91.0.4472.164 NeteaseMusicDesktop/3.1.17.204416"
 )
 
 // The desktop client this app speaks as.
@@ -135,7 +135,17 @@ func eapiPost(path string, data map[string]any, out any) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(body, out)
+	if res.StatusCode != http.StatusOK {
+		var status apiError
+		if json.Unmarshal(body, &status) == nil && status.Code != 0 && status.Code != 200 {
+			return &status
+		}
+		return fmt.Errorf("网易云请求失败（HTTP %d）", res.StatusCode)
+	}
+	if err := json.Unmarshal(body, out); err != nil {
+		return fmt.Errorf("网易云返回的数据格式异常：%w", err)
+	}
+	return nil
 }
 
 // eapiOK calls path through the eapi with data, and fails unless NetEase

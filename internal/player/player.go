@@ -2,8 +2,11 @@ package player
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"math/rand/v2"
+	"net"
+	"net/url"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -651,14 +654,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 			}
 			p.loading = false
 			if err != nil {
-				p.err = err.Error()
-				switch {
-				case err != netease.ErrUnavailable:
-				case t.ProgramID != 0:
-					p.err = "这期节目需要购买才能收听"
-				default:
-					p.err = "这首歌需要 VIP 才能播放"
-				}
+				p.err = playbackMessage(err)
 				// Automatic advance skips unavailable songs, never network or decoder errors.
 				if skip && errors.Is(err, netease.ErrUnavailable) && skipped+1 < len(p.order) {
 					next := p.at + 1
@@ -702,6 +698,22 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 	}()
 }
 
+func playbackMessage(err error) string {
+	var dns *net.DNSError
+	var network net.Error
+	var request *url.Error
+	switch {
+	case errors.As(err, &network) && network.Timeout():
+		return "播放请求超时，请检查网络后重试"
+	case errors.As(err, &dns):
+		return "无法解析播放服务器地址，请检查网络"
+	case errors.As(err, &request):
+		return "无法连接播放服务器，请检查网络后重试"
+	default:
+		return err.Error()
+	}
+}
+
 // open opens track t's audio at level: kept in the cache, or else
 // streamed into it, and kept once it has all come in.
 func (p *Player) open(t netease.Track, level string) (*netease.Stream, stream, error) {
@@ -716,8 +728,14 @@ func (p *Player) open(t netease.Track, level string) (*netease.Stream, stream, e
 	}
 	s, err := openStream(dl, t.Duration)
 	if err != nil {
+		dl.mu.Lock()
+		downloadErr := dl.err
+		dl.mu.Unlock()
 		dl.Close()
-		return nil, nil, err
+		if downloadErr != nil {
+			return nil, nil, downloadErr
+		}
+		return nil, nil, fmt.Errorf("音频解码失败：%w", err)
 	}
 	return info, s, nil
 }
