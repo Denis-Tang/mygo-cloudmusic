@@ -2,10 +2,14 @@ package local
 
 import (
 	"encoding/binary"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	aacm4a "github.com/tphakala/go-m4a/aacm4a"
+	aacpcm "github.com/tphakala/go-aac/pcm"
 )
 
 // The same file keeps its ID from one scan to the next, and has a negative
@@ -100,6 +104,26 @@ func TestFLACDuration(t *testing.T) {
 	}
 }
 
+// writeM4A makes an MP4 of a second of a tone, as a song of the test's.
+func writeM4A(t *testing.T, path string, rate int) {
+	t.Helper()
+	pcm := make([]byte, rate*4)
+	for i := 0; i < rate; i++ {
+		v := uint16(int16(8000 * math.Sin(2*math.Pi*440*float64(i)/float64(rate))))
+		binary.LittleEndian.PutUint16(pcm[i*4:], v)
+		binary.LittleEndian.PutUint16(pcm[i*4+2:], v)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	cfg := aacpcm.Config{SampleRate: rate, BitDepth: 16, Channels: 2, Bitrate: 128000}
+	if err := aacm4a.EncodeInterleaved(f, cfg, pcm); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+}
+
 func writeFile(t *testing.T, path string, b []byte) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -107,5 +131,19 @@ func writeFile(t *testing.T, path string, b []byte) {
 	}
 	if err := os.WriteFile(path, b, 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// An .m4a of AAC is read as a song, its length from the MP4's header.
+func TestReadsM4A(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "song.m4a")
+	writeM4A(t, path, 44100)
+	got := Open([]string{dir}, "").Tracks()
+	if len(got) != 1 {
+		t.Fatalf("tracks: %d, want the m4a", len(got))
+	}
+	if got[0].Duration < 900*time.Millisecond || got[0].Duration > 1100*time.Millisecond {
+		t.Fatalf("duration %v, want about a second", got[0].Duration)
 	}
 }

@@ -371,7 +371,7 @@ func TestEndRadio(t *testing.T) {
 // network for a URL, and decodes.
 func TestOpensLocalFile(t *testing.T) {
 	p := &Player{}
-	info, s, err := p.open(netease.Track{ID: -7, Duration: 30000}, "exhigh", Local{File: "testdata/seek.mp3"}, true)
+	info, s, err := p.open(netease.Track{ID: -7, Duration: 30000}, "exhigh", Local{File: "testdata/seek.mp3"}, true, Remote{}, false)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -388,7 +388,7 @@ func TestOpensLocalFile(t *testing.T) {
 // A file that is gone says so, rather than playing another song.
 func TestLocalFileGone(t *testing.T) {
 	p := &Player{}
-	if _, _, err := p.open(netease.Track{ID: -8}, "exhigh", Local{File: "testdata/missing.mp3"}, true); err == nil {
+	if _, _, err := p.open(netease.Track{ID: -8}, "exhigh", Local{File: "testdata/missing.mp3"}, true, Remote{}, false); err == nil {
 		t.Fatal("opened a file that is not there")
 	}
 }

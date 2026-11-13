@@ -8,7 +8,7 @@
 
 MyGo 云音乐是一款面向 Windows 和 Linux 的第三方网易云音乐客户端。如果你主要用网易云音乐听歌，想保留日推、搜索、歌单和歌词，同时减少不常用的功能入口，可以用它专注听歌。
 
-它也能播放本机的音乐文件夹，当作本地播放器使用。它默认按发行日期筛选每日推荐和私人 FM，减少遇到新近发行的 AI 歌曲的机会；你也可以自己选择筛选范围。播放时使用网易云音乐提供的音源，支持从标准到超清母带等音质选择。
+它也能播放本机的音乐文件夹，当作本地播放器使用，还可以搜索哔哩哔哩并播放视频的音轨。它默认按发行日期筛选每日推荐和私人 FM，减少遇到新近发行的 AI 歌曲的机会；你也可以自己选择筛选范围。播放时使用网易云音乐提供的音源，支持从标准到超清母带等音质选择。
 
 ## Preview | 产品预览
 
@@ -48,7 +48,13 @@ Windows 任务栏预览显示当前歌曲的封面和歌名，可直接切歌、
 
 ### 5. 本地音乐
 
-在设置的“本地音乐”中添加存放音乐的文件夹，其中的 MP3 和 FLAC 会按歌手、专辑、歌名排列在侧栏的“本地音乐”中。播放时读取文件内的标签和封面，同名 `.lrc` 歌词随歌曲滚动，可以直接当作本地播放器使用。本地歌曲不进在线缓存，也不参与每日推荐、私人 FM 和发行日期过滤。
+在设置的“本地音乐”中添加存放音乐的文件夹，其中的 MP3、FLAC 与 M4A 会按歌手、专辑、歌名排列在侧栏的“本地音乐”中。播放时读取文件内的标签和封面，同名 `.lrc` 歌词随歌曲滚动，可以直接当作本地播放器使用。本地歌曲不进在线缓存，也不参与每日推荐、私人 FM 和发行日期过滤。
+
+### 6. 哔哩哔哩音轨
+
+侧栏的“哔哩哔哩”可以搜索视频、粘贴视频链接、BV 号或 `b23.tv` 短链，也可以直接听音乐区的排行榜。播放的是视频的音轨，没有画面，不需要登录。视频标题作为歌名，UP 主作为歌手。
+
+视频带有字幕轨时，字幕会作为歌词显示；未登录时哔哩哔哩通常不返回字幕地址，所以歌词可能为空。收藏夹、关注和评论需要登录，这个版本没有接入，需要时请到哔哩哔哩客户端里使用。
 
 ## Quick Start | 快速开始
 
@@ -157,6 +163,9 @@ go vet ./...           # 检查 Go 代码
 - [MyGo](https://github.com/egoist/mygo)：原生 UI 与应用框架
 - [Lucide](https://lucide.dev)：菜单的复制、链接与编辑图标，许可见 [lucide-license.txt](icon/lucide-license.txt)
 - [NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi)：eapi 加密与登录流程的参考
+- [go-m4a](https://github.com/tphakala/go-m4a)（MIT）与 [go-aac](https://github.com/tphakala/go-aac)（LGPL-2.1-or-later）：M4A 容器的解析与 AAC 解码
+- [dhowden/tag](https://github.com/dhowden/tag)：本地音乐的标签与封面读取
+- [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)：哔哩哔哩接口的公开整理
 - [folia-major](https://github.com/chthollyphile/folia-major)：歌词动画效果的参考
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) 与 [Silero VAD](https://github.com/snakers4/silero-vad)：本机语音识别
 

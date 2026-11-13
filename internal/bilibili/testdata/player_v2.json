@@ -1,0 +1,50 @@
+{
+  "code": 0,
+  "message": "0",
+  "ttl": 1,
+  "data": {
+    "aid": 288571926,
+    "bvid": "BV1Gf4y1y7wc",
+    "cid": 281031471,
+    "subtitle": {
+      "allow_submit": false,
+      "lan": "",
+      "lan_doc": "",
+      "subtitles": [
+        {
+          "id": 1864589012313255936,
+          "lan": "en-US",
+          "lan_doc": "English(US)",
+          "is_lock": false,
+          "subtitle_url": "//aisubtitle.hdslb.com/bfs/subtitle/en.json",
+          "type": 0,
+          "id_str": "1864589012313255936",
+          "ai_type": 0,
+          "ai_status": 2
+        },
+        {
+          "id": 37882658493562885,
+          "lan": "zh-CN",
+          "lan_doc": "中文（中国）",
+          "is_lock": false,
+          "subtitle_url": "//aisubtitle.hdslb.com/bfs/subtitle/zh.json",
+          "type": 0,
+          "id_str": "37882658493562885",
+          "ai_type": 0,
+          "ai_status": 2
+        },
+        {
+          "id": 1808795266078305792,
+          "lan": "zh-Hans",
+          "lan_doc": "中文（简体）",
+          "is_lock": false,
+          "subtitle_url": "//aisubtitle.hdslb.com/bfs/subtitle/zh-hans.json",
+          "type": 0,
+          "id_str": "1808795266078305792",
+          "ai_type": 0,
+          "ai_status": 2
+        }
+      ]
+    }
+  }
+}

@@ -40,6 +40,9 @@ type download struct {
 	// once the song has all come in: the path it is at then.
 	part string
 	keep func(part string, n int64) (string, bool)
+	// headers go with the request for the song, if its source asks for
+	// any beyond the user agent.
+	headers map[string]string
 	// users counts what reads or writes the song: the stream decoding it,
 	// until it closes, and the goroutine fetching it. The last to go
 	// closes the file, and removes it unless the cache kept it.
@@ -50,8 +53,14 @@ type download struct {
 // startDownload fetches url, of size bytes if known, into part, a file
 // that keep keeps once it has all come in: or into memory, without one.
 func startDownload(url string, size int64, part *os.File, keep func(string, int64) (string, bool)) *download {
+	return startDownloadWith(url, size, part, keep, nil)
+}
+
+// startDownloadWith is startDownload with headers the source wants, as
+// Bilibili asks for a referer.
+func startDownloadWith(url string, size int64, part *os.File, keep func(string, int64) (string, bool), headers map[string]string) *download {
 	ctx, cancel := context.WithCancel(context.Background())
-	d := &download{size: size, cancel: cancel, users: 2}
+	d := &download{size: size, cancel: cancel, users: 2, headers: headers}
 	d.cond.L = &d.mu
 	switch {
 	case part != nil:
@@ -99,6 +108,9 @@ func (d *download) run(ctx context.Context, url string) {
 		return
 	}
 	req.Header.Set("User-Agent", netease.UserAgent)
+	for k, v := range d.headers {
+		req.Header.Set(k, v)
+	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		finish(err)
@@ -108,6 +120,15 @@ func (d *download) run(ctx context.Context, url string) {
 	if res.StatusCode != http.StatusOK {
 		finish(fmt.Errorf("音频下载失败（HTTP %d）", res.StatusCode))
 		return
+	}
+	// The response may know the size the source did not say, which a
+	// container's parser asks of its end.
+	if res.ContentLength > 0 {
+		d.mu.Lock()
+		if d.size <= 0 {
+			d.size = res.ContentLength
+		}
+		d.mu.Unlock()
 	}
 	buf := make([]byte, 64<<10)
 	for {
@@ -341,6 +362,9 @@ func openStream(dl *download, durationMs int64) (stream, error) {
 		dl.buffer = buffer
 		dl.mu.Unlock()
 		dl.waitFor(buffer)
+	}
+	if dl.waitFor(8) >= 8 && string(dl.peek(4, 4)) == "ftyp" {
+		return openM4AStream(dl)
 	}
 	off := id3Size(dl)
 	if dl.waitFor(off+4) >= off+4 && string(dl.peek(off, 4)) == "fLaC" {

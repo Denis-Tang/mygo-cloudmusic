@@ -47,6 +47,9 @@ type Player struct {
 	// LocalOf, if set, answers the file of a track kept on this machine,
 	// which the tracks with a negative ID are.
 	LocalOf func(id int64) (Local, bool)
+	// RemoteOf, if set, answers the URL of a track of another source, which
+	// the tracks with an ID below localIDs are.
+	RemoteOf func(id int64) (Remote, bool)
 
 	queue   []netease.Track
 	order   []int // the queue's indices in play order: shuffled or not
@@ -108,6 +111,34 @@ func New(post func(func())) *Player {
 		p.post(func() {})
 	})
 	return p
+}
+
+// A Remote is a track of another source, played from its URL: its cover,
+// and its lyrics as LRC.
+type Remote struct {
+	URL     string
+	Headers map[string]string
+	Cover   string
+	Lyrics  string
+	// Resolve, if set, finds the URL and lyrics when the track is loaded.
+	// It runs on the goroutine loading, not on the main thread, as it asks
+	// the source's server.
+	Resolve func() (Remote, error)
+}
+
+// resolved returns r with what its Resolve finds, if it has one.
+func resolved(r Remote) (Remote, error) {
+	if r.Resolve == nil {
+		return r, nil
+	}
+	got, err := r.Resolve()
+	if err != nil {
+		return r, err
+	}
+	if got.Cover == "" {
+		got.Cover = r.Cover
+	}
+	return got, nil
 }
 
 // A Local is a track kept on this machine: its file, and the cover and
@@ -577,6 +608,9 @@ func (p *Player) Levels() ([Bands]float32, bool) {
 		return [Bands]float32{}, false
 	}
 	_, spec := p.stream.source()
+	if spec == nil {
+		return [Bands]float32{}, false
+	}
 	frame := int64(p.Position().Seconds() * float64(p.stream.SampleRate()))
 	return spec.at(frame)
 }
@@ -631,6 +665,21 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 	if p.LocalOf != nil {
 		loc, onDisk = p.LocalOf(t.ID)
 	}
+	rem, remote := Remote{}, false
+	if !onDisk && p.RemoteOf != nil {
+		rem, remote = p.RemoteOf(t.ID)
+	}
+	if t.ID < 0 && !onDisk && !remote {
+		// A track of another source whose information is gone, as one of
+		// Bilibili's is after a restart: it says so rather than asking
+		// NetEase for an ID it never had.
+		p.stop()
+		p.loading, p.playing = false, false
+		p.track = &t
+		p.err = "这首歌的信息已过期，请重新搜索"
+		p.sync()
+		return
+	}
 	p.refill()
 
 	go func() {
@@ -639,6 +688,8 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 			if loc.Cover != "" {
 				cover, _ = os.ReadFile(loc.Cover)
 			}
+		} else if remote && rem.Cover != "" {
+			cover, _ = netease.Fetch(rem.Cover)
 		} else if t.Album.PicURL != "" {
 			cover, _ = netease.Fetch(netease.Sized(t.Album.PicURL, 600))
 		}
@@ -659,6 +710,10 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 					lines = lyrics.Build(strings.TrimPrefix(string(b), "\ufeff"), "", "")
 				}
 			}
+		} else if remote {
+			if got, err := resolved(rem); err == nil {
+				lines = lyrics.Build(got.Lyrics, "", "")
+			}
 		} else if lrc, trans, yrc, err := netease.Lyrics(t.ID); err == nil {
 			lines = lyrics.Build(lrc, trans, yrc)
 		}
@@ -674,7 +729,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 		if p.Quality != nil {
 			level = p.Quality()
 		}
-		info, s, err := p.open(t, level, loc, onDisk)
+		info, s, err := p.open(t, level, loc, onDisk, rem, remote)
 		p.post(func() {
 			if gen != p.gen {
 				if s != nil {
@@ -747,7 +802,21 @@ func playbackMessage(err error) string {
 // open opens track t's audio at level: kept in the cache, or else
 // streamed into it, and kept once it has all come in. A track on this
 // machine is played from its file, which the cache leaves alone.
-func (p *Player) open(t netease.Track, level string, loc Local, onDisk bool) (*netease.Stream, stream, error) {
+func (p *Player) open(t netease.Track, level string, loc Local, onDisk bool, rem Remote, remote bool) (*netease.Stream, stream, error) {
+	if remote {
+		got, err := resolved(rem)
+		if err != nil {
+			return nil, nil, err
+		}
+		dl := startDownloadWith(got.URL, 0, nil, nil, got.Headers)
+		st := &netease.Stream{Level: level, Type: remoteType(got.URL)}
+		s, err := openStream(dl, t.Duration)
+		if err != nil {
+			dl.Close()
+			return nil, nil, fmt.Errorf("音频解码失败：%w", err)
+		}
+		return st, s, nil
+	}
 	if onDisk {
 		f, err := os.Open(loc.File)
 		if err != nil {
@@ -787,6 +856,19 @@ func (p *Player) open(t netease.Track, level string, loc Local, onDisk bool) (*n
 		return nil, nil, fmt.Errorf("音频解码失败：%w", err)
 	}
 	return info, s, nil
+}
+
+// remoteType names the format a URL serves, by its end.
+func remoteType(u string) string {
+	switch {
+	case strings.Contains(u, ".m4s"):
+		return "m4a"
+	case strings.HasSuffix(u, ".flac"):
+		return "flac"
+	case strings.HasSuffix(u, ".mp3"):
+		return "mp3"
+	}
+	return ""
 }
 
 // Session is where playback was left, to pick up again.

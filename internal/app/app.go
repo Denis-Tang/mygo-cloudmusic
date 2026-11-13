@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"netease-music-mygo/internal/bilibili"
 	"netease-music-mygo/internal/local"
 	"netease-music-mygo/internal/netease"
 	"netease-music-mygo/internal/player"
@@ -28,6 +29,7 @@ const (
 	pagePodcast
 	pagePodcasts
 	pageLocal
+	pageBili
 )
 
 type route struct {
@@ -54,6 +56,16 @@ type app struct {
 	libReady      bool
 	localScanning bool
 	locals        []netease.Track
+
+	// biliTracks are the videos searched for or ranked, as tracks, and
+	// biliRemotes what plays each: see ui_bili.go.
+	biliTracks  []netease.Track
+	biliVideos  map[int64]bilibili.Video
+	biliRemotes map[int64]player.Remote
+	biliQuery   string
+	biliLoading bool
+	biliTried   bool
+	biliErr     string
 	pal   palette
 
 	frameDark bool // the appearance the window's frame was drawn in
@@ -239,6 +251,8 @@ func Run() error {
 		lyricAt:    -1,
 		queueAt:    -1,
 		cacheUsed:  -1,
+		biliVideos:  map[int64]bilibili.Video{},
+		biliRemotes: map[int64]player.Remote{},
 		pubAsked:   map[int64]bool{},
 	}
 	moveOldData()
@@ -255,6 +269,10 @@ func Run() error {
 		a.pl.Normalize = func() bool { return a.settings.Normalize }
 		a.pl.Cache = newSongCache(a.settings.CacheMB)
 		a.pl.Blocked = a.blocked
+		a.pl.RemoteOf = func(id int64) (player.Remote, bool) {
+			r, ok := a.biliRemotes[id]
+			return r, ok
+		}
 		a.pl.LocalOf = func(id int64) (player.Local, bool) {
 			if a.lib == nil || id >= 0 {
 				return player.Local{}, false

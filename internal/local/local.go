@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"io"
-	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/dhowden/tag"
+	"github.com/tphakala/go-m4a"
 )
 
 // A Track is a file of the library with what its tags say of it. Duration is
@@ -111,7 +111,7 @@ func (l *Library) scan() {
 // isAudio reports whether path is a file the library reads.
 func isAudio(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {
-	case ".mp3", ".flac":
+	case ".mp3", ".flac", ".m4a":
 		return true
 	}
 	return false
@@ -139,16 +139,23 @@ func (l *Library) read(path string) (Track, bool) {
 		picture = m.Picture()
 	}
 	t.Duration = duration(f, info.Size())
+	if t.Duration == 0 && strings.EqualFold(filepath.Ext(path), ".m4a") {
+		t.Duration = m4aDuration(f)
+	}
 	t.Cover = l.cover(t.ID, path, picture)
 	t.LRC = lyrics(path)
 	return t, true
 }
 
+// localBits is how many bits a local ID takes. The IDs below it are the
+// other sources': a song of Bilibili's is -(1<<localBits) - its aid.
+const localBits = 48
+
 // idOf is the negative ID of the file at path, the same on every scan.
 func idOf(path string) int64 {
 	h := fnv.New64a()
 	io.WriteString(h, strings.ToLower(filepath.Clean(path)))
-	id := -int64(h.Sum64() & math.MaxInt64)
+	id := -int64(h.Sum64() & (1<<localBits - 1))
 	if id == 0 {
 		return -1
 	}
@@ -327,6 +334,18 @@ func mp3Duration(head []byte, size int64) time.Duration {
 		return time.Duration(ms) * time.Millisecond
 	}
 	return 0
+}
+
+// m4aDuration reads an MP4's duration, as its movie header says.
+func m4aDuration(f *os.File) time.Duration {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return 0
+	}
+	rd, err := m4a.NewReader(f)
+	if err != nil {
+		return 0
+	}
+	return rd.Info().Duration
 }
 
 // flacDuration reads a FLAC's STREAMINFO, which gives the samples and their

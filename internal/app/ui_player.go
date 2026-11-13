@@ -372,14 +372,16 @@ func (a *app) playerBar(c *ui.Context) {
 				a.nowPlaying = !a.nowPlaying
 			}
 
-			a.likeButton(c.Key("like"), tr, 20, p.muted).Margin(0, 0, 0, 4).Shrink(0)
+			if tr == nil || tr.ID > 0 {
+				a.likeButton(c.Key("like"), tr, 20, p.muted).Margin(0, 0, 0, 4).Shrink(0)
+			}
 		})
 
 		a.transport(c, p.text, p.muted, p.accent, 24)
 
 		// Collection, lyrics and volume.
 		ui.Row(c).Grow(1).Basis(0).MinWidth(controls).Justify(ui.End).AlignItems(ui.Center).Gap(4).Children(func() {
-			if tr != nil && tr.ProgramID == 0 {
+			if tr != nil && tr.ProgramID == 0 && tr.ID > 0 {
 				a.collectButton(c, tr, p.muted)
 			}
 			lyr := p.muted
