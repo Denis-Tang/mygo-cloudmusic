@@ -47,6 +47,8 @@ type app struct {
 	pl    *player.Player
 	pal   palette
 
+	frameDark bool // the appearance the window's frame was drawn in
+
 	taskbar taskbarControls // the taskbar button's thumbnail toolbar (Windows)
 
 	route   route

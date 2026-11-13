@@ -40,6 +40,12 @@ func (a *app) view(c *ui.Context) {
 	t := *c.Theme()
 	a.pal = paletteFor(&t)
 	p := a.pal
+	if a.win != nil && t.Dark != a.frameDark {
+		a.frameDark = t.Dark
+		// The frame around the window follows the appearance at once,
+		// drawn again (Windows).
+		repaintFrame(a.win.NativeHandle())
+	}
 	t.Accent, t.AccentText = p.accent, p.onAccent
 	t.Selection = p.accent.Alpha(0.3)
 	t.FontSize = 16
@@ -320,16 +326,19 @@ func (a *app) windowControls(c *ui.Context) {
 }
 
 // windowControl is one of the window buttons: its glyph is the button's
-// whole face, so the button has no fill of its own.
+// whole face, so the button has no fill of its own. The glyph takes the
+// page's color, as the official client's do: dark over a light page, where
+// it darkens further under the pointer and on the press, and light over a
+// dark one, where it brightens.
 func (a *app) windowControl(c *ui.Context, key string, icon *ui.SVG, label string, action func()) {
 	b := ui.ButtonBase(c.Key(key)).Width(windowButtonWidth).Height(buttonsHeight).
 		AlignItems(ui.Center).Justify(ui.Center).FocusRing(false).Label(label)
-	color := ui.RGBA(255, 255, 255, 0.62)
+	color := a.pal.text.Alpha(0.62)
 	switch {
 	case b.Pressed():
-		color = ui.RGBA(255, 255, 255, 1)
+		color = a.pal.text
 	case b.Hovered():
-		color = ui.RGBA(255, 255, 255, 0.88)
+		color = a.pal.text.Alpha(0.88)
 	}
 	tint := b.AnimateColor("tint", color, ui.Animation{Duration: 110 * time.Millisecond})
 	b.Children(func() {

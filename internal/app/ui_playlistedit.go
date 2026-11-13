@@ -306,9 +306,16 @@ func (a *app) playlistNameDialog(c *ui.Context) {
 			if pillButton(c.Key("cancel"), nil, "取消", p.hover.Over(p.bg), p.text).Clicked() {
 				d.open = false
 			}
-			ok := pillButton(c.Key("ok"), nil, action, p.accent, p.onAccent)
+			// A name must be typed first: the button waits in the color of
+			// a disabled one, which white on the faded accent was not over
+			// a light page.
+			fill, ink := p.accent, p.onAccent
 			if strings.TrimSpace(d.name) == "" {
-				ok.Disabled(true).Opacity(0.5)
+				fill, ink = p.hover.Over(p.bg), p.faint
+			}
+			ok := pillButton(c.Key("ok"), nil, action, fill, ink)
+			if strings.TrimSpace(d.name) == "" {
+				ok.Disabled(true)
 			}
 			if ok.Clicked() {
 				a.submitName()
