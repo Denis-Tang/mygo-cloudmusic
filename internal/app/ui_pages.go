@@ -414,11 +414,13 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				})
 			}
 			// A liked song's heart shows; the others' as the pointer is on them.
-			ui.Box(c).Size(32, 32).Center().Children(func() {
-				if a.liked[tr.ID] || hovered {
-					a.likeButton(c.Key("like"), tr, 18, p.muted)
-				}
-			})
+			if tr.ID > 0 {
+				ui.Box(c).Size(32, 32).Center().Children(func() {
+					if a.liked[tr.ID] || hovered {
+						a.likeButton(c.Key("like"), tr, 18, p.muted)
+					}
+				})
+			}
 			ui.Text(c, clock(tr.Length())).FontSize(15).FontFeatures("tnum").TextColor(p.faint).Width(44).TextAlign(ui.End)
 			a.songMenu(c, row, tr, pid, p.muted)
 		})

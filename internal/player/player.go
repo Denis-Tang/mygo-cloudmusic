@@ -7,6 +7,9 @@ import (
 	"math/rand/v2"
 	"net"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -41,6 +44,9 @@ type Player struct {
 	// Blocked, if set, reports whether a track is kept from playing:
 	// those skip over as ones that cannot play do.
 	Blocked func(netease.Track) bool
+	// LocalOf, if set, answers the file of a track kept on this machine,
+	// which the tracks with a negative ID are.
+	LocalOf func(id int64) (Local, bool)
 
 	queue   []netease.Track
 	order   []int // the queue's indices in play order: shuffled or not
@@ -102,6 +108,14 @@ func New(post func(func())) *Player {
 		p.post(func() {})
 	})
 	return p
+}
+
+// A Local is a track kept on this machine: its file, and the cover and
+// lyrics beside it, if any.
+type Local struct {
+	File  string
+	Cover string
+	LRC   string
 }
 
 // sync shows the system, and Changed, where playback is.
@@ -613,11 +627,22 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 		p.sync()
 		return
 	}
+	loc, onDisk := Local{}, false
+	if p.LocalOf != nil {
+		loc, onDisk = p.LocalOf(t.ID)
+	}
 	p.refill()
 
 	go func() {
-		cover, err := netease.Fetch(netease.Sized(t.Album.PicURL, 600))
-		if err == nil {
+		var cover []byte
+		if onDisk {
+			if loc.Cover != "" {
+				cover, _ = os.ReadFile(loc.Cover)
+			}
+		} else if t.Album.PicURL != "" {
+			cover, _ = netease.Fetch(netease.Sized(t.Album.PicURL, 600))
+		}
+		if cover != nil {
 			p.post(func() {
 				if gen == p.gen {
 					p.announce(&t, cover)
@@ -627,9 +652,14 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 	}()
 
 	go func() {
-		lrc, trans, yrc, err := netease.Lyrics(t.ID)
 		var lines []lyrics.Line
-		if err == nil {
+		if onDisk {
+			if loc.LRC != "" {
+				if b, err := os.ReadFile(loc.LRC); err == nil {
+					lines = lyrics.Build(strings.TrimPrefix(string(b), "\ufeff"), "", "")
+				}
+			}
+		} else if lrc, trans, yrc, err := netease.Lyrics(t.ID); err == nil {
 			lines = lyrics.Build(lrc, trans, yrc)
 		}
 		p.post(func() {
@@ -644,7 +674,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 		if p.Quality != nil {
 			level = p.Quality()
 		}
-		info, s, err := p.open(t, level)
+		info, s, err := p.open(t, level, loc, onDisk)
 		p.post(func() {
 			if gen != p.gen {
 				if s != nil {
@@ -715,8 +745,27 @@ func playbackMessage(err error) string {
 }
 
 // open opens track t's audio at level: kept in the cache, or else
-// streamed into it, and kept once it has all come in.
-func (p *Player) open(t netease.Track, level string) (*netease.Stream, stream, error) {
+// streamed into it, and kept once it has all come in. A track on this
+// machine is played from its file, which the cache leaves alone.
+func (p *Player) open(t netease.Track, level string, loc Local, onDisk bool) (*netease.Stream, stream, error) {
+	if onDisk {
+		f, err := os.Open(loc.File)
+		if err != nil {
+			return nil, nil, err
+		}
+		info, err := f.Stat()
+		if err != nil || !info.Mode().IsRegular() {
+			f.Close()
+			return nil, nil, fmt.Errorf("音频文件不可读：%s", loc.File)
+		}
+		st := &netease.Stream{Size: info.Size(), Type: strings.TrimPrefix(strings.ToLower(filepath.Ext(loc.File)), "."), Level: "lossless"}
+		s, err := openStream(opened(f, info.Size()), t.Duration)
+		if err != nil {
+			f.Close()
+			return nil, nil, fmt.Errorf("音频解码失败：%w", err)
+		}
+		return st, s, nil
+	}
 	dl, info, ok := p.Cache.lookup(t.ID, level)
 	if !ok {
 		var err error

@@ -27,6 +27,8 @@ type loginState struct {
 // home page for whoever is listening.
 func (a *app) boot() {
 	a.homeLoading = true
+	// The folders of the listener's music load beside the account.
+	a.loadLibrary()
 	go func() {
 		var prof *netease.Profile
 		if netease.RestoreSession() {

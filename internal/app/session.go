@@ -71,7 +71,9 @@ var sessionAfter = func(d time.Duration, fn func()) {
 // restoreSession picks up playback where it was left, paused, once the
 // listener's session is back: the songs they may play depend on it.
 func (a *app) restoreSession() {
-	if a.restored {
+	if a.restored || !a.libReady {
+		// The tracks on this machine are only found once their folders
+		// are read; loadLibrary asks again then.
 		return
 	}
 	a.restored = true

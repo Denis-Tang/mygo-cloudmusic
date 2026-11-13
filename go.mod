@@ -5,6 +5,7 @@ go 1.27.3
 tool github.com/egoist/mygo/cmd/mygo
 
 require (
+	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/ebitengine/purego v0.11.1
 	github.com/egoist/mygo v0.7.1-0.20261027023711-da3657e7f86a
 	github.com/hajimehoshi/go-mp3 v0.3.4

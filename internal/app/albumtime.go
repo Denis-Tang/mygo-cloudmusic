@@ -97,7 +97,7 @@ func (a *app) blocked(t netease.Track) bool {
 	if strings.HasPrefix(a.pl.Radio(), "fm:") {
 		enabled = a.settings.FilterFM
 	}
-	if !enabled || t.ProgramID != 0 {
+	if !enabled || t.ProgramID != 0 || t.ID < 0 {
 		return false
 	}
 	t0, known := a.albumTime(t.Album.ID)

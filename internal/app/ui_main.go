@@ -250,6 +250,7 @@ func (a *app) sidebar(c *ui.Context) {
 			a.navItem(c, iconHome, "为你推荐", route{page: pageHome})
 			a.navItem(c, iconRadio, "私人 FM", route{page: pageFM})
 			a.navItem(c, iconHeart, "我的收藏", route{page: pageCollected})
+			a.navItem(c, iconFolder, "本地音乐", route{page: pageLocal})
 			if a.searched.query != "" {
 				a.navItem(c, iconSearch, "搜索结果", a.searched)
 			}
@@ -486,6 +487,8 @@ func (a *app) content(c *ui.Context) {
 		a.podcastPage(c)
 	case pagePodcasts:
 		a.podcastsPage(c)
+	case pageLocal:
+		a.localPage(c)
 	}
 }
 

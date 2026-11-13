@@ -1,6 +1,7 @@
 package app
 
 import (
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -160,6 +161,29 @@ func (a *app) settingsView(c *ui.Context) {
 					a.changed()
 				}
 			})
+		})
+
+		group("本地音乐", func() {
+			row("音乐文件夹", "添加存放音乐的文件夹，其中的 MP3 和 FLAC 会出现在侧栏的「本地音乐」中，封面与同名 .lrc 歌词一并读取", func() {
+				if ui.Button(c, "添加…").Clicked() {
+					a.addLocalFolders()
+				}
+			})
+			for _, folder := range s.LocalFolders {
+				folder := folder
+				row(filepath.Base(folder), folder, func() {
+					if iconButton(c.Key("remove-local-"+folder), iconX, 16, p.muted, "移除文件夹："+folder).Clicked() {
+						a.removeLocalFolder(folder)
+					}
+				})
+			}
+			if len(s.LocalFolders) > 0 {
+				row("重新扫描", "文件夹中的歌曲有变动时，重新读取一次", func() {
+					if ui.Button(c, "重新扫描").Clicked() {
+						a.loadLibrary()
+					}
+				})
+			}
 		})
 
 		group("发行日期过滤（2026-02-27 起）", func() {

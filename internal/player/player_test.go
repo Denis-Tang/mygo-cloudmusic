@@ -366,3 +366,29 @@ func TestEndRadio(t *testing.T) {
 		t.Error("asked the radio after leaving it")
 	}
 }
+
+// A track on this machine opens from its file alone, without asking the
+// network for a URL, and decodes.
+func TestOpensLocalFile(t *testing.T) {
+	p := &Player{}
+	info, s, err := p.open(netease.Track{ID: -7, Duration: 30000}, "exhigh", Local{File: "testdata/seek.mp3"}, true)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer s.Close()
+	if info.Type != "mp3" || info.Size <= 0 {
+		t.Fatalf("stream %+v, want an mp3 of some size", info)
+	}
+	buf := make([]float32, 4096)
+	if n, err := s.Read(buf); n == 0 || err != nil {
+		t.Fatalf("read: %d samples, %v", n, err)
+	}
+}
+
+// A file that is gone says so, rather than playing another song.
+func TestLocalFileGone(t *testing.T) {
+	p := &Player{}
+	if _, _, err := p.open(netease.Track{ID: -8}, "exhigh", Local{File: "testdata/missing.mp3"}, true); err == nil {
+		t.Fatal("opened a file that is not there")
+	}
+}

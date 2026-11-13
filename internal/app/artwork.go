@@ -8,6 +8,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"math"
+	"os"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -133,9 +134,15 @@ func (c *artCache) get(url string, backdrop bool) *artwork {
 }
 
 // loadArt fetches the cover at url, as a bitmap to draw and an image to
-// measure.
+// measure: a file of this machine, for the covers of local music.
 func loadArt(url string) (*ui.Bitmap, image.Image, error) {
-	b, err := netease.Fetch(url)
+	var b []byte
+	var err error
+	if path, ok := coverPath(url); ok {
+		b, err = os.ReadFile(path)
+	} else {
+		b, err = netease.Fetch(url)
+	}
 	if err != nil {
 		return nil, nil, err
 	}

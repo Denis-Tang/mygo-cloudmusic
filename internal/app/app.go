@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"netease-music-mygo/internal/local"
 	"netease-music-mygo/internal/netease"
 	"netease-music-mygo/internal/player"
 )
@@ -26,6 +27,7 @@ const (
 	pageUser
 	pagePodcast
 	pagePodcasts
+	pageLocal
 )
 
 type route struct {
@@ -45,6 +47,13 @@ type app struct {
 	tray  *mygo.Tray // the icon in the menu bar or notification area, while it shows
 	art   *artCache
 	pl    *player.Player
+
+	// lib is the music of the listener's own folders, and locals its
+	// tracks as the pages list them: see ui_local.go.
+	lib           *local.Library
+	libReady      bool
+	localScanning bool
+	locals        []netease.Track
 	pal   palette
 
 	frameDark bool // the appearance the window's frame was drawn in
@@ -246,6 +255,16 @@ func Run() error {
 		a.pl.Normalize = func() bool { return a.settings.Normalize }
 		a.pl.Cache = newSongCache(a.settings.CacheMB)
 		a.pl.Blocked = a.blocked
+		a.pl.LocalOf = func(id int64) (player.Local, bool) {
+			if a.lib == nil || id >= 0 {
+				return player.Local{}, false
+			}
+			t, ok := a.lib.Track(id)
+			if !ok {
+				return player.Local{}, false
+			}
+			return player.Local{File: t.Path, Cover: t.Cover, LRC: t.LRC}, true
+		}
 		a.pl.Changed = func() {
 			a.keepSession()
 			a.syncCaptions()

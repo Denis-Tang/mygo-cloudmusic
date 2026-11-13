@@ -51,6 +51,9 @@ type settings struct {
 	// CacheMB is how many megabytes the songs kept on disk may take; 0
 	// keeps none.
 	CacheMB int `json:"cacheMB"`
+	// LocalFolders are the folders of the listener's own music, listed
+	// under 本地音乐.
+	LocalFolders []string `json:"localFolders,omitempty"`
 	// SearchHistory keeps submitted keywords, most recent first.
 	SearchHistory []string `json:"searchHistory,omitempty"`
 	// FilterDaily, FilterFM and FilterOther choose where the publish-date cutoff applies.

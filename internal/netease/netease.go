@@ -538,6 +538,11 @@ func Sized(pic string, n int) string {
 	if pic == "" {
 		return ""
 	}
+	// A picture of this machine, or of no address the CDN serves: it is
+	// read as it is.
+	if !strings.HasPrefix(pic, "http://") && !strings.HasPrefix(pic, "https://") {
+		return pic
+	}
 	pic = strings.Replace(pic, "http://", "https://", 1)
 	return fmt.Sprintf("%s?param=%dy%d", pic, n, n)
 }

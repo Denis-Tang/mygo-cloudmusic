@@ -42,6 +42,13 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 			}
 			b.OnClick(func() { st.open = false; action() })
 		}
+		if tr.ID < 0 {
+			item(iconFolder, "在文件夹中显示", func() { a.showLocalFile(tr.ID) })
+			ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
+			item(iconCopy, "复制歌名", func() { copyText(tr.Name) })
+			item(iconCopy, "复制歌名和歌手", func() { copyText(tr.Name + " - " + tr.ArtistNames()) })
+			return
+		}
 		if tr.ProgramID != 0 {
 			item(iconCopy, "复制节目名", func() { copyText(tr.Name) })
 			item(iconLink, "复制链接", func() { copyText(tr.URL()) })
