@@ -88,15 +88,23 @@ var blendShader = sync.OnceValue(func() *shader.Shader { return shader.MustCompi
 // is npHero's, which the page's opening and closing moves.
 func (a *app) immersive(c *ui.Context, tr *netease.Track, accent ui.Color, w, h float32) {
 	// The reading protections: the top, under the window's buttons; the
-	// foot, broad and smooth, so the cover-colored words read on bright covers too.
+	// foot, which begins above the words and deepens down them to the bar.
+	// It keeps its light where the picture has nothing written over it, and
+	// comes down slowly, so a bright cover is one picture with a darkening
+	// foot rather than a shadow cut across it.
 	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(h * 0.16).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
 		p.FillGradient(r, ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{
 			{Color: ui.RGBA(0, 0, 0, 0.30), At: 0}, {Color: ui.RGBA(0, 0, 0, 0), At: 1},
 		}}, 0)
 	})
-	ui.Box(c).Absolute().Left(0).Right(0).Bottom(0).Top(h * 0.44).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
+	ui.Box(c).Absolute().Left(0).Right(0).Bottom(0).Top(h - npFootVeil(h)).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
 		p.FillGradient(r, ui.LinearGradient{Angle: 180, Stops: []ui.GradientStop{
-			{Color: ui.RGBA(0, 0, 0, 0), At: 0.05}, {Color: ui.RGBA(0, 0, 0, 0.74), At: 0.50}, {Color: ui.RGBA(0, 0, 0, 0.78), At: 1},
+			{Color: ui.RGBA(0, 0, 0, 0), At: 0},
+			{Color: ui.RGBA(0, 0, 0, 0.20), At: 0.15},
+			{Color: ui.RGBA(0, 0, 0, 0.48), At: 0.35},
+			{Color: ui.RGBA(0, 0, 0, 0.62), At: 0.55},
+			{Color: ui.RGBA(0, 0, 0, 0.69), At: 0.80},
+			{Color: ui.RGBA(0, 0, 0, 0.72), At: 1},
 		}}, 0)
 	})
 
@@ -147,6 +155,25 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, accent ui.Color, w, h 
 	}
 }
 
+// npInfoBottom is how far above the foot the words sit: over the bar,
+// which the words keep their room from, or at the foot once the bar has
+// gone to sleep.
+func (a *app) npInfoBottom(c *ui.Context) float32 {
+	if a.npAwake(c) {
+		return fcBarH + 24
+	}
+	return 28
+}
+
+// npFootVeil is how tall the darkening at the foot of the page is: the
+// words' room above the bar, their own height, and a lead above them,
+// where it comes in, that it may reach them rather than begin at them.
+// It keeps the bar's room while the bar sleeps, and the words settle into
+// it, rather than follow them down and jump.
+func npFootVeil(h float32) float32 {
+	return fcBarH + 24 + infoCol(h < 680) + h*0.09
+}
+
 // infoCol is how tall the information of the song is, name, singer and
 // line, so the bar may keep its room from it: its room above the bar, the
 // words a little nearer the foot of the picture than they once sat.
@@ -172,11 +199,7 @@ func (a *app) infoColumn(c *ui.Context, tr *netease.Track, accent ui.Color, w, h
 		name, artist, line = 26, 14, 18
 	}
 	width, lineWidth := min(w*0.64, 720), min(w*0.64, 640)
-	bottom := float32(fcBarH + 24)
-	if !a.npAwake(c) {
-		// The bar is gone: the words take its place at the foot.
-		bottom = 28
-	}
+	bottom := a.npInfoBottom(c)
 	col := ui.Column(c.Key("np-info")).Absolute().Left(0).Right(0).Bottom(bottom).AlignItems(ui.Center).Gap(6).Height(infoCol(compact))
 	col.Transition(ui.ElementTransition{Animation: &npSink, Position: true})
 	col.Children(func() {
