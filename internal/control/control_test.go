@@ -19,16 +19,16 @@ type fakeDriver struct {
 	quit    bool
 }
 
-func (f *fakeDriver) State() (any, error)             { return map[string]any{"page": "bili"}, nil }
-func (f *fakeDriver) Click(label string) error        { f.clicked = label; return nil }
-func (f *fakeDriver) Type(text string) error          { f.typed = text; return nil }
-func (f *fakeDriver) Key(name string) error           { return errors.New("no key") }
-func (f *fakeDriver) Seek(seconds float64) error      { f.seeks = seconds; return nil }
-func (f *fakeDriver) Open(page string) error          { f.page = page; return nil }
-func (f *fakeDriver) Play(index int) error            { f.index = index; return nil }
-func (f *fakeDriver) Search(query string) error       { return nil }
+func (f *fakeDriver) State() (any, error)                 { return map[string]any{"page": "bili"}, nil }
+func (f *fakeDriver) Click(label string) error            { f.clicked = label; return nil }
+func (f *fakeDriver) Type(text string) error              { f.typed = text; return nil }
+func (f *fakeDriver) Key(name string) error               { return errors.New("no key") }
+func (f *fakeDriver) Seek(seconds float64) error          { f.seeks = seconds; return nil }
+func (f *fakeDriver) Open(page string) error              { f.page = page; return nil }
+func (f *fakeDriver) Play(index int) error                { f.index = index; return nil }
+func (f *fakeDriver) Search(query string) error           { return nil }
 func (f *fakeDriver) Screenshot(w, h int) ([]byte, error) { return f.shot, nil }
-func (f *fakeDriver) Quit()                           { f.quit = true }
+func (f *fakeDriver) Quit()                               { f.quit = true }
 
 // The API answers only to its token, and does what it is asked.
 func TestServesTheDriver(t *testing.T) {
