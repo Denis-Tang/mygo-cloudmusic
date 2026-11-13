@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/shader"
 
 	"netease-music-mygo/internal/lyrics"
 	"netease-music-mygo/internal/netease"
@@ -13,10 +14,26 @@ import (
 
 var white = ui.RGB(255, 255, 255)
 
-var npSpring = ui.Animation{Spring: ui.SpringOptions{Duration: 450 * time.Millisecond, Bounce: 0.08}}
+// npHeroSpring is how the cover goes from the bar to the page, and back:
+// a spring that keeps its speed as the listener changes their mind.
+var npHeroSpring = ui.Animation{Spring: ui.SpringOptions{Duration: 520 * time.Millisecond, Bounce: 0.14}}
 
-// npSettle is how long Now Playing takes to come or go, its spring at rest.
-const npSettle = 600 * time.Millisecond
+// npContent is how the page's words and tools come in after the cover, and
+// go before it does.
+var npContent = ui.Animation{Spring: ui.SpringOptions{Duration: 320 * time.Millisecond, Bounce: 0.04}, Delay: 100 * time.Millisecond}
+
+// npBackdrop is how the cover's colors come under the page, and go.
+var npBackdrop = ui.Animation{Duration: 240 * time.Millisecond}
+
+// npSettle is how long Now Playing takes to come or go, its cover at rest.
+const npSettle = 650 * time.Millisecond
+
+// npHeroMatch ties the cover of the bar to the cover of the page, which
+// grows from it as the page opens.
+type npHeroMatch struct{ id int64 }
+
+// npCoverSize is the cover of the bar's, which the page's comes from.
+const npCoverSize = 48
 
 // npState tracks Now Playing opening and closing, and reports whether it is
 // open and whether it has come to rest, open or closed. Call it once a
@@ -25,6 +42,10 @@ func (a *app) npState(c *ui.Context) (open, settled bool) {
 	open = a.nowPlaying && a.pl.Current() != nil
 	now := c.Now()
 	if open != a.npOpen {
+		// From rest, the page's cover grows from the bar's. Turned again
+		// before it was at rest, it keeps the turn it had: no jump back to
+		// the bar cover, which the spring would take as a new start.
+		a.npHeroFromBar = open && a.npSettled
 		a.npOpen, a.npChangedAt = open, now
 		if open {
 			// Shown, the page brings its tools with it: opening it by the
@@ -44,38 +65,46 @@ func (a *app) npState(c *ui.Context) (open, settled bool) {
 			a.win.SetWindowButtonsTheme(buttons)
 		}
 	}
-	return open, now.Sub(a.npChangedAt) >= npSettle
+	settled = now.Sub(a.npChangedAt) >= npSettle
+	a.npSettled = settled
+	return open, settled
 }
 
-// nowPlayingLayer holds Now Playing over the whole window, rising into
-// view as it opens and sinking away as it closes. The layer moves itself,
-// staying on top all the way, rather than leaving as an exit transition
-// would, under the rest of the window: that would show it going over the
-// sidebar's material while the page above it hid it at once. Its pose
-// moves it in frames that only paint, building nothing.
+// nowPlayingLayer holds Now Playing over the whole window. The page's cover
+// grows from the bar's, the words follow it, and on the way out the cover
+// goes back to the bar before the page is gone: a shared element, as
+// Apple's Music opens its player, rather than a sheet sliding up. The
+// layer stays on top all the way, building only what still shows.
 func (a *app) nowPlayingLayer(c *ui.Context, open, settled bool) {
 	layer := ui.Box(c.Key("now-playing-layer")).Absolute().Top(0).Left(0).Right(0).Bottom(0)
-	pose := ui.Pose{Y: 60, Fade: 1}
-	if open {
-		pose = ui.Pose{}
-	}
-	layer.AnimatePose(pose, npSpring)
 	if !open && settled || a.pl.Current() == nil {
-		// Closed: nothing to paint or click.
+		// Closed: nothing to paint or click. The page keeps its root, empty,
+		// that what comes with the next opening has a parent to enter.
 		layer.Invisible()
 		a.queueAt = -1
+		if a.pl.Current() != nil {
+			layer.Children(func() { a.nowPlayingView(c, false, true) })
+		}
 		return
 	}
 	if !open {
 		// On its way out, the window under it takes the clicks.
 		layer.PassThrough()
 	}
-	layer.Children(func() { a.nowPlayingView(c) })
+	layer.Children(func() { a.nowPlayingView(c, open, settled) })
 }
 
-// nowPlayingView fills the window with what plays: its cover over a slow
+// nowPlayingView fills the window with what plays: the cover over a slow
 // drift of its own colors, the controls, and lyrics that follow the song.
-func (a *app) nowPlayingView(c *ui.Context) {
+// Opening, the cover is the bar's, grown; the words and tools follow it in.
+// Closing, the cover goes back to the bar while the words fade behind it.
+func (a *app) nowPlayingView(c *ui.Context, open, settled bool) {
+	if !open && settled {
+		// Closed: the page's root alone, that what comes with the next
+		// opening has a parent to enter. Nothing of it is built or fetched.
+		ui.Box(c.Key("now-playing")).Absolute().Top(0).Left(0).Right(0).Bottom(0).PassThrough()
+		return
+	}
 	pl := a.pl
 	tr := pl.Current()
 	w, h := c.Size()
@@ -94,8 +123,10 @@ func (a *app) nowPlayingView(c *ui.Context) {
 	hue, saturation, _ := hsv(float64(tint.R)/255, float64(tint.G)/255, float64(tint.B)/255)
 	accent := hsvColor(hue, min(saturation, 0.28), 0.96)
 
-	root := ui.Box(c.Key("now-playing")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
-		Background(ui.Hex("#0b0b0d")).TextColor(white)
+	root := ui.Box(c.Key("now-playing")).Absolute().Top(0).Left(0).Right(0).Bottom(0).TextColor(white)
+	if !open {
+		root.PassThrough()
+	}
 	accent = root.AnimateColor("cover-accent", accent, ui.Snappy)
 	// Resting, the page hides the pointer with its controls, as a video
 	// does: the pointer is the only thing left of the listener over the
@@ -104,14 +135,74 @@ func (a *app) nowPlayingView(c *ui.Context) {
 		root.Cursor(ui.CursorNone)
 	}
 	root.Children(func() {
-		a.backdrop(c, shown, tint)
-		// Over the backdrop, which is positioned too: positioned elements
-		// paint over those in the flow.
-		ui.Column(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Children(func() { a.nowPlayingBody(c, tr, art, accent, w, h) })
+		if open {
+			// The colors behind the cover, which keep the words readable
+			// before it has painted and after it goes.
+			bd := ui.Box(c.Key("np-backdrop")).Absolute().Top(0).Left(0).Right(0).Bottom(0).
+				Background(ui.Hex("#0b0b0d"))
+			bd.Transition(ui.ElementTransition{Animation: &npBackdrop, Enter: &ui.Motion{}, Exit: &ui.Motion{}})
+			bd.Children(func() { a.backdrop(c, shown, tint) })
+		}
+		// The cover, over the colors and under the words: the bar's grown
+		// to the page, and, closing, the page's gone back to the bar.
+		a.npHero(c, tr, art, open, settled)
+		if open {
+			// The words, the readers and the bar: after the cover, before it
+			// goes, and moved a little as they come and go.
+			body := ui.Box(c.Key("np-content")).Absolute().Top(0).Left(0).Right(0).Bottom(0)
+			body.Transition(ui.ElementTransition{Animation: &npContent, Enter: &ui.Motion{Y: 10}, Exit: &ui.Motion{Y: 8}})
+			body.Children(func() { a.nowPlayingBody(c, tr, accent, w, h) })
+		}
 	})
 }
 
-func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32) {
+// npHero draws the cover of the page: the bar's cover, grown to the whole
+// window as the page opens, and, closing, shrinking back to the bar. While
+// it comes from the bar, a shared element takes it there; on the way back
+// it goes to the bar's own box, so it stays over the page's words to the
+// end.
+func (a *app) npHero(c *ui.Context, tr *netease.Track, art *artwork, open, settled bool) {
+	sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1536), false))
+	if sharp == nil {
+		sharp = bitmap(art)
+	}
+	hero := ui.Box(c.Key("np-hero")).Radius(radiusTile).Clip().PassThrough().Label("播放页封面")
+	if open {
+		hero.Absolute().Top(0).Left(0).Right(0).Bottom(0)
+		t := ui.ElementTransition{Animation: &npHeroSpring, Position: true, Size: true}
+		if !settled && a.npHeroFromBar {
+			t.Match = npHeroMatch{tr.ID}
+		}
+		hero.Transition(t)
+	} else {
+		x, y := a.npCoverOrigin(c)
+		hero.Absolute().Left(x).Top(y).Width(npCoverSize).Height(npCoverSize)
+		hero.Transition(ui.ElementTransition{Animation: &npHeroSpring, Position: true, Size: true})
+	}
+	hero.Draw(func(p *ui.Painter, r ui.Rect) {
+		if sharp == nil {
+			return
+		}
+		soft := sharp
+		if art != nil && art.stage != nil {
+			soft = art.stage
+		}
+		blendShader().Draw(p, r, shader.Options{Images: [4]*ui.Bitmap{sharp, soft}})
+	})
+}
+
+// npCoverOrigin is where the bar's cover sits in the window, which the
+// page's cover goes back to.
+func (a *app) npCoverOrigin(c *ui.Context) (float32, float32) {
+	// The bar runs along the whole window, under the sidebar too: its
+	// cover sits at its own left padding and its row's, not the content's.
+	const pad = 8
+	_, h := c.Size()
+	top := h - playerBarHeight + pad + (playerBarHeight-pad-npCoverSize)/2
+	return 28, top
+}
+
+func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, accent ui.Color, w, h float32) {
 	a.commentsFor(tr)
 	// An episode has what it is about and its captions in place of
 	// lyrics; a song's lyrics hide until the picture or the bar asks.
@@ -141,7 +232,7 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 	// The page itself: the cover, the words, the readers and drawers, and
 	// the bar. There is no other playing page's layout.
 	awake := a.npAwake(c)
-	a.immersive(c, tr, art, accent, w, h)
+	a.immersive(c, tr, accent, w, h)
 	// The top strip drags the window: over the picture, the way back to
 	// the pages, at its left, and named, where the pointer finds it. It is
 	// placed, and comes after the picture that it shows over. The pill goes
@@ -167,11 +258,12 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, art *artwork, acc
 func leaveButton(c *ui.Context, label string) ui.Element {
 	b := ui.ButtonBase(c.Key("leave")).Size(40, 40).Radius(radiusPill).FocusRing(false).
 		Center().Label(label).Margin(0, 0, 0, 14)
-	bg := ui.RGBA(0, 0, 0, 0.22)
+	bg := ui.RGBA(0, 0, 0, 0.28)
 	if b.Hovered() {
-		bg = ui.RGBA(0, 0, 0, 0.36)
+		bg = ui.RGBA(0, 0, 0, 0.42)
 	}
-	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(white)
+	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).
+		Border(1, white.Alpha(0.1)).TextColor(white)
 	b.Children(func() {
 		ui.Icon(c, iconDown).Size(22, 22)
 	})

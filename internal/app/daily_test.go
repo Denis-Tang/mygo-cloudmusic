@@ -1,6 +1,10 @@
 package app
 
 import (
+	"fmt"
+	"image/png"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -59,5 +63,64 @@ func TestDailyRenewed(t *testing.T) {
 	}
 	if !dailyRenewed(loaded, time.Date(2026, 10, 27, 15, 0, 0, 0, la)) {
 		t.Error("not renewed past 6:00 in Beijing")
+	}
+}
+
+// A portrait home page lists every recommendation the landscape one does,
+// and gives the daily card more height than the flat banner.
+func TestHomePortraitShowsEveryRecommendationAndATallerDailyCard(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.daily = []netease.Track{{ID: 1, Name: "日推", Duration: 200000}}
+	for i := range 12 {
+		a.recPlaylists = append(a.recPlaylists, netease.Playlist{ID: int64(i + 1), Name: fmt.Sprintf("歌单%02d", i+1)})
+	}
+	portrait := ui.NewTester(a.view, 700, 1000)
+	portrait.Frame()
+	if dir := os.Getenv("NM_FRAMES"); dir != "" {
+		shot := func(name string) {
+			f, err := os.Create(filepath.Join(dir, name+".png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			if err := png.Encode(f, portrait.Image()); err != nil {
+				t.Fatal(err)
+			}
+		}
+		shot("home-portrait")
+	}
+	card, ok := portrait.Find("每日推荐卡片")
+	if !ok {
+		t.Fatal("no daily card in the portrait home page")
+	}
+	if card.H <= dailyHeight {
+		t.Fatalf("the portrait daily card is %v tall, want more than %v", card.H, dailyHeight)
+	}
+	for i := 1; i <= 12; i++ {
+		name := fmt.Sprintf("歌单%02d", i)
+		if _, ok := portrait.Find(name); !ok {
+			t.Errorf("portrait home page misses %q", name)
+		}
+	}
+	landscape := ui.NewTester(a.view, 1200, 800)
+	landscape.Frame()
+	if dir := os.Getenv("NM_FRAMES"); dir != "" {
+		f, err := os.Create(filepath.Join(dir, "home-landscape.png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, landscape.Image()); err != nil {
+			f.Close()
+			t.Fatal(err)
+		}
+		f.Close()
+	}
+	card, ok = landscape.Find("每日推荐卡片")
+	if !ok {
+		t.Fatal("no daily card in the landscape home page")
+	}
+	if card.H > dailyHeight+1 {
+		t.Fatalf("the landscape daily card is %v tall, want %v", card.H, dailyHeight)
 	}
 }

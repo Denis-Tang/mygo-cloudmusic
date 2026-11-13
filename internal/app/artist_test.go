@@ -109,3 +109,28 @@ func TestArtistSongsByLatest(t *testing.T) {
 		t.Error("the newest songs were asked for again")
 	}
 }
+
+// A singer's name in the player bar still opens their page, which closes
+// the playing page the same click may have opened.
+func TestArtistInPlayerBarOpensTheirPage(t *testing.T) {
+	artistDetail = func(int64) (*netease.ArtistProfile, error) { return nil, errors.New("offline") }
+	defer func() { artistDetail = netease.ArtistDetail }()
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "广寒宫", Artists: []netease.Artist{{ID: 11, Name: "甲"}}, Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	tt.Advance(time.Second)
+	tt.Frame()
+	if err := tt.Click("甲"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.nowPlaying {
+		t.Error("the singer's name opened the playing page")
+	}
+	if a.route != (route{page: pageArtist, id: 11}) {
+		t.Errorf("the singer's name went to %+v", a.route)
+	}
+}

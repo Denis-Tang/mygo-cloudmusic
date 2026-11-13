@@ -10,7 +10,6 @@ import (
 	"math"
 	"time"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	_ "golang.org/x/image/webp"
 
@@ -128,17 +127,10 @@ func (c *artCache) get(url string, backdrop bool) *artwork {
 				a.stage = ui.NewBitmap(stage)
 			}
 			c.art[key] = a
-			// Shown by the frame post draws, the cover drops its pixels,
-			// which its data decodes again if they are needed.
-			time.AfterFunc(artRelease, func() { mygo.RunOnMain(bmp.ReleasePixels) })
 		})
 	}()
 	return nil
 }
-
-// artRelease is how long a cover keeps its pixels once loaded: past the
-// frame that first shows it, and the smaller copies it shows from there.
-const artRelease = 2 * time.Second
 
 // loadArt fetches the cover at url, as a bitmap to draw and an image to
 // measure.

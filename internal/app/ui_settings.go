@@ -149,6 +149,11 @@ func (a *app) settingsView(c *ui.Context) {
 					a.changed()
 				}
 			})
+			row("封面歌词显示翻译", "", func() {
+				if ui.Switch(c.Key("cover-translation"), &s.CoverTranslation).Label("封面歌词显示翻译").Changed() {
+					a.changed()
+				}
+			})
 			row("音量均衡", "按网易云音乐测得的响度调整每首歌的音量，让歌曲听起来一样响", func() {
 				if ui.Switch(c.Key("normalize"), &s.Normalize).Label("音量均衡").Changed() {
 					a.pl.SetVolume(a.volume)

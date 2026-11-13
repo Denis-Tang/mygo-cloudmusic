@@ -318,10 +318,25 @@ func (a *app) playerBar(c *ui.Context) {
 				})
 				return
 			}
-			info := ui.ButtonBase(c.Key("info")).Gap(12).AlignItems(ui.Center).FocusRing(false).Shrink(1).MinWidth(0).Label("打开正在播放")
+			infoLabel := "打开正在播放"
+			if a.nowPlaying {
+				infoLabel = "收起正在播放"
+			}
+			info := ui.ButtonBase(c.Key("info")).Gap(12).AlignItems(ui.Center).
+				FocusRing(false).Shrink(1).MinWidth(0).Label(infoLabel)
 			hovered := info.Hovered()
 			info.Children(func() {
-				ui.Box(c).Size(48, 48).Shrink(0).Children(func() {
+				cov := ui.Box(c.Key("bar-cover")).Size(48, 48).Shrink(0).Label("播放栏封面")
+				if !a.npOpen && !a.npSettled {
+					// The page's cover is on its way back to this slot. Drawing
+					// this one too showed a second cover there before it came.
+					cov.Invisible()
+				}
+				if !a.npOpen && a.npSettled {
+					// At rest under the page: the page's cover grows from here.
+					cov.Transition(ui.ElementTransition{Animation: &npHeroSpring, Match: npHeroMatch{tr.ID}})
+				}
+				cov.Children(func() {
 					a.cover(c, tr.Album.PicURL, 120, 48, radiusTile).Shadow(0, 2, 8, 0, p.cardShade)
 					if hovered {
 						ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radiusTile).Center().
@@ -330,7 +345,7 @@ func (a *app) playerBar(c *ui.Context) {
 						})
 					}
 				})
-				ui.Column(c).Shrink(1).MinWidth(0).Gap(3).Children(func() {
+				ui.Column(c).Shrink(1).MinWidth(0).Gap(3).AlignItems(ui.Start).Children(func() {
 					ui.Text(c, tr.Name).FontSize(17).FontWeight(600).SingleLine()
 					// What it is waiting on shows in place of the artists.
 					var sub string
@@ -351,8 +366,12 @@ func (a *app) playerBar(c *ui.Context) {
 				})
 			})
 			if info.Clicked() {
-				a.nowPlaying = true
+				// The cover, the name and the space around them open the page,
+				// and close it again. A singer's name opens their page, which
+				// closes this one on the way.
+				a.nowPlaying = !a.nowPlaying
 			}
+
 			a.likeButton(c.Key("like"), tr, 20, p.muted).Margin(0, 0, 0, 4).Shrink(0)
 		})
 

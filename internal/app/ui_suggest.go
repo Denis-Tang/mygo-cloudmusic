@@ -97,7 +97,7 @@ func (a *app) searchField(c *ui.Context) {
 	p := a.pal
 	// The field of search, and, at its left, the button that folds the
 	// sidebar away, as the official client's is: over the box, not in it.
-	row := ui.Row(c).Height(topBarHeight).Gap(7).AlignItems(ui.Center).Margin(0, 0, 16, 0)
+	row := ui.Row(c).Height(topBarHeight).Gap(7).AlignItems(ui.Center).Margin(0, 10, 16, 0)
 	row.Children(func() {
 		ui.Box(c).Width(30) // the logo is anchored to the window, over this space
 		field := ui.Row(c).Height(topBarHeight).PaddingX(12).Gap(8).Radius(radiusField).AlignItems(ui.Center).Grow(1)

@@ -333,7 +333,7 @@ func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist,
 		return
 	}
 	p := a.pal
-	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(18, 4, 6, 6).Children(func() {
+	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(18, 0, 6, 6).Children(func() {
 		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(32).PaddingX(5).Gap(7).Radius(radiusTile).
 			AlignItems(ui.Center).Justify(ui.Start).Role(ui.RoleDisclosure).Label(title)
 		if b.Clicked() {

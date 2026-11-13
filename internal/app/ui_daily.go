@@ -52,7 +52,7 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 	inner := w - a.sidebarWidth() - 2*pagePad
 	still := c.Preferences().ReduceMotion
 	art := a.art.get(netease.Sized(songs[0].Album.PicURL, 600), true)
-	card := ui.ButtonBase(c.Key("daily")).Height(dailyHeight).Radius(dailyRadius).FocusRing(false).Label("每日推荐").TextColor(white)
+	card := ui.ButtonBase(c.Key("daily")).Height(a.dailyCardHeight(c)).Radius(dailyRadius).FocusRing(false).Label("每日推荐卡片").TextColor(white)
 	hovered := card.Hovered()
 	ours, playing := a.dailyPlaying()
 
@@ -138,14 +138,26 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 
 // The daily card's measures; the stack of covers is laid out by hand.
 const (
-	dailyHeight = 212
-	dailyRadius = 24
-	dailyPadX   = 32
-	stackWidth  = 300
-	sleeveLeft  = 64 // where the first cover's sleeve is in the stack
-	sleeveSize  = 156
-	recordSize  = 146
+	dailyHeight         = 212
+	dailyPortraitHeight = 280
+	dailyRadius         = 24
+	dailyPadX           = 32
+	stackWidth          = 300
+	sleeveLeft          = 64 // where the first cover's sleeve is in the stack
+	sleeveSize          = 156
+	recordSize          = 146
 )
+
+// dailyCardHeight is how tall the daily card is: a banner on a page wider
+// than it is tall, and a card with room to breathe when the window is
+// portrait.
+func (a *app) dailyCardHeight(c *ui.Context) float32 {
+	w, h := c.Size()
+	if w < h {
+		return dailyPortraitHeight
+	}
+	return dailyHeight
+}
 
 // dailyRate is how many frames a second the daily card draws what moves
 // on it, its record turning and the bars on its play button: every frame

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"runtime"
 	"sync"
 	"time"
 
@@ -29,6 +30,23 @@ const fcBarH = 100
 // listener before they soften away: resting over the window hides them,
 // as much as leaving it does.
 const npIdle = 2750 * time.Millisecond
+
+// npSink is how the song's name, its singer and the line sung at go down
+// to the foot of the page once the bar hides, and back up as it returns.
+var npSink = ui.Animation{Spring: ui.SpringOptions{Duration: 460 * time.Millisecond, Bounce: 0.06}}
+
+// lyricLineFont is the light sans the line sung at uses, apart from the
+// song's name and its singer above it.
+func lyricLineFont() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "Microsoft YaHei UI Light"
+	case "darwin":
+		return "PingFang SC"
+	default:
+		return "Noto Sans CJK SC"
+	}
+}
 
 // blendSource paints the cover over its own blur: the same cover, at the
 // same size, sharp at the left of a wide view and easing into the blur
@@ -64,31 +82,11 @@ func Fragment(dst vec4, pos vec2) vec4 {
 
 var blendShader = sync.OnceValue(func() *shader.Shader { return shader.MustCompile(blendSource) })
 
-// immersive fills the playing page: the cover as the poster of the song, the
-// words over it, the lyrics and the drawers, and the bar at the foot. It
-// is the same view in every pane; the panes only say what shows over the
-// picture.
-func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent ui.Color, w, h float32) {
-	// The picture itself, over the backdrop the view keeps behind it: the
-	// real cover, sharp, and the same cover defocused, mapped the same
-	// way, so a wide view is one picture falling out of focus toward the
-	// right. The small saturated wash is not this blur. Until the defocus
-	// has loaded, the sharp cover stands for it.
-	sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1536), false))
-	if sharp == nil {
-		sharp = bitmap(art)
-	}
-	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
-		if sharp == nil {
-			return
-		}
-		soft := sharp
-		if art != nil && art.stage != nil {
-			soft = art.stage
-		}
-		blendShader().Draw(p, r, shader.Options{Images: [4]*ui.Bitmap{sharp, soft}})
-	})
-
+// immersive fills the playing page: the words over the cover, the lyrics
+// and the drawers, and the bar at the foot. It is the same view in every
+// pane; the panes only say what shows over the picture. The cover itself
+// is npHero's, which the page's opening and closing moves.
+func (a *app) immersive(c *ui.Context, tr *netease.Track, accent ui.Color, w, h float32) {
 	// The reading protections: the top, under the window's buttons; the
 	// foot, broad and smooth, so the cover-colored words read on bright covers too.
 	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Height(h * 0.16).PassThrough().Draw(func(p *ui.Painter, r ui.Rect) {
@@ -154,10 +152,14 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, art *artwork, accent u
 // words a little nearer the foot of the picture than they once sat.
 func infoCol(compact bool) float32 {
 	if compact {
-		return 78
+		return 102
 	}
-	return 96
+	return 122
 }
+
+// lyricGap is the space above the line sung at, over the gap the column
+// keeps between every two of its rows.
+const lyricGap = 22
 
 // infoColumn sets the song's name, its singer and the line it sings at,
 // over the picture, above the bar: big to read, kept to a width, and
@@ -170,7 +172,14 @@ func (a *app) infoColumn(c *ui.Context, tr *netease.Track, accent ui.Color, w, h
 		name, artist, line = 26, 14, 18
 	}
 	width, lineWidth := min(w*0.64, 720), min(w*0.64, 640)
-	ui.Column(c).Absolute().Left(0).Right(0).Bottom(fcBarH + 24).AlignItems(ui.Center).Gap(6).Height(infoCol(compact)).Children(func() {
+	bottom := float32(fcBarH + 24)
+	if !a.npAwake(c) {
+		// The bar is gone: the words take its place at the foot.
+		bottom = 28
+	}
+	col := ui.Column(c.Key("np-info")).Absolute().Left(0).Right(0).Bottom(bottom).AlignItems(ui.Center).Gap(6).Height(infoCol(compact))
+	col.Transition(ui.ElementTransition{Animation: &npSink, Position: true})
+	col.Children(func() {
 		if r := a.pl.Radio(); r != "" {
 			a.radioChip(c, r)
 		}
@@ -210,10 +219,10 @@ func (a *app) nowLine(c *ui.Context, tr *netease.Track, size, width float32) {
 		return
 	}
 	line := lines[cur]
-	ui.Column(c).Gap(2).Width(width).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, line.Text).FontSize(size).FontWeight(650).TextColor(white.Alpha(0.94)).MaxLines(2).LineHeight(1.3).TextAlign(ui.Center)
-		if line.Translation != "" {
-			ui.Text(c, line.Translation).FontSize(size * 0.62).TextColor(white.Alpha(0.66)).MaxLines(1).TextAlign(ui.Center)
+	ui.Column(c).Gap(2).Width(width).AlignItems(ui.Center).Margin(lyricGap, 0, 0, 0).Children(func() {
+		ui.Text(c, line.Text).Font(lyricLineFont()).FontSize(size).FontWeight(300).TextColor(white.Alpha(0.68)).MaxLines(2).LineHeight(1.35).TextAlign(ui.Center)
+		if line.Translation != "" && a.settings.CoverTranslation {
+			ui.Text(c, line.Translation).Font(lyricLineFont()).FontSize(size * 0.62).FontWeight(300).TextColor(white.Alpha(0.5)).MaxLines(1).TextAlign(ui.Center)
 		}
 	})
 	// Again as the next line begins, and a little on, that the redraw of
@@ -317,10 +326,18 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 			// The summary of what plays, at the left, and what one may
 			// think of it; the words it takes have room, and give it up.
 			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
+				summary := ui.ButtonBase(c.Key("np-info-toggle")).Column().Grow(1).Shrink(1).MinWidth(0).
+					Gap(2).AlignItems(ui.Start).FocusRing(false).Label("收起正在播放")
+				summary.Children(func() {
 					ui.Text(c, tr.Name).FontSize(17).FontWeight(700).SingleLine().TextColor(accent)
 					a.artistLinks(c, tr, accent.Alpha(0.85), accent).FontSize(14).SingleLine()
 				})
+				if summary.Clicked() {
+					// The names, and the space around them, put the page away; a
+					// singer's name opens their page, which does the same.
+					a.nowPlaying = false
+				}
+
 				a.likeButton(c.Key("like"), tr, 17, white.Alpha(0.7))
 			})
 			// The playing and the going, in the middle, where they stay

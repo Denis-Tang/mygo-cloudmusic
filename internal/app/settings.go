@@ -39,6 +39,9 @@ type settings struct {
 	// HotComments shows a song's hot comments in its quiet parts, in
 	// place of the lyrics (quietComment): the listener turns it on.
 	HotComments bool `json:"hotComments"`
+	// CoverTranslation shows the translation of the line the cover sings at.
+	// The reading page keeps its own, whatever this says.
+	CoverTranslation bool `json:"coverTranslation"`
 	// AppIcon is where the app's icon shows on macOS (appIcons); elsewhere
 	// it is always in the notification area.
 	AppIcon string `json:"appIcon"`

@@ -47,6 +47,8 @@ type app struct {
 	pl    *player.Player
 	pal   palette
 
+	taskbar taskbarControls // the taskbar button's thumbnail toolbar (Windows)
+
 	route   route
 	history []route
 	forward []route // the pages gone back from, the last first to go to
@@ -112,21 +114,23 @@ type app struct {
 	searched    route                 // the search last shown, which the sidebar goes back to
 	suggestions suggestState          // what the search field's query may be after
 
-	nowPlaying  bool
-	npOpen      bool      // Now Playing as it last showed: open or not
-	npChangedAt time.Time // when it last opened or closed
-	npPane      int       // paneLyrics, paneQueue, paneStage, paneComments, paneProgram or paneCaptions
-	npPaneTop   float32   // how far the cover beside the pane starts below its top
-	npTabsH     float32   // how tall the pane's tabs were, last laid out
-	lyricScroll ui.ScrollState
-	lyricGlide  lyricGlide
-	lyricAt     int
-	lyricTrack  int64
-	queueList   ui.ListState
-	queueAt     int // the row of the queue pane last scrolled to, -1 while it is hidden
-	comments    commentState
-	tabCount    rollState // the count on the comments' tab, as it rolls
-	npDrawer    npDrawer  // the bar's [...] panel, of the queue and the comments
+	nowPlaying    bool
+	npOpen        bool      // Now Playing as it last showed: open or not
+	npSettled     bool      // Now Playing at rest, open or closed
+	npHeroFromBar bool      // the open cover grows from the bar's, not from a turn already under way
+	npChangedAt   time.Time // when it last opened or closed
+	npPane        int       // paneLyrics, paneQueue, paneStage, paneComments, paneProgram or paneCaptions
+	npPaneTop     float32   // how far the cover beside the pane starts below its top
+	npTabsH       float32   // how tall the pane's tabs were, last laid out
+	lyricScroll   ui.ScrollState
+	lyricGlide    lyricGlide
+	lyricAt       int
+	lyricTrack    int64
+	queueList     ui.ListState
+	queueAt       int // the row of the queue pane last scrolled to, -1 while it is hidden
+	comments      commentState
+	tabCount      rollState // the count on the comments' tab, as it rolls
+	npDrawer      npDrawer  // the bar's [...] panel, of the queue and the comments
 
 	fmMode        int    // the FM mode chosen, in fmModes
 	radioStarting string // the radio asked for its first songs, or ""
@@ -254,6 +258,9 @@ func Run() error {
 			MinHeight:     580,
 			StateKey:      "main",
 			TitleBarStyle: mygo.TitleBarHidden,
+			// Windows' caption buttons are drawn in the app, as the official
+			// client draws them; other systems keep their native controls.
+			HideWindowButtons: runtime.GOOS == "windows",
 			// As tall as the edge over a page (Linux, Windows).
 			TitleBarHeight: buttonsHeight,
 			// Inset from the corner, within the sidebar, as macOS 26's
@@ -262,7 +269,15 @@ func Run() error {
 			Vibrancy:             mygo.VibrancySidebar,
 			BackgroundColor:      "light-dark(#ffffff, #141416)",
 			Content:              ui.View(a.view),
+			// Nearly clear until its first frame: opened straight, the
+			// window showed its background while the view laid out.
+			Opacity: 0.01,
 		})
+		a.win.OnReadyToShow(func() {
+			a.win.SetOpacity(1)
+			a.win.Focus()
+		})
+		a.taskbar.init(a.win.NativeHandle(), a)
 		a.setMenu()
 		a.boot()
 		// The notch player is macOS's, over its menu bar: elsewhere it would
@@ -273,7 +288,15 @@ func Run() error {
 		// From the menu bar alone, the Dock icon shows while the window
 		// does.
 		a.syncDock()
-		a.win.OnShow(a.syncDock)
+		a.win.OnShow(func() {
+			a.syncDock()
+			a.taskbar.refresh()
+			// Shown again, the window can show Explorer's backdrop before
+			// the first frame of its content: nearly clear until it draws.
+			a.win.SetOpacity(0.01)
+			a.win.Invalidate()
+			time.AfterFunc(150*time.Millisecond, func() { a.win.SetOpacity(1) })
+		})
 		a.win.OnHide(a.syncDock)
 		// Shown or switched to the morning after, it shows the new day's.
 		a.win.OnFocus(a.freshenHome)
@@ -308,6 +331,7 @@ func Run() error {
 	// Windows leaves an icon in the notification area after its app until
 	// the pointer passes over it.
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
+		a.taskbar.close()
 		if a.tray != nil {
 			a.tray.Destroy()
 		}

@@ -525,11 +525,13 @@ func (n *notch) idle(c *ui.Context, open, left float32) {
 // them, so the other shows it too.
 func (a *app) syncWindows() {
 	pl := a.pl
+	tr := pl.Current()
 	var id int64
-	if tr := pl.Current(); tr != nil {
+	if tr != nil {
 		id = tr.ID
 	}
-	sig := playerSig{id, pl.Playing(), pl.Loading(), pl.Shuffle(), pl.Repeat(), a.volume, a.nowPlaying, pl.Err()}
+	liked := tr != nil && a.isLiked(tr)
+	sig := playerSig{id, pl.Playing(), pl.Loading(), pl.Shuffle(), pl.Repeat(), a.volume, a.nowPlaying, pl.Err(), liked}
 	if sig != a.sig {
 		a.sig = sig
 		a.redraw()
@@ -537,6 +539,7 @@ func (a *app) syncWindows() {
 			a.notch.greet()
 		}
 	}
+	a.taskbar.sync(tr, sig.playing, liked)
 }
 
 type playerSig struct {
@@ -548,4 +551,5 @@ type playerSig struct {
 	volume     float64
 	nowPlaying bool
 	err        string
+	liked      bool
 }

@@ -17,12 +17,12 @@ import (
 // and the pills of a single line, round by their height. What is already
 // round, as a photo or a knob, is its size's half.
 const (
-	radiusCover = 10 // a cover, and the card it heads
-	radiusTile  = 6  // a small cover in a row, and its rows' mark
-	radiusRow   = 9  // a row of a list, and the items of a menu
-	radiusCard  = 14 // a card that holds a row of its own, a bar's panel
-	radiusPanel = 18 // a drawer over the playing page, a dialog
-	radiusField = 9  // the search field and the inputs of a dialog
+	radiusCover = 12 // a cover, and the card it heads
+	radiusTile  = 8  // a small cover in a row, and its rows' mark
+	radiusRow   = 10 // a row of a list, and the items of a menu
+	radiusCard  = 18 // a card that holds a row of its own, a bar's panel
+	radiusPanel = 22 // a drawer over the playing page, a dialog
+	radiusField = 10 // the search field and the inputs of a dialog
 	radiusPill  = 999
 )
 

@@ -122,6 +122,7 @@ func (a *app) view(c *ui.Context) {
 	a.playlistNameDialog(c)
 	a.deletePlaylistDialog(c)
 	a.settingsDialog(c)
+	a.windowControls(c)
 	if a.toast != "" {
 		c.AddToast(ui.Toast{ID: "status", Title: a.toast, Timeout: 2500 * time.Millisecond})
 		a.toast = ""
@@ -283,6 +284,62 @@ func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 	}
 }
 
+// windowControls draws Windows' minimize, maximize or restore, and close
+// buttons at the top right. They have no hover box: the glyph itself
+// brightens under the pointer and on the press, as the official client's.
+func (a *app) windowControls(c *ui.Context) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	maximized := a.win != nil && a.win.IsMaximized()
+	ui.Row(c.Key("window-controls")).Absolute().Top(0).Right(0).Height(buttonsHeight).AlignItems(ui.Center).Children(func() {
+		a.windowControl(c, "minimize", iconMin, "最小化", func() {
+			if a.win != nil {
+				a.win.Minimize()
+			}
+		})
+		if maximized {
+			a.windowControl(c, "restore", iconRestore, "还原", func() {
+				if a.win != nil {
+					a.win.Restore()
+				}
+			})
+		} else {
+			a.windowControl(c, "maximize", iconMax, "最大化", func() {
+				if a.win != nil {
+					a.win.Maximize()
+				}
+			})
+		}
+		a.windowControl(c, "close", iconX, "关闭", func() {
+			if a.win != nil {
+				a.win.Close()
+			}
+		})
+	})
+}
+
+// windowControl is one of the window buttons: its glyph is the button's
+// whole face, so the button has no fill of its own.
+func (a *app) windowControl(c *ui.Context, key string, icon *ui.SVG, label string, action func()) {
+	b := ui.ButtonBase(c.Key(key)).Width(windowButtonWidth).Height(buttonsHeight).
+		AlignItems(ui.Center).Justify(ui.Center).FocusRing(false).Label(label)
+	color := ui.RGBA(255, 255, 255, 0.62)
+	switch {
+	case b.Pressed():
+		color = ui.RGBA(255, 255, 255, 1)
+	case b.Hovered():
+		color = ui.RGBA(255, 255, 255, 0.88)
+	}
+	tint := b.AnimateColor("tint", color, ui.Animation{Duration: 110 * time.Millisecond})
+	b.Children(func() {
+		ui.Icon(c, icon).Size(16, 16).TextColor(tint)
+	})
+	if b.Clicked() {
+		action()
+	}
+}
+
 // playerBarHeight is the height of the player along the foot of the pages.
 const playerBarHeight = 84
 
@@ -307,6 +364,19 @@ const topEdgePad = 6
 // buttonsHeight is the height of the window buttons off macOS, which fill
 // the edge over a page.
 const buttonsHeight = topBarHeight + 2*sidebarPad
+
+// windowButtonWidth is the width of one of Windows' window buttons, as the
+// official client draws them: a wide hit area, a small glyph.
+const windowButtonWidth = 50
+
+// windowControlsRight is how far the window controls reach in from the
+// right edge, where the app draws them.
+func windowControlsRight(c *ui.Context) float32 {
+	if runtime.GOOS == "windows" {
+		return 3 * windowButtonWidth
+	}
+	return c.TitleBar().Right
+}
 
 // topBar returns the height of the strip along the top of the window, as
 // tall as the window buttons and the room above and below them, which
@@ -351,7 +421,7 @@ func (a *app) pageTop(c *ui.Context) {
 	edge := ui.Box(c.Key("top-edge")).Absolute().Top(0).Left(0).Right(0).Height(top).DragWindow().
 		Material(glass.ScrollEdge{Hard: true, Background: a.pal.bg})
 	edge.Opacity(edgeShown(edge, a.underTop))
-	ui.Row(c.Key("top-account")).Absolute().Top(sidebarPad).Right(c.TitleBar().Right + sidebarPad).Height(topBarHeight).AlignItems(ui.Center).Children(func() {
+	ui.Row(c.Key("top-account")).Absolute().Top(sidebarPad).Right(windowControlsRight(c) + sidebarPad).Height(topBarHeight).AlignItems(ui.Center).Children(func() {
 		a.accountRow(c)
 	})
 	if len(a.history) > 0 || len(a.forward) > 0 {

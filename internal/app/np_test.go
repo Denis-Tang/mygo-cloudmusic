@@ -455,3 +455,202 @@ func TestNowPlayingHidesItsControlsWhenTheListenerRests(t *testing.T) {
 		t.Error("the controls did not come with the pointer")
 	}
 }
+
+// The line sung at sinks to the foot of the page once the bar hides, and
+// comes back up as the pointer wakes it.
+func TestCoverLineSinksWhenTheBarRests(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics([]lyrics.Line{{At: 0, Text: "第一句"}})
+	a.pl.Hold(time.Second)
+	a.nowPlaying = true
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	tt.Advance(700 * time.Millisecond)
+	tt.Move(600, 300)
+	tt.Frame()
+	awake, ok := tt.Find("宝船")
+	if !ok {
+		t.Fatal("the song's name is gone")
+	}
+	tt.Advance(npIdle)
+	tt.Frame()
+	tt.Advance(600 * time.Millisecond)
+	tt.Frame()
+	sunk, ok := tt.Find("宝船")
+	if !ok {
+		t.Fatal("the song's name is gone after the bar hid")
+	}
+	if sunk.Y <= awake.Y+40 {
+		t.Fatalf("the name went from %v to %v: it did not sink", awake.Y, sunk.Y)
+	}
+	tt.Move(700, 320)
+	tt.Advance(50 * time.Millisecond)
+	tt.Frame()
+	tt.Advance(600 * time.Millisecond)
+	tt.Frame()
+	back, ok := tt.Find("宝船")
+	if !ok {
+		t.Fatal("the song's name is gone after the pointer woke it")
+	}
+	if back.Y < awake.Y-2 || back.Y > awake.Y+2 {
+		t.Fatalf("the name came back to %v, from %v", back.Y, awake.Y)
+	}
+}
+
+// The cover's translation stays off until the setting asks for it.
+func TestCoverTranslationIsOffUntilAsked(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics([]lyrics.Line{{At: 0, Text: "原文", Translation: "译文"}})
+	a.pl.Hold(time.Second)
+	a.nowPlaying = true
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	tt.Advance(time.Second)
+	tt.Frame()
+	if tt.HasText("译文") {
+		t.Fatal("the translation showed by default")
+	}
+	a.settings.CoverTranslation = true
+	tt.Frame()
+	if !tt.HasText("译文") {
+		t.Fatal("the translation did not show once asked for")
+	}
+}
+
+// The names in the playing page's bar put the page away, and the player
+// bar's open it again.
+func TestNowPlayingBarTogglesThePage(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("打开正在播放"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !a.nowPlaying {
+		t.Fatal("the player bar did not open the page")
+	}
+	tt.Advance(700 * time.Millisecond)
+	tt.Move(600, 760)
+	tt.Frame()
+	if err := tt.Click("收起正在播放"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.nowPlaying {
+		t.Fatal("the page's bar did not put it away")
+	}
+}
+
+// The cover turns to where the page is going when the listener opens and
+// closes it quickly, rather than jumping back to the bar or to the page.
+func TestNowPlayingTurnsItsCoverWhenInterrupted(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Artists: []netease.Artist{{Name: "DOUDOU"}}, Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	tt := ui.NewTester(a.view, 1200, 800)
+	// Closed and at rest first, as the app is when a listener opens it.
+	tt.Frame()
+	tt.Advance(npSettle)
+	tt.Frame()
+	a.nowPlaying = true
+	tt.Frame()
+	tt.Advance(100 * time.Millisecond)
+	tt.Frame()
+	open, ok := tt.Find("播放页封面")
+	if !ok {
+		t.Fatal("the page's cover is gone")
+	}
+	if open.W <= npCoverSize+2 || open.W >= 1198 {
+		t.Fatalf("the opening cover is %v wide, not on its way from the bar", open.W)
+	}
+	a.nowPlaying = false
+	tt.Frame()
+	tt.Advance(100 * time.Millisecond)
+	tt.Frame()
+	shut, ok := tt.Find("播放页封面")
+	if !ok {
+		t.Fatal("the page's cover is gone as it closes")
+	}
+	if shut.W >= 1198 {
+		t.Fatalf("the closing cover jumped to the page at %v", shut.W)
+	}
+	if shut.W <= npCoverSize+2 {
+		t.Fatalf("the closing cover jumped to the bar at %v", shut.W)
+	}
+	// A spring keeps its speed as the target turns: the cover may go on a
+	// little, then come back, but never jump.
+	tt.Advance(200 * time.Millisecond)
+	tt.Frame()
+	back, ok := tt.Find("播放页封面")
+	if !ok {
+		t.Fatal("the page's cover is gone as it comes back")
+	}
+	if back.W > shut.W {
+		t.Fatalf("the cover went from %v to %v: it did not come back", shut.W, back.W)
+	}
+	a.nowPlaying = true
+	tt.Frame()
+	tt.Advance(100 * time.Millisecond)
+	tt.Frame()
+	again, ok := tt.Find("播放页封面")
+	if !ok {
+		t.Fatal("the page's cover is gone as it opens again")
+	}
+	if again.W <= back.W {
+		t.Fatalf("the cover went from %v to %v: it did not turn again", back.W, again.W)
+	}
+	if again.W >= 1198 {
+		t.Fatalf("the cover jumped to the page at %v", again.W)
+	}
+	tt.Advance(npSettle)
+	tt.Frame()
+	if !a.nowPlaying || !tt.HasText("更多") {
+		t.Fatal("the page did not settle open after turning again")
+	}
+	a.nowPlaying = false
+	tt.Frame()
+	tt.Advance(npSettle)
+	tt.Frame()
+	if a.nowPlaying || tt.HasText("更多") {
+		t.Fatal("the page did not settle closed after turning again")
+	}
+}
+
+// The bar's cover waits for the page's cover to come back to its slot,
+// rather than showing a second one before it lands.
+func TestPlayerBarCoverWaitsForThePageToReturn(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.pl.Cue([]netease.Track{{ID: 1, Name: "宝船", Duration: 200000}})
+	a.pl.SetLyrics(nil)
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	tt.Advance(npSettle)
+	tt.Frame()
+	if _, ok := tt.Find("播放栏封面"); !ok {
+		t.Fatal("no cover in the bar at rest")
+	}
+	a.nowPlaying = true
+	tt.Frame()
+	tt.Advance(npSettle)
+	tt.Frame()
+	a.nowPlaying = false
+	tt.Frame()
+	if _, ok := tt.Find("播放栏封面"); ok {
+		t.Fatal("the bar's cover showed while the page's cover was coming back")
+	}
+	tt.Advance(npSettle)
+	tt.Frame()
+	if _, ok := tt.Find("播放栏封面"); !ok {
+		t.Fatal("the bar's cover did not come back once the page had gone")
+	}
+}

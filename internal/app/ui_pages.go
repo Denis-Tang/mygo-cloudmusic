@@ -62,7 +62,7 @@ func (a *app) homePage(c *ui.Context) {
 		}
 		a.heading(c, hello, fmt.Sprintf("%d月%d日 %s", now.Month(), now.Day(), weekday(now)))
 		if loading && len(a.daily) == 0 {
-			a.pageShimmer(c).bone(c.Key("daily"), dailyRadius).Height(dailyHeight)
+			a.pageShimmer(c).bone(c.Key("daily"), dailyRadius).Height(a.dailyCardHeight(c))
 		} else {
 			a.dailyCard(c, now)
 		}
@@ -70,7 +70,7 @@ func (a *app) homePage(c *ui.Context) {
 		if len(a.recPlaylists) > 0 {
 			a.section(c, "推荐歌单")
 			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
-				for i := range a.recPlaylists[:min(len(a.recPlaylists), a.columns(c, 168)*2)] {
+				for i := range a.recPlaylists {
 					a.playlistCard(c.Key(a.recPlaylists[i].ID), &a.recPlaylists[i])
 				}
 			})
