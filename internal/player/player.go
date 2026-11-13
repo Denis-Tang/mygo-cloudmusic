@@ -678,6 +678,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 		p.loading, p.playing = false, false
 		p.track = &t
 		p.err = "这首歌的信息已过期，请重新搜索"
+		diag.Errorf("track %d (%s): %s", t.ID, t.Name, p.err)
 		p.sync()
 		return
 	}

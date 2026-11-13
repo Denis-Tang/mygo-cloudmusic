@@ -158,6 +158,8 @@ go vet ./...           # 检查 Go 代码
 
 例如：
 
+`scripts/debug.ps1` 会用这两个变量启动 `build/release-local` 里的程序，打印控制地址和令牌；程序退出后把退出码写进 `logs/exit.log`，并列出最近的崩溃文件。加 `-Visible` 显示窗口，加 `-Restart` 退出后自动重启。
+
 ```bash
 TOKEN=$(jq -r .token "$APPDATA/MyGo 云音乐/control.json")
 PORT=$(jq -r .port "$APPDATA/MyGo 云音乐/control.json")
