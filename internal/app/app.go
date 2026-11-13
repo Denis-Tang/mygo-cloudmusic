@@ -1,6 +1,8 @@
 package app
 
 import (
+	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -8,6 +10,8 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/bilibili"
+	"netease-music-mygo/internal/control"
+	"netease-music-mygo/internal/diag"
 	"netease-music-mygo/internal/local"
 	"netease-music-mygo/internal/netease"
 	"netease-music-mygo/internal/player"
@@ -66,6 +70,13 @@ type app struct {
 	biliLoading bool
 	biliTried   bool
 	biliErr     string
+
+	// control serves the API tests drive the app with, when MYGO_CONTROL
+	// is set: see control.go.
+	control *control.Server
+	// crashed is what panicked the view, shown in place of it until the
+	// app starts again.
+	crashed string
 	pal   palette
 
 	frameDark bool // the appearance the window's frame was drawn in
@@ -202,6 +213,7 @@ func (a *app) post(fn func()) {
 		return
 	}
 	a.win.Update(func() {
+		defer diag.Recover("post")
 		fn()
 		a.redraw()
 	})
@@ -256,6 +268,12 @@ func Run() error {
 		pubAsked:   map[int64]bool{},
 	}
 	moveOldData()
+	if dir, err := mygo.App.Path(mygo.PathUserData); err == nil {
+		if _, err := diag.Setup(dir); err != nil {
+			log.Printf("diag: %v", err)
+		}
+	}
+	diag.Logf("version %s", mygo.App.Version())
 	a.useUpdater()
 	mygo.App.WhenReady(func() {
 		a.settings = loadSettings()
@@ -316,6 +334,14 @@ func Run() error {
 			a.win.SetOpacity(1)
 			a.win.Focus()
 		})
+		if os.Getenv("MYGO_CONTROL") != "" {
+			a.startControl()
+		}
+		if os.Getenv("MYGO_HEADLESS") != "" {
+			// Driven alone: no window over the screen, and no focus taken.
+			a.win.SetOpacity(0)
+			a.win.Hide()
+		}
 		a.taskbar.init(a.win.NativeHandle(), a)
 		a.setMenu()
 		a.boot()

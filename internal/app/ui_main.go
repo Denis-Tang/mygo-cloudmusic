@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"math"
 	"runtime"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/netease"
+	"netease-music-mygo/internal/diag"
 )
 
 // fullSidebar is how wide the sidebar is, as the settings show it.
@@ -36,7 +38,32 @@ func (a *app) sidebarWidth() float32 {
 	return 0
 }
 
+// view draws the app, and says so if it cannot: a panic is logged with its
+// stack, kept for the control API, and drawn as a message rather than
+// crashing the app on every frame.
 func (a *app) view(c *ui.Context) {
+	if a.crashed != "" {
+		ui.Column(c).Grow(1).Center().Padding(40, 0).Gap(10).Children(func() {
+			ui.Text(c, "界面出错").FontSize(20).FontWeight(700)
+			ui.Text(c, a.crashed).FontSize(14).TextColor(a.pal.muted)
+			ui.Text(c, "详细堆栈见日志："+diag.Path()).FontSize(12).TextColor(a.pal.faint)
+		})
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			if path := diag.Crash("view", r); path != "" {
+				a.crashed = fmt.Sprint(r)
+			} else {
+				a.crashed = fmt.Sprint(r)
+			}
+			a.redraw()
+		}
+	}()
+	a.viewBody(c)
+}
+
+func (a *app) viewBody(c *ui.Context) {
 	t := *c.Theme()
 	a.pal = paletteFor(&t)
 	p := a.pal
@@ -166,6 +193,7 @@ func (a *app) shortcuts(c *ui.Context) {
 // go opens a page, remembering the one before for the back button, and
 // closes Now Playing over it, though it is the page open.
 func (a *app) open(r route) {
+	diag.Logf("page %s", pageName(r.page))
 	a.nowPlaying = false
 	if r == a.route {
 		return

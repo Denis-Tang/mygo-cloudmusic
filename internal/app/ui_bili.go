@@ -10,6 +10,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/bilibili"
+	"netease-music-mygo/internal/diag"
 	"netease-music-mygo/internal/netease"
 	"netease-music-mygo/internal/player"
 )
@@ -74,6 +75,7 @@ func (a *app) loadBili(query string) {
 	}
 	a.biliQuery, a.biliLoading, a.biliErr = query, true, ""
 	go func() {
+		defer diag.Recover("bili")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		var videos []bilibili.Video
@@ -89,6 +91,7 @@ func (a *app) loadBili(query string) {
 		a.post(func() {
 			a.biliLoading = false
 			if err != nil {
+				diag.Errorf("bilibili search %q: %v", query, err)
 				a.biliErr = biliMessage(err)
 				a.redraw()
 				return
@@ -108,12 +111,14 @@ func (a *app) loadBili(query string) {
 func (a *app) loadBiliRanking() {
 	a.biliTried, a.biliLoading = true, true
 	go func() {
+		defer diag.Recover("bili-ranking")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		videos, err := biliRanking(ctx, 3)
 		a.post(func() {
 			a.biliLoading = false
 			if err != nil {
+				diag.Errorf("bilibili ranking: %v", err)
 				a.biliErr = biliMessage(err)
 				a.redraw()
 				return

@@ -131,6 +131,41 @@ go vet ./...           # 检查 Go 代码
 
 持续集成会运行代码检查和测试，跳过刘海播放器相关测试，避免依赖真实音频设备。
 
+### 调试与自动化
+
+程序会把日志写到用户数据目录下的 `logs/app-<日期>.log`，保留 7 天；界面绘制时崩溃会记下堆栈到 `logs/crash-*.log`，并把错误显示在窗口里，不会反复崩溃。
+
+设置环境变量后，可以用本机 HTTP 接口控制程序，不必移动鼠标，也不必盯着屏幕：
+
+| 变量 | 作用 |
+| --- | --- |
+| `MYGO_CONTROL=1` | 在 `127.0.0.1` 的随机端口启动控制接口，把端口和令牌写入用户数据目录的 `control.json` |
+| `MYGO_HEADLESS=1` | 启动后不显示窗口，只跑逻辑，适合无人值守测试 |
+
+接口都需要带令牌（请求头 `X-Control-Token`，或查询参数 `token`）：
+
+| 请求 | 作用 |
+| --- | --- |
+| `GET /state` | 当前页面、播放状态、进度、队列数量、最近错误 |
+| `GET /screenshot.png?w=1200&h=800` | 按当前状态在后台渲染一张截图 |
+| `POST /click?label=哔哩哔哩` | 点击带有该无障碍标签的控件 |
+| `POST /type?text=晴天` / `POST /key?key=Enter` | 向当前输入框输入文字或按键 |
+| `POST /open?page=bili` | 打开页面：`home`、`fm`、`collected`、`local`、`bili` 等 |
+| `POST /play?index=0` | 播放当前页面列表的第几条 |
+| `POST /search?q=周杰伦` | 在当前页面搜索 |
+| `POST /seek?sec=120` | 跳转到指定秒数 |
+| `GET /errors` / `POST /quit` | 读取最近错误、退出程序 |
+
+例如：
+
+```bash
+TOKEN=$(jq -r .token "$APPDATA/MyGo 云音乐/control.json")
+PORT=$(jq -r .port "$APPDATA/MyGo 云音乐/control.json")
+curl -s "http://127.0.0.1:$PORT/state?token=$TOKEN"
+curl -s -X POST "http://127.0.0.1:$PORT/open?page=bili&token=$TOKEN"
+curl -s "http://127.0.0.1:$PORT/screenshot.png?token=$TOKEN" -o shot.png
+```
+
 ## FAQ | 常见问题
 
 **为什么搜索到的新歌仍然可以播放？**

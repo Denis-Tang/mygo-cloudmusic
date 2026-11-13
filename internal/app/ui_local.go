@@ -8,6 +8,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
+	"netease-music-mygo/internal/diag"
 	"netease-music-mygo/internal/local"
 	"netease-music-mygo/internal/netease"
 )
@@ -36,6 +37,7 @@ func (a *app) loadLibrary() {
 	cacheDir, _ := mygo.App.Path(mygo.PathCache)
 	a.localScanning = true
 	go func() {
+		defer diag.Recover("local-scan")
 		lib := local.Open(folders, cacheDir)
 		a.post(func() {
 			a.lib, a.libReady, a.localScanning = lib, true, false

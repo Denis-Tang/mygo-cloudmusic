@@ -15,6 +15,7 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/audio"
 
+	"netease-music-mygo/internal/diag"
 	"netease-music-mygo/internal/lyrics"
 	"netease-music-mygo/internal/netease"
 )
@@ -683,6 +684,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 	p.refill()
 
 	go func() {
+		defer diag.Recover("player-cover")
 		var cover []byte
 		if onDisk {
 			if loc.Cover != "" {
@@ -703,6 +705,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 	}()
 
 	go func() {
+		defer diag.Recover("player-lyrics")
 		var lines []lyrics.Line
 		if onDisk {
 			if loc.LRC != "" {
@@ -725,6 +728,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 		})
 	}()
 	go func() {
+		defer diag.Recover("player-open")
 		level := "exhigh"
 		if p.Quality != nil {
 			level = p.Quality()
@@ -739,6 +743,7 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 			}
 			p.loading = false
 			if err != nil {
+				diag.Errorf("play %d (%s): %v", t.ID, t.Name, err)
 				p.err = playbackMessage(err)
 				// Automatic advance skips unavailable songs, never network or decoder errors.
 				if skip && errors.Is(err, netease.ErrUnavailable) && skipped+1 < len(p.order) {
