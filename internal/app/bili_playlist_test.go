@@ -81,7 +81,7 @@ func TestCreateDraftOfSongs(t *testing.T) {
 	a.settings = defaultSettings()
 	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "合集", Duration: 180000}
 	hit := netease.Track{ID: 9, Name: "晴天", Artists: []netease.Artist{{Name: "周杰伦"}}, Duration: 269000}
-	a.biliDraft = biliDraft{open: true, video: &v, cands: []biliCand{{Name: "晴天", Track: &hit}}}
+	a.biliDraft = biliDraft{open: true, video: &v, cands: []biliCand{{Raw: "晴天 - 周杰伦", Track: &hit}}}
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -95,5 +95,45 @@ func TestCreateDraftOfSongs(t *testing.T) {
 	pl := a.biliPlaylists[0]
 	if pl.Mode != "songs" || len(pl.Items) != 1 || pl.Items[0].Track.ID != 9 {
 		t.Fatalf("playlist %+v, want the matched song", pl)
+	}
+}
+
+// A draft where some songs matched keeps them, and puts the video itself
+// after them, so nothing the listener heard is lost.
+func TestCreateDraftKeepsTheVideoToo(t *testing.T) {
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "合集", Duration: 180000}
+	hit := netease.Track{ID: 9, Name: "晴天", Artists: []netease.Artist{{Name: "周杰伦"}}, Duration: 269000}
+	a.biliDraft = biliDraft{open: true, video: &v, cands: []biliCand{
+		{Raw: "晴天 - 周杰伦", Track: &hit},
+		{Raw: "ICE - Dreams To Remember"},
+	}}
+	a.createBiliDraft()
+	pl := a.biliPlaylists[0]
+	if pl.Mode != "songs" || len(pl.Items) != 2 {
+		t.Fatalf("playlist %+v, want the song and then the video", pl)
+	}
+	if pl.Items[0].Track.ID != 9 {
+		t.Fatalf("first %+v, want the matched song", pl.Items[0])
+	}
+	if pl.Items[1].Video == nil || pl.Items[1].Track.ID >= 0 {
+		t.Fatalf("last %+v, want the video itself", pl.Items[1])
+	}
+}
+
+// A video whose music is AI-made is not searched for: its playlist is the
+// video itself, with no rows to match.
+func TestCreateDraftOfAIVideo(t *testing.T) {
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "AI 电台", Duration: 180000}
+	a.biliDraft = biliDraft{open: true, ai: true, video: &v}
+	a.createBiliDraft()
+	pl := a.biliPlaylists[0]
+	if pl.Mode != "tracks" || len(pl.Items) != 1 || pl.Items[0].Video == nil {
+		t.Fatalf("playlist %+v, want the video alone", pl)
 	}
 }

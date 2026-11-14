@@ -398,6 +398,11 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 						ui.Text(c, "VIP").FontSize(11).FontWeight(800).TextColor(p.accent).Padding(0, 4).Radius(radiusTile/2).Border(1, p.accent.Alpha(0.6))
 					}
 					a.artistLinks(c, tr, p.muted, p.text).FontSize(15).SingleLine().Shrink(1).MinWidth(0)
+					if tr.ID < 0 {
+						// A video of Bilibili's stands where the site has no
+						// source for the song.
+						ui.Text(c, "网易云无音源").FontSize(12).FontWeight(600).TextColor(p.faint).Padding(1, 6).Radius(radiusPill).Background(p.faint.Alpha(0.12)).SingleLine()
+					}
 					if tr.Reason != "" {
 						ui.Text(c, tr.Reason).FontSize(12).FontWeight(600).TextColor(p.accent).Padding(1, 6).Radius(radiusPill).Background(p.accent.Alpha(0.1)).SingleLine()
 					}

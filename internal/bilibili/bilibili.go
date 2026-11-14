@@ -877,14 +877,39 @@ type subtitle struct {
 	SubtitleURL string `json:"subtitle_url"`
 }
 
-// Subtitles returns v's subtitles as LRC, the Chinese track preferred,
-// and nothing where B 站 has none.
-func Subtitles(ctx context.Context, v Video) (string, error) {
+// A Chapter is a named stretch of a video, as its timeline shows it:
+// the uploader's own tracklist, where they wrote one.
+type Chapter struct {
+	Title string
+	From  time.Duration
+	To    time.Duration
+}
+
+// playerInfo is what the player API says about a video, besides where its
+// streams are: its subtitles and its chapters.
+type playerInfo struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		Subtitle struct {
+			Subtitles []subtitle `json:"subtitles"`
+		} `json:"subtitle"`
+		ViewPoints []struct {
+			Content string `json:"content"`
+			From    int64  `json:"from"` // seconds
+			To      int64  `json:"to"`
+		} `json:"view_points"`
+	} `json:"data"`
+}
+
+// playerOf asks the player API about v, signing the call with wbi.
+func playerOf(ctx context.Context, v Video) (playerInfo, error) {
+	var res playerInfo
 	if v.Bvid == "" && v.Aid == 0 {
-		return "", errors.New("视频缺少 BV 号或 av 号")
+		return res, errors.New("视频缺少 BV 号或 av 号")
 	}
 	if v.CID == 0 {
-		return "", errors.New("视频缺少 CID")
+		return res, errors.New("视频缺少 CID")
 	}
 	q := url.Values{"cid": {strconv.FormatInt(v.CID, 10)}}
 	if v.Bvid != "" {
@@ -894,18 +919,37 @@ func Subtitles(ctx context.Context, v Video) (string, error) {
 	}
 	signed, err := wbiSigned(ctx, q)
 	if err != nil {
-		return "", err
-	}
-	var res struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-		Data    struct {
-			Subtitle struct {
-				Subtitles []subtitle `json:"subtitles"`
-			} `json:"subtitle"`
-		} `json:"data"`
+		return res, err
 	}
 	if err := api(ctx, "/x/player/wbi/v2", signed, &res); err != nil {
+		return res, err
+	}
+	return res, nil
+}
+
+// Chapters returns the stretches v's timeline names, in order, and none
+// where the uploader wrote no chapters.
+func Chapters(ctx context.Context, v Video) ([]Chapter, error) {
+	res, err := playerOf(ctx, v)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Chapter, 0, len(res.Data.ViewPoints))
+	for _, p := range res.Data.ViewPoints {
+		t := strings.TrimSpace(html.UnescapeString(p.Content))
+		if t == "" {
+			continue
+		}
+		out = append(out, Chapter{Title: t, From: time.Duration(p.From) * time.Second, To: time.Duration(p.To) * time.Second})
+	}
+	return out, nil
+}
+
+// Subtitles returns v's subtitles as LRC, the Chinese track preferred,
+// and nothing where B 站 has none.
+func Subtitles(ctx context.Context, v Video) (string, error) {
+	res, err := playerOf(ctx, v)
+	if err != nil {
 		return "", err
 	}
 	subs := res.Data.Subtitle.Subtitles
@@ -1047,7 +1091,6 @@ func SearchUsers(ctx context.Context, query string, page int) ([]User, error) {
 	}
 	return out, nil
 }
-
 
 // A reply is a comment of the site's, as far as this needs it.
 type reply struct {

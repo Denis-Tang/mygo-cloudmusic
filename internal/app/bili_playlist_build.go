@@ -4,13 +4,13 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/bilibili"
 	"netease-music-mygo/internal/diag"
-	"netease-music-mygo/internal/netease"
 )
 
 // A biliDraft is a video turned into songs, waiting for the listener to
@@ -20,6 +20,7 @@ type biliDraft struct {
 	video   *bilibili.Video
 	cands   []biliCand
 	loading bool
+	ai      bool
 	err     string
 }
 
@@ -36,7 +37,18 @@ func (a *app) startBiliPlaylist(v bilibili.Video) {
 			full = got
 		}
 		comment, _ := bilibili.UpperComments(ctx, full)
-		cands := biliExtract(full, comment)
+		if biliAISong(full.Desc) || biliAISong(comment) {
+			// Music the uploader made with a machine is not on the site,
+			// so it is not looked for.
+			a.post(func() {
+				a.biliDraft.loading = false
+				a.biliDraft.ai = true
+				a.redraw()
+			})
+			return
+		}
+		chapters, _ := bilibili.Chapters(ctx, full)
+		cands := biliExtract(full, comment, chapters)
 		if len(cands) == 0 {
 			a.post(func() {
 				a.biliDraft.loading = false
@@ -45,19 +57,7 @@ func (a *app) startBiliPlaylist(v bilibili.Video) {
 			})
 			return
 		}
-		for i := range cands {
-			q := strings.TrimSpace(cands[i].Name + " " + cands[i].Artist)
-			hits, err := netease.Search(q, 3)
-			if err != nil {
-				continue
-			}
-			for j := range hits {
-				if biliSameSong(cands[i].Name, hits[j].Name) {
-					cands[i].Track = &hits[j]
-					break
-				}
-			}
-		}
+		biliMatch(cands)
 		a.post(func() {
 			a.biliDraft.loading = false
 			a.biliDraft.cands = cands
@@ -67,25 +67,29 @@ func (a *app) startBiliPlaylist(v bilibili.Video) {
 	}()
 }
 
-// biliSameSong reports whether two titles name the same song, ignoring
-// punctuation, bracketed asides and case.
-func biliSameSong(a, b string) bool {
-	na, nb := biliNorm(a), biliNorm(b)
-	if na == "" || nb == "" {
-		return false
+// biliMatch looks every candidate up on NetEase and keeps the track that
+// names the same song.
+func biliMatch(cands []biliCand) {
+	work := make(chan int)
+	n := 4
+	if len(cands) < n {
+		n = len(cands)
 	}
-	return na == nb || strings.Contains(na, nb) || strings.Contains(nb, na)
-}
-
-// biliNorm keeps the letters and digits of a title, lowercased.
-func biliNorm(s string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(s) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || (r >= '\u4e00' && r <= '\u9fff') {
-			b.WriteRune(r)
-		}
+	var wg sync.WaitGroup
+	for w := 0; w < n; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range work {
+				cands[i].Track = biliFind(cands[i].Raw)
+			}
+		}()
 	}
-	return b.String()
+	for i := range cands {
+		work <- i
+	}
+	close(work)
+	wg.Wait()
 }
 
 // createBiliDraft makes the playlist the draft lists: matched songs from
@@ -102,19 +106,21 @@ func (a *app) createBiliDraft() {
 		Mode:    "songs",
 		Created: time.Now().Unix(),
 	}
-	all := true
+	missing := d.ai
 	for _, c := range d.cands {
 		if c.Track != nil {
 			pl.Items = append(pl.Items, biliItem{Track: *c.Track})
 		} else {
-			all = false
+			missing = true
 		}
 	}
-	if !all {
-		// Something did not match: the video's own sound stands for all
-		// of it, rather than a list with holes.
-		pl.Mode = "tracks"
-		pl.Items = []biliItem{{Track: a.biliTrack(*d.video), Video: d.video}}
+	if missing {
+		// What did not match is not thrown away: the video itself joins
+		// the matched songs, as one more item.
+		if len(pl.Items) == 0 {
+			pl.Mode = "tracks"
+		}
+		pl.Items = append(pl.Items, biliItem{Track: a.biliTrack(*d.video), Video: d.video})
 	}
 	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
 	a.saveBiliPlaylists()
@@ -140,6 +146,8 @@ func (a *app) biliDraftDialog(c *ui.Context) {
 		switch {
 		case d.loading:
 			ui.Text(c, "正在读视频里的歌名，并在网易云里查找…").FontSize(14).TextColor(p.muted)
+		case d.ai:
+			ui.Text(c, "这是 AI 创作的歌曲，网易云上没有；创建后整条视频存成音轨").FontSize(14).TextColor(p.muted)
 		case d.err != "":
 			ui.Text(c, d.err).FontSize(14).TextColor(p.muted)
 		default:
@@ -157,11 +165,15 @@ func (a *app) biliDraftDialog(c *ui.Context) {
 						break
 					}
 					ui.Row(c).Height(30).Gap(8).AlignItems(ui.Center).Children(func() {
-						ui.Text(c, cd.Name).FontSize(14).Grow(1).SingleLine()
+						name := cd.Raw
+						if cd.Track != nil {
+							name = cd.Track.Name
+						}
+						ui.Text(c, name).FontSize(14).Grow(1).SingleLine()
 						if cd.Track != nil {
 							ui.Text(c, "网易云 · "+cd.Track.ArtistNames()).FontSize(12).TextColor(p.accent)
 						} else {
-							ui.Text(c, "未匹配").FontSize(12).TextColor(p.faint)
+							ui.Text(c, "网易云无音源").FontSize(12).TextColor(p.faint)
 						}
 					})
 				}
@@ -172,7 +184,7 @@ func (a *app) biliDraftDialog(c *ui.Context) {
 				d.open = false
 			}
 			ok := pillButton(c.Key("ok"), nil, "创建歌单", p.accent, p.onAccent)
-			if d.loading || len(d.cands) == 0 {
+			if d.loading || (len(d.cands) == 0 && !d.ai) {
 				ok.Disabled(true)
 			}
 			if ok.Clicked() {
