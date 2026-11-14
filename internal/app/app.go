@@ -68,8 +68,23 @@ type app struct {
 	biliRemotes map[int64]player.Remote
 	biliQuery   string
 	biliLoading bool
-	biliTried   bool
 	biliErr     string
+
+	// The uploaders the listener follows, kept on this machine, and what
+	// they posted: see bili_follows.go.
+	follows     []biliFollow
+	biliUsers   []bilibili.User
+	biliUserQ   string
+	biliMode    biliSearchMode
+	biliFeed    []bilibili.Video
+	biliFeedTr  []netease.Track
+	biliNew     map[string]bool
+	biliNewNum  int
+	biliFeedErr string
+	biliLoadingFeed bool
+	biliFilter  int64
+	biliPoll    *time.Timer
+	biliPulled  time.Time
 
 	// control serves the API tests drive the app with, when MYGO_CONTROL
 	// is set: see control.go.

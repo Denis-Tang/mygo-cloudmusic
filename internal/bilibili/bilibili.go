@@ -13,7 +13,9 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
+	"os"
 	"net/url"
 	"path"
 	"regexp"
@@ -129,6 +131,9 @@ func (e *apiError) Unwrap() error {
 func request(req *http.Request) ([]byte, int, error) {
 	req.Header.Set("User-Agent", UserAgent)
 	req.Header.Set("Referer", wwwBase+"/")
+	if c := anonCookie(); c != "" {
+		req.Header.Set("Cookie", c)
+	}
 	var res *http.Response
 	var err error
 	for attempt := 0; ; attempt++ {
@@ -154,6 +159,50 @@ func request(req *http.Request) ([]byte, int, error) {
 	return body, res.StatusCode, nil
 }
 
+// The cookie the site gives a listener who is not signed in: some APIs,
+// the uploader's videos among them, refuse a request without it.
+var (
+	cookieMu   sync.Mutex
+	cookieText string
+	cookieAt   time.Time
+)
+
+func anonCookie() string {
+	cookieMu.Lock()
+	defer cookieMu.Unlock()
+	if cookieText != "" && time.Since(cookieAt) < 12*time.Hour {
+		return cookieText
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+"/x/frontend/finger/spi", nil)
+	if err != nil {
+		return cookieText
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("Referer", wwwBase+"/")
+	res, err := httpClient.Do(req)
+	if err != nil {
+		return cookieText
+	}
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	if err != nil || res.StatusCode != http.StatusOK {
+		return cookieText
+	}
+	var finger struct {
+		Data struct {
+			B3 string `json:"b_3"`
+			B4 string `json:"b_4"`
+		} `json:"data"`
+	}
+	if json.Unmarshal(body, &finger) != nil || finger.Data.B3 == "" {
+		return cookieText
+	}
+	cookieText, cookieAt = "buvid3="+finger.Data.B3+"; buvid4="+finger.Data.B4, time.Now()
+	return cookieText
+}
+
 // api calls the web API and reads out into out, failing on a B 站 error
 // code, which says in Chinese what went wrong.
 func api(ctx context.Context, apiPath string, query url.Values, out any) error {
@@ -172,6 +221,9 @@ func api(ctx context.Context, apiPath string, query url.Values, out any) error {
 	var reply apiError
 	if err := json.Unmarshal(body, &reply); err != nil {
 		return fmt.Errorf("B 站接口异常（HTTP %d）", status)
+	}
+	if os.Getenv("BILI_DEBUG") != "" {
+		log.Printf("bilibili %s: %s", apiPath, string(body))
 	}
 	if reply.Code != 0 && reply.Code != 200 {
 		return &reply
@@ -886,3 +938,86 @@ func subtitlesToLRC(data []byte) (string, error) {
 	}
 	return out.String(), nil
 }
+
+// A User is an uploader of the site's, as a search finds them.
+type User struct {
+	Mid  int64
+	Name string
+	Face string
+	Sign string
+	Fans int64
+	// Latest are the newest videos the search's answer carries, up to
+	// three: the site lists no uploader's videos to a listener who is not
+	// signed in, and this is what it does show.
+	Latest []Video
+}
+
+// SearchUsers searches the site's uploaders by name.
+func SearchUsers(ctx context.Context, query string, page int) ([]User, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, errors.New("搜索词不能为空")
+	}
+	if page < 1 {
+		page = 1
+	}
+	q := url.Values{
+		"search_type": {"bili_user"},
+		"keyword":     {query},
+		"page":        {strconv.Itoa(page)},
+		"page_size":   {"20"},
+	}
+	signed, err := wbiSigned(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	var res struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Data    struct {
+			Result []struct {
+				Mid   int64  `json:"mid"`
+				Uname string `json:"uname"`
+				Uface string `json:"upic"`
+				Usign string `json:"usign"`
+				Fans  int64  `json:"fans"`
+				Res   []struct {
+					Aid      int64  `json:"aid"`
+					Bvid     string `json:"bvid"`
+					Title    string `json:"title"`
+					Pic      string `json:"pic"`
+					Pubdate  int64  `json:"pubdate"`
+					Duration string `json:"duration"`
+				} `json:"res"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	if err := api(ctx, "/x/web-interface/wbi/search/type", signed, &res); err != nil {
+		return nil, err
+	}
+	out := make([]User, 0, len(res.Data.Result))
+	for _, r := range res.Data.Result {
+		u := User{
+			Mid:  r.Mid,
+			Name: stripHTML(r.Uname),
+			Face: picURL(r.Uface),
+			Sign: stripHTML(r.Usign),
+			Fans: r.Fans,
+		}
+		for _, v := range r.Res {
+			u.Latest = append(u.Latest, Video{
+				Bvid:     v.Bvid,
+				Aid:      v.Aid,
+				Title:    stripHTML(v.Title),
+				Up:       u.Name,
+				UpMid:    u.Mid,
+				Cover:    picURL(v.Pic),
+				Duration: parseDuration(v.Duration),
+				PubDate:  v.Pubdate,
+			})
+		}
+		out = append(out, u)
+	}
+	return out, nil
+}
+

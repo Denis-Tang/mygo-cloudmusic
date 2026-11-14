@@ -452,3 +452,33 @@ func TestParseDuration(t *testing.T) {
 		}
 	}
 }
+
+// An uploader search reads the users the answer lists, with the newest
+// videos it carries for each.
+func TestSearchUsers(t *testing.T) {
+	m := http.NewServeMux()
+	rec := &recorded{queries: make(map[string]url.Values)}
+	m.HandleFunc("/x/web-interface/nav", rec.handle("/x/web-interface/nav", "nav.json"))
+	m.HandleFunc("/x/web-interface/wbi/search/type", rec.handle("/x/web-interface/wbi/search/type", "user_search.json"))
+	m.HandleFunc("/x/frontend/finger/spi", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"code":0,"data":{"b_3":"B3","b_4":"B4"}}`))
+	})
+	testAPI(t, m)
+	users, err := SearchUsers(context.Background(), "音乐", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users) != 2 {
+		t.Fatalf("users: %d, want 2", len(users))
+	}
+	u := users[0]
+	if u.Mid != 32708543 || u.Name != "大家的音乐机" || u.Fans != 1600637 {
+		t.Fatalf("user %+v, want the first of the answer", u)
+	}
+	if len(u.Latest) != 1 || u.Latest[0].Bvid != "BV1dAWQ6vEDq" || u.Latest[0].Duration != 63*time.Minute+56*time.Second {
+		t.Fatalf("latest %+v, want the video the answer carries", u.Latest)
+	}
+	if q := rec.query("/x/web-interface/wbi/search/type"); q.Get("search_type") != "bili_user" || q.Get("w_rid") == "" {
+		t.Fatalf("search query %v, want a signed uploader search", q)
+	}
+}

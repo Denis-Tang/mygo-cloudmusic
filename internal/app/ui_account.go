@@ -27,8 +27,14 @@ type loginState struct {
 // home page for whoever is listening.
 func (a *app) boot() {
 	a.homeLoading = true
-	// The folders of the listener's music load beside the account.
+	// The folders of the listener's music load beside the account, and so
+	// do the uploaders followed.
 	a.loadLibrary()
+	a.follows = loadBiliFollows()
+	a.scheduleBiliPoll()
+	if len(a.follows) > 0 {
+		a.refreshBiliFeed()
+	}
 	go func() {
 		var prof *netease.Profile
 		if netease.RestoreSession() {

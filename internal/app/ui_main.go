@@ -279,7 +279,7 @@ func (a *app) sidebar(c *ui.Context) {
 			a.navItem(c, iconRadio, "私人 FM", route{page: pageFM})
 			a.navItem(c, iconHeart, "我的收藏", route{page: pageCollected})
 			a.navItem(c, iconFolder, "本地音乐", route{page: pageLocal})
-			a.navItem(c, iconVideo, "哔哩哔哩", route{page: pageBili})
+			a.navItemBadge(c, iconVideo, "哔哩哔哩", route{page: pageBili}, a.biliNewNum)
 			if a.searched.query != "" {
 				a.navItem(c, iconSearch, "搜索结果", a.searched)
 			}
@@ -290,6 +290,12 @@ func (a *app) sidebar(c *ui.Context) {
 }
 
 func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
+	a.navItemBadge(c, icon, label, r, 0)
+}
+
+// navItemBadge is navItem with a count of what came in since it was last
+// looked at, shown at its right.
+func (a *app) navItemBadge(c *ui.Context, icon *ui.SVG, label string, r route, count int) {
 	p := a.pal
 	selected := a.route.page == r.page && !a.nowPlaying
 	// As wide as the sidebar gives it, its sides kept: a row that took only
@@ -314,6 +320,11 @@ func (a *app) navItem(c *ui.Context, icon *ui.SVG, label string, r route) {
 		// they measure: at some display scales the letters drawn are a
 		// little wider than measured, and the last would be cut.
 		ui.Text(c, label).FontSize(sideFont(13.5)).FontWeight(500).TextColor(p.text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+		if count > 0 {
+			ui.Box(c).Height(18).MinWidth(18).Padding(0, 5).Radius(9).Background(p.accent).Center().Children(func() {
+				ui.Text(c, fmt.Sprint(count)).FontSize(11.5).FontWeight(700).TextColor(p.onAccent).FontFeatures("tnum")
+			})
+		}
 	})
 	if b.Clicked() {
 		a.open(r)

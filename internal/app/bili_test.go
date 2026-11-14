@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/bilibili"
-	"netease-music-mygo/internal/netease"
 )
 
 // A video of Bilibili is listed as a song: its title, its uploader and its
@@ -33,12 +32,15 @@ func TestBiliTrack(t *testing.T) {
 	}
 }
 
-// A search lists its videos, and a click plays the one clicked.
+// The feed lists what the uploaders followed posted, and a click plays the
+// video clicked.
 func TestBiliPagePlays(t *testing.T) {
+	followsFile(t)
 	a := newTestApp()
 	a.settings = defaultSettings()
-	a.biliTried = true
-	a.biliTracks = []netease.Track{a.biliTrack(bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, CID: 7, Title: "一首歌", Up: "UP主", Duration: 3 * time.Minute})}
+	a.follows = []biliFollow{{Mid: 7, Name: "UP主"}}
+	a.addFeedVideo(bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, CID: 7, Title: "一首歌", Up: "UP主", UpMid: 7, Duration: 3 * time.Minute, PubDate: 100})
+	a.rebuildFeedTracks()
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -71,7 +73,6 @@ func TestBiliLink(t *testing.T) {
 func TestBiliSearchFieldTypes(t *testing.T) {
 	a := newTestApp()
 	a.settings = defaultSettings()
-	a.biliTried = true
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -82,5 +83,50 @@ func TestBiliSearchFieldTypes(t *testing.T) {
 	tt.Frame()
 	if a.biliQuery != "晴天" {
 		t.Fatalf("query %q, want what was typed", a.biliQuery)
+	}
+}
+
+// Before an uploader is followed the page says so, and its button turns the
+// search to uploaders.
+func TestBiliEmptyState(t *testing.T) {
+	followsFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.show(route{page: pageBili})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if !tt.HasText("还没有关注 UP 主") {
+		t.Fatal("the empty page does not say how to fill it")
+	}
+	if err := tt.Click("去搜索 UP 主"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.biliMode != biliUploaders {
+		t.Fatalf("mode %v, want uploaders", a.biliMode)
+	}
+}
+
+// An uploader search lists whom it found, and following one keeps it here.
+func TestBiliFollowFromResults(t *testing.T) {
+	followsFile(t)
+	stubUsers(t, bilibili.User{Mid: 9, Name: "音乐UP", Face: "https://i0.hdslb.com/a.jpg", Fans: 12})
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.biliMode = biliUploaders
+	a.biliUserQ = "音乐"
+	a.biliUsers = []bilibili.User{{Mid: 9, Name: "音乐UP", Face: "https://i0.hdslb.com/a.jpg", Fans: 12}}
+	a.show(route{page: pageBili})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("关注"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if !a.followed(9) {
+		t.Fatalf("follows %+v, want the uploader clicked", a.follows)
+	}
+	if len(loadBiliFollows()) != 1 {
+		t.Error("the follow was not kept")
 	}
 }
