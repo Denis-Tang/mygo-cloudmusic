@@ -31,6 +31,7 @@ func (a *app) boot() {
 	// do the uploaders followed.
 	a.loadLibrary()
 	a.follows = loadBiliFollows()
+	a.loadBiliPlaylists()
 	a.scheduleBiliPoll()
 	if len(a.follows) > 0 {
 		a.refreshBiliFeed()

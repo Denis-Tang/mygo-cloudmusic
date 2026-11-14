@@ -54,6 +54,20 @@ type Video struct {
 	Cover    string
 	Duration time.Duration
 	PubDate  int64
+	// Desc is what the uploader wrote under the video, where a tracklist
+	// often is.
+	Desc string
+	// Pages is the video's parts: a collection of songs is often uploaded
+	// as one.
+	Pages []Page
+}
+
+// A Page is one part of a video, as a song of a collection often is.
+type Page struct {
+	Page     int
+	CID      int64
+	Title    string
+	Duration time.Duration
 }
 
 // URL is the video's page on the B 站 website.
@@ -521,9 +535,12 @@ func Resolve(ctx context.Context, input string) (Video, error) {
 				Mid  int64  `json:"mid"`
 				Name string `json:"name"`
 			} `json:"owner"`
+			Desc  string `json:"desc"`
 			Pages []struct {
-				CID  int64 `json:"cid"`
-				Page int   `json:"page"`
+				CID      int64  `json:"cid"`
+				Page     int    `json:"page"`
+				Part     string `json:"part"`
+				Duration int64  `json:"duration"`
 			} `json:"pages"`
 		} `json:"data"`
 	}
@@ -538,7 +555,7 @@ func Resolve(ctx context.Context, input string) (Video, error) {
 		}
 		cid = d.Pages[p-1].CID
 	}
-	return Video{
+	out := Video{
 		Bvid:     d.Bvid,
 		Aid:      d.Aid,
 		CID:      cid,
@@ -548,7 +565,17 @@ func Resolve(ctx context.Context, input string) (Video, error) {
 		Cover:    picURL(d.Pic),
 		Duration: time.Duration(d.Duration) * time.Second,
 		PubDate:  d.Pubdate,
-	}, nil
+		Desc:     d.Desc,
+	}
+	for _, p := range d.Pages {
+		out.Pages = append(out.Pages, Page{
+			Page:     p.Page,
+			CID:      p.CID,
+			Title:    stripHTML(p.Part),
+			Duration: time.Duration(p.Duration) * time.Second,
+		})
+	}
+	return out, nil
 }
 
 // pageOf is the page a link's ?p= asks for, or none.
@@ -1021,3 +1048,55 @@ func SearchUsers(ctx context.Context, query string, page int) ([]User, error) {
 	return out, nil
 }
 
+
+// A reply is a comment of the site's, as far as this needs it.
+type reply struct {
+	Member struct {
+		Mid int64 `json:"mid"`
+	} `json:"member"`
+	Content struct {
+		Message string `json:"message"`
+	} `json:"content"`
+}
+
+// UpperComments returns what the uploader wrote in the comments, the
+// pinned ones first: a song list sometimes lives there rather than under
+// the video.
+func UpperComments(ctx context.Context, v Video) (string, error) {
+	if v.Aid == 0 {
+		return "", errors.New("视频缺少 av 号")
+	}
+	q := url.Values{
+		"type": {"1"},
+		"oid":  {strconv.FormatInt(v.Aid, 10)},
+		"sort": {"2"},
+		"ps":   {"20"},
+		"pn":   {"1"},
+	}
+	var res struct {
+		Data struct {
+			TopReplies []reply `json:"top_replies"`
+			Upper      struct {
+				Top *reply `json:"top"`
+			} `json:"upper"`
+			Replies []reply `json:"replies"`
+		} `json:"data"`
+	}
+	if err := api(ctx, "/x/v2/reply", q, &res); err != nil {
+		return "", err
+	}
+	var out []string
+	add := func(r *reply) {
+		if r != nil && r.Member.Mid == v.UpMid && strings.TrimSpace(r.Content.Message) != "" {
+			out = append(out, r.Content.Message)
+		}
+	}
+	add(res.Data.Upper.Top)
+	for i := range res.Data.TopReplies {
+		add(&res.Data.TopReplies[i])
+	}
+	for i := range res.Data.Replies {
+		add(&res.Data.Replies[i])
+	}
+	return strings.Join(out, "\n"), nil
+}

@@ -34,6 +34,7 @@ const (
 	pagePodcasts
 	pageLocal
 	pageBili
+	pageBiliPlaylist
 )
 
 type route struct {
@@ -89,6 +90,11 @@ type app struct {
 	// control serves the API tests drive the app with, when MYGO_CONTROL
 	// is set: see control.go.
 	control *control.Server
+	biliPlaylists  []biliPlaylist
+	biliNaming     biliNaming
+	biliDeleting   biliDeleting
+	biliPLCollapsed bool
+	biliDraft      biliDraft
 	// crashed is what panicked the view, shown in place of it until the
 	// app starts again.
 	crashed string

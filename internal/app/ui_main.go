@@ -153,6 +153,9 @@ func (a *app) viewBody(c *ui.Context) {
 	a.loginDialog(c)
 	a.collectDialogBody(c)
 	a.playlistNameDialog(c)
+	a.biliNameDialog(c)
+	a.biliDeleteDialog(c)
+	a.biliDraftDialog(c)
 	a.deletePlaylistDialog(c)
 	a.settingsDialog(c)
 	a.windowControls(c)
@@ -285,6 +288,7 @@ func (a *app) sidebar(c *ui.Context) {
 			}
 			a.myPlaylists(c, "我的歌单", a.mine, true, &a.mineCollapsed)
 			a.myPlaylists(c, "收藏的歌单", a.saved, false, &a.savedCollapsed)
+			a.biliPlaylistsSidebar(c)
 		})
 	})
 }
@@ -531,6 +535,8 @@ func (a *app) content(c *ui.Context) {
 		a.localPage(c)
 	case pageBili:
 		a.biliPage(c)
+	case pageBiliPlaylist:
+		a.biliPlaylistPage(c)
 	}
 }
 

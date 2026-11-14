@@ -91,6 +91,7 @@ func (d *driver) state() map[string]any {
 		"biliMode":   a.biliMode,
 		"biliUsers":  len(a.biliUsers),
 		"follows":    len(a.follows),
+		"biliLists":  len(a.biliPlaylists),
 		"feed":       len(a.biliFeed),
 		"new":        a.biliNewNum,
 		"biliQuery":  a.biliQuery,
@@ -204,6 +205,7 @@ var pages = map[string]pageKind{
 	"collected": pageCollected,
 	"local":     pageLocal,
 	"bili":      pageBili,
+	"biliList":  pageBiliPlaylist,
 	"search":    pageSearch,
 	"playlist":  pagePlaylist,
 }
