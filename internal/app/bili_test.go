@@ -88,6 +88,34 @@ func TestBiliSearchFieldTypes(t *testing.T) {
 	}
 }
 
+// The clear button beside the query empties what was typed, and the field
+// keeps the focus.
+func TestBiliSearchFieldClears(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.show(route{page: pageBili})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("搜索哔哩哔哩"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Type("一段很长很长的搜索文字")
+	tt.Frame()
+	if a.biliQuery == "" {
+		t.Fatal("the field took nothing")
+	}
+	if err := tt.Click("清除搜索"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.biliQuery != "" {
+		t.Fatalf("query %q, want it cleared", a.biliQuery)
+	}
+	if !tt.Focused("搜索哔哩哔哩") {
+		t.Error("the field lost the focus")
+	}
+}
+
 // Before an uploader is followed the page says so, and its search field is
 // the way to find one.
 func TestBiliEmptyState(t *testing.T) {

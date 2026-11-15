@@ -71,6 +71,7 @@ type app struct {
 	biliVideos  map[int64]bilibili.Video
 	biliRemotes map[int64]player.Remote
 	biliQuery   string
+	biliBox     ui.Handle // the search field of the page, for its focus look
 	biliShown   string // the query whose results the page lists
 	biliSources map[int64]biliSource
 	biliLoading bool

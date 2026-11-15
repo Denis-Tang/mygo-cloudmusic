@@ -224,15 +224,28 @@ func (a *app) biliHeader(c *ui.Context) {
 	}
 	a.heading(c, "哔哩哔哩", sub)
 
-	row := ui.Row(c).Height(40).Gap(8).AlignItems(ui.Center).Margin(0, 0, 10, 0)
+	row := ui.Row(c).Height(topBarHeight).Gap(8).AlignItems(ui.Center).Margin(0, 0, 10, 0)
 	row.Children(func() {
-		field := ui.Row(c).Height(36).PaddingX(12).Gap(8).Radius(radiusField).Background(p.hover).Border(1, p.hairline).Grow(1).AlignItems(ui.Center)
+		field := ui.Row(c).Height(topBarHeight).PaddingX(12).Gap(8).Radius(radiusField).
+			Grow(1).MaxWidth(420).AlignItems(ui.Center)
+		if c.Focused(a.biliBox) {
+			field.Background(p.bg).Shadow(0, 0, 0, 3, p.accent.Alpha(0.25)).Border(1, p.accent.Alpha(0.6))
+		} else {
+			field.Background(p.hover).Border(1, p.hairline)
+		}
 		field.Children(func() {
 			ui.Icon(c, iconSearch).Size(15, 15).TextColor(p.muted)
-			in := ui.TextInput(c, &a.biliQuery).Grow(1).MinWidth(0).FontSize(14).
+			in := ui.TextInputBase(c, &a.biliQuery).Bind(&a.biliBox).Grow(1).MinWidth(0).FontSize(14).
 				Placeholder("搜索视频或 UP 主，或粘贴链接、BV 号").Label("搜索哔哩哔哩")
 			if in.Submitted() {
 				a.loadBili(a.biliQuery)
+			}
+			if a.biliQuery != "" {
+				iconButton(c.Key("bili-clear"), iconX, 14, p.muted, "清除搜索").KeepFocus().OnClick(func() {
+					a.biliQuery = ""
+					a.biliBox.Focus(c)
+					a.redraw()
+				})
 			}
 		})
 		if a.biliShown != "" {
