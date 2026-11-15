@@ -88,7 +88,6 @@ func (d *driver) state() map[string]any {
 		"queue":      len(a.pl.Queue()),
 		"locals":     len(a.locals),
 		"bili":       len(a.biliTracks),
-		"biliMode":   a.biliMode,
 		"biliUsers":  len(a.biliUsers),
 		"follows":    len(a.follows),
 		"biliLists":  len(a.biliPlaylists),

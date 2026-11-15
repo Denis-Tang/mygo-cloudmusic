@@ -11,6 +11,7 @@ import (
 
 	"netease-music-mygo/internal/bilibili"
 	"netease-music-mygo/internal/diag"
+	"netease-music-mygo/internal/netease"
 )
 
 // A biliDraft is a video turned into songs, waiting for the listener to
@@ -24,47 +25,132 @@ type biliDraft struct {
 	err     string
 }
 
-// startBiliPlaylist reads a video's parts, text and the uploader's
-// comment, guesses the songs, and looks each up on NetEase.
+// biliReadTracklist reads a video's parts, text and comment, guesses the
+// songs, and looks each up on NetEase. ai says the music was made by a
+// machine, which the site does not hold.
+func biliReadTracklist(v bilibili.Video) ([]biliCand, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	full := v
+	if got, err := biliResolve(ctx, v.Bvid); err == nil {
+		full = got
+	}
+	comment, _ := bilibili.UpperComments(ctx, full)
+	if biliAISong(full.Desc) || biliAISong(comment) {
+		return nil, true
+	}
+	chapters, _ := bilibili.Chapters(ctx, full)
+	cands := biliExtract(full, comment, chapters)
+	biliMatch(cands)
+	return cands, false
+}
+
+// startBiliPlaylist opens the draft of a video, to look at before keeping
+// it.
 func (a *app) startBiliPlaylist(v bilibili.Video) {
 	a.biliDraft = biliDraft{open: true, loading: true, video: &v}
 	go func() {
 		defer diag.Recover("bili-draft")
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-		defer cancel()
-		full := v
-		if got, err := biliResolve(ctx, v.Bvid); err == nil {
-			full = got
-		}
-		comment, _ := bilibili.UpperComments(ctx, full)
-		if biliAISong(full.Desc) || biliAISong(comment) {
-			// Music the uploader made with a machine is not on the site,
-			// so it is not looked for.
-			a.post(func() {
-				a.biliDraft.loading = false
-				a.biliDraft.ai = true
-				a.redraw()
-			})
-			return
-		}
-		chapters, _ := bilibili.Chapters(ctx, full)
-		cands := biliExtract(full, comment, chapters)
-		if len(cands) == 0 {
-			a.post(func() {
-				a.biliDraft.loading = false
-				a.biliDraft.err = "没有从视频里找到歌名"
-				a.redraw()
-			})
-			return
-		}
-		biliMatch(cands)
+		cands, ai := biliReadTracklist(v)
 		a.post(func() {
 			a.biliDraft.loading = false
+			a.biliDraft.ai = ai
 			a.biliDraft.cands = cands
-			a.biliDraft.err = ""
+			if !ai && len(cands) == 0 {
+				a.biliDraft.err = "没有从视频里找到歌名"
+			}
 			a.redraw()
 		})
 	}()
+}
+
+// openBiliVideo opens the playlist a video makes, making it first where it
+// is not there yet, and playing it when asked. The card of a video takes
+// this way, so a video of the feed becomes a playlist in one click.
+func (a *app) openBiliVideo(v bilibili.Video, play bool) {
+	if pl := a.biliPlaylistOf(v.Bvid); pl != nil {
+		id := pl.ID
+		a.open(route{page: pageBiliPlaylist, id: id})
+		if play {
+			a.playBiliPlaylist(*pl)
+		}
+		return
+	}
+	if a.biliBuilding == nil {
+		a.biliBuilding = map[string]bool{}
+	}
+	if a.biliBuilding[v.Bvid] {
+		return
+	}
+	a.biliBuilding[v.Bvid] = true
+	a.redraw()
+	go func() {
+		defer diag.Recover("bili-playlist")
+		cands, ai := biliReadTracklist(v)
+		a.post(func() {
+			delete(a.biliBuilding, v.Bvid)
+			pl := a.makeBiliPlaylist(v, cands, ai)
+			a.open(route{page: pageBiliPlaylist, id: pl.ID})
+			if play {
+				a.playBiliPlaylist(pl)
+			}
+		})
+	}()
+}
+
+// biliPlaylistOf finds the playlist a video made, where it made one.
+func (a *app) biliPlaylistOf(bvid string) *biliPlaylist {
+	url := bilibili.Video{Bvid: bvid}.URL()
+	for i := range a.biliPlaylists {
+		if a.biliPlaylists[i].Origin == url {
+			return &a.biliPlaylists[i]
+		}
+	}
+	return nil
+}
+
+// playBiliPlaylist plays what a playlist lists, from its first item.
+func (a *app) playBiliPlaylist(pl biliPlaylist) {
+	tracks := make([]netease.Track, len(pl.Items))
+	for i := range pl.Items {
+		tracks[i] = pl.Items[i].Track
+	}
+	if len(tracks) > 0 {
+		a.pl.PlayQueue(tracks, 0)
+	}
+}
+
+// makeBiliPlaylist turns what a video tells into a playlist: the video's
+// own sound first where a song was not found, then the songs found.
+func (a *app) makeBiliPlaylist(v bilibili.Video, cands []biliCand, ai bool) biliPlaylist {
+	pl := biliPlaylist{
+		ID:      time.Now().UnixNano(),
+		Name:    strings.TrimSpace(v.Title),
+		Origin:  v.URL(),
+		Mode:    "songs",
+		Created: time.Now().Unix(),
+	}
+	var songs []biliItem
+	missing := ai
+	for _, c := range cands {
+		if c.Track != nil {
+			songs = append(songs, biliItem{Track: *c.Track})
+		} else {
+			missing = true
+		}
+	}
+	if missing || len(songs) == 0 {
+		video := v
+		pl.Items = append(pl.Items, biliItem{Track: a.biliTrack(video), Video: &video})
+		if len(songs) == 0 {
+			pl.Mode = "tracks"
+		}
+	}
+	pl.Items = append(pl.Items, songs...)
+	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
+	a.saveBiliPlaylists()
+	diag.Logf("bili playlist %q: %d items, mode %s", pl.Name, len(pl.Items), pl.Mode)
+	return pl
 }
 
 // biliMatch looks every candidate up on NetEase and keeps the track that
@@ -92,39 +178,13 @@ func biliMatch(cands []biliCand) {
 	wg.Wait()
 }
 
-// createBiliDraft makes the playlist the draft lists: matched songs from
-// NetEase, the video itself for those nothing matched. Repeats stay.
+// createBiliDraft keeps the playlist the draft lists.
 func (a *app) createBiliDraft() {
 	d := &a.biliDraft
 	if d.video == nil {
 		return
 	}
-	pl := biliPlaylist{
-		ID:      time.Now().UnixNano(),
-		Name:    strings.TrimSpace(d.video.Title),
-		Origin:  d.video.URL(),
-		Mode:    "songs",
-		Created: time.Now().Unix(),
-	}
-	missing := d.ai
-	for _, c := range d.cands {
-		if c.Track != nil {
-			pl.Items = append(pl.Items, biliItem{Track: *c.Track})
-		} else {
-			missing = true
-		}
-	}
-	if missing {
-		// What did not match is not thrown away: the video itself joins
-		// the matched songs, as one more item.
-		if len(pl.Items) == 0 {
-			pl.Mode = "tracks"
-		}
-		pl.Items = append(pl.Items, biliItem{Track: a.biliTrack(*d.video), Video: d.video})
-	}
-	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
-	a.saveBiliPlaylists()
-	diag.Logf("bili playlist %q: %d items, mode %s", pl.Name, len(pl.Items), pl.Mode)
+	pl := a.makeBiliPlaylist(*d.video, d.cands, d.ai)
 	d.open = false
 	a.redraw()
 	a.open(route{page: pageBiliPlaylist, id: pl.ID})

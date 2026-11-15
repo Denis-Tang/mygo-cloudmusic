@@ -7,7 +7,6 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/bilibili"
-	"netease-music-mygo/internal/netease"
 )
 
 // A video of Bilibili is listed as a song: its title, its uploader and its
@@ -33,15 +32,17 @@ func TestBiliTrack(t *testing.T) {
 	}
 }
 
-// The feed lists what the uploaders followed posted, and a click plays the
-// video clicked.
-func TestBiliPagePlays(t *testing.T) {
+// A card of the feed opens the playlist its video makes.
+func TestBiliFeedCardOpensPlaylist(t *testing.T) {
 	followsFile(t)
+	playlistFile(t)
 	a := newTestApp()
 	a.settings = defaultSettings()
 	a.follows = []biliFollow{{Mid: 7, Name: "UP主"}}
-	a.addFeedVideo(bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, CID: 7, Title: "一首歌", Up: "UP主", UpMid: 7, Duration: 3 * time.Minute, PubDate: 100})
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, CID: 7, Title: "一首歌", Up: "UP主", UpMid: 7, Duration: 3 * time.Minute, PubDate: 100}
+	a.addFeedVideo(v)
 	a.rebuildFeedTracks()
+	pl := a.makeBiliPlaylist(v, nil, false)
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -49,8 +50,8 @@ func TestBiliPagePlays(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if cur := a.pl.Current(); cur == nil || cur.Name != "一首歌" {
-		t.Fatalf("current %+v, want the video clicked", cur)
+	if a.route.page != pageBiliPlaylist || a.route.id != pl.ID {
+		t.Fatalf("route %+v, want the video's playlist", a.route)
 	}
 }
 
@@ -87,8 +88,8 @@ func TestBiliSearchFieldTypes(t *testing.T) {
 	}
 }
 
-// Before an uploader is followed the page says so, and its button turns the
-// search to uploaders.
+// Before an uploader is followed the page says so, and its search field is
+// the way to find one.
 func TestBiliEmptyState(t *testing.T) {
 	followsFile(t)
 	a := newTestApp()
@@ -99,24 +100,45 @@ func TestBiliEmptyState(t *testing.T) {
 	if !tt.HasText("还没有关注 UP 主") {
 		t.Fatal("the empty page does not say how to fill it")
 	}
-	if err := tt.Click("去搜索 UP 主"); err != nil {
+	if err := tt.Click("搜索哔哩哔哩"); err != nil {
 		t.Fatal(err)
-	}
-	tt.Frame()
-	if a.biliMode != biliUploaders {
-		t.Fatalf("mode %v, want uploaders", a.biliMode)
 	}
 }
 
-// An uploader search lists whom it found, and following one keeps it here.
-func TestBiliFollowFromResults(t *testing.T) {
+// The uploader followed can be let go from the strip of faces, which shows
+// the way under the pointer.
+func TestBiliFollowStripUnfollows(t *testing.T) {
 	followsFile(t)
-	stubUsers(t, bilibili.User{Mid: 9, Name: "音乐UP", Face: "https://i0.hdslb.com/a.jpg", Fans: 12})
 	a := newTestApp()
 	a.settings = defaultSettings()
-	a.biliMode = biliUploaders
-	a.biliUserQ = "音乐"
-	a.biliUsers = []bilibili.User{{Mid: 9, Name: "音乐UP", Face: "https://i0.hdslb.com/a.jpg", Fans: 12}}
+	a.follows = []biliFollow{{Mid: 7, Name: "音乐UP"}}
+	a.show(route{page: pageBili})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	r, ok := tt.Find("音乐UP")
+	if !ok {
+		t.Fatal("the uploader followed is not on the page")
+	}
+	tt.Move(r.X+r.W/2, r.Y+r.H/2)
+	tt.Frame()
+	if err := tt.Click("取消关注 音乐UP"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(a.follows) != 0 {
+		t.Fatalf("follows %+v, want none", a.follows)
+	}
+}
+
+// An uploader search lists whom it found, and its button follows or stops
+// following them.
+func TestBiliFollowFromResults(t *testing.T) {
+	followsFile(t)
+	u := bilibili.User{Mid: 9, Name: "音乐UP", Face: "https://i0.hdslb.com/a.jpg", Fans: 12}
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.biliShown, a.biliQuery = "音乐", "音乐"
+	a.biliUsers = []bilibili.User{u}
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -127,19 +149,26 @@ func TestBiliFollowFromResults(t *testing.T) {
 	if !a.followed(9) {
 		t.Fatalf("follows %+v, want the uploader clicked", a.follows)
 	}
-	if len(loadBiliFollows()) != 1 {
-		t.Error("the follow was not kept")
+	if err := tt.Click("取消关注"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if a.followed(9) {
+		t.Fatalf("follows %+v, want the uploader let go", a.follows)
 	}
 }
 
 // A video searched for shows over the feed of the uploaders followed, so a
-// link or a BV number still plays what it names.
+// link or a BV number still opens what it names.
 func TestSearchedVideoShowsOverFeed(t *testing.T) {
+	followsFile(t)
+	playlistFile(t)
 	a := newTestApp()
 	a.settings = defaultSettings()
 	a.follows = []biliFollow{{Mid: 7, Name: "音乐UP"}}
 	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "一首歌", Up: "UP", Duration: 3 * time.Minute}
-	a.biliShown, a.biliTracks = v.Bvid, []netease.Track{a.biliTrack(v)}
+	pl := a.makeBiliPlaylist(v, nil, false)
+	a.biliShown, a.biliHits = v.Bvid, []bilibili.Video{v}
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -147,7 +176,7 @@ func TestSearchedVideoShowsOverFeed(t *testing.T) {
 		t.Fatalf("the searched video is not listed: %v", err)
 	}
 	tt.Frame()
-	if cur := a.pl.Current(); cur == nil || cur.Name != "一首歌" {
-		t.Fatalf("current %+v, want the video clicked", cur)
+	if a.route.page != pageBiliPlaylist || a.route.id != pl.ID {
+		t.Fatalf("route %+v, want the video's playlist", a.route)
 	}
 }

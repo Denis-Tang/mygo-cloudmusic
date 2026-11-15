@@ -65,6 +65,8 @@ type app struct {
 	// biliTracks are the videos searched for or ranked, as tracks, and
 	// biliRemotes what plays each: see ui_bili.go.
 	biliTracks  []netease.Track
+	biliHits    []bilibili.Video
+	biliBuilding map[string]bool
 	biliVideos  map[int64]bilibili.Video
 	biliRemotes map[int64]player.Remote
 	biliQuery   string
@@ -77,15 +79,12 @@ type app struct {
 	// they posted: see bili_follows.go.
 	follows     []biliFollow
 	biliUsers   []bilibili.User
-	biliUserQ   string
-	biliMode    biliSearchMode
 	biliFeed    []bilibili.Video
 	biliFeedTr  []netease.Track
 	biliNew     map[string]bool
 	biliNewNum  int
 	biliFeedErr string
 	biliLoadingFeed bool
-	biliFilter  int64
 	biliPoll    *time.Timer
 	biliPulled  time.Time
 

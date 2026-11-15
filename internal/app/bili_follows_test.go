@@ -4,7 +4,6 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"netease-music-mygo/internal/bilibili"
 )
@@ -83,19 +82,21 @@ func TestFeedMarksNew(t *testing.T) {
 	}
 }
 
-// The feed filters to one uploader, keeping the order of the whole.
-func TestFeedFilter(t *testing.T) {
+// The page lists three videos of each uploader at most, newest first.
+func TestBiliLatestThreePerUploader(t *testing.T) {
 	a := newTestApp()
-	a.follows = []biliFollow{{Mid: 7}, {Mid: 8}}
-	a.addFeedVideo(bilibili.Video{Bvid: "BV1", Aid: 1, UpMid: 7, PubDate: 100})
-	a.addFeedVideo(bilibili.Video{Bvid: "BV2", Aid: 2, UpMid: 8, PubDate: 200})
-	a.rebuildFeedTracks()
-	if len(a.feedTracks()) != 2 {
-		t.Fatalf("all: %d", len(a.feedTracks()))
+	a.biliFeed = []bilibili.Video{
+		{Bvid: "BV1", UpMid: 7, PubDate: 300},
+		{Bvid: "BV2", UpMid: 7, PubDate: 299},
+		{Bvid: "BV3", UpMid: 7, PubDate: 298},
+		{Bvid: "BV4", UpMid: 7, PubDate: 297},
+		{Bvid: "BV5", UpMid: 8, PubDate: 296},
 	}
-	a.biliFilter = 7
-	if got := a.feedTracks(); len(got) != 1 || got[0].Name != a.biliFeed[1].Title {
-		t.Fatalf("filtered %+v", got)
+	got := a.biliLatest()
+	if len(got) != 4 {
+		t.Fatalf("videos %d %+v, want three of one and one of the other", len(got), got)
 	}
-	_ = time.Now
+	if got[0].Bvid != "BV1" || got[3].Bvid != "BV5" {
+		t.Fatalf("order %+v, want the feed's own", got)
+	}
 }

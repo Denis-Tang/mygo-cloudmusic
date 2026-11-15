@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -66,41 +67,57 @@ func (a *app) biliTrack(v bilibili.Video) netease.Track {
 	}
 }
 
-// loadBili searches videos: the words, or the video a link names.
+// loadBili searches videos and uploaders with one query: the words, the
+// video a link names, or the uploader it names.
 func (a *app) loadBili(query string) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return
 	}
 	a.biliQuery, a.biliShown, a.biliLoading, a.biliErr = query, query, true, ""
+	a.biliUsers = nil
 	go func() {
 		defer diag.Recover("bili")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		var videos []bilibili.Video
-		var err error
+		var users []bilibili.User
+		var verr, uerr error
 		if biliLink(query) {
 			var v bilibili.Video
-			if v, err = biliResolve(ctx, query); err == nil {
+			if v, verr = biliResolve(ctx, query); verr == nil {
 				videos = []bilibili.Video{v}
 			}
 		} else {
-			videos, err = biliSearch(ctx, query, 1)
+			var wg sync.WaitGroup
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				videos, verr = biliSearch(ctx, query, 1)
+			}()
+			go func() {
+				defer wg.Done()
+				users, uerr = biliSearchUsers(ctx, query, 1)
+			}()
+			wg.Wait()
 		}
 		a.post(func() {
 			a.biliLoading = false
-			if err != nil {
-				diag.Errorf("bilibili search %q: %v", query, err)
-				a.biliErr = biliMessage(err)
+			if verr != nil && uerr != nil {
+				diag.Errorf("bilibili search %q: %v", query, verr)
+				a.biliErr = biliMessage(verr)
 				a.redraw()
 				return
 			}
 			a.biliTracks = a.biliTracks[:0]
+			a.biliHits = a.biliHits[:0]
 			for _, v := range videos {
 				tr := a.biliTrack(v)
 				a.biliTracks = append(a.biliTracks, tr)
+				a.biliHits = append(a.biliHits, v)
 				a.probeBiliSource(tr.ID, v)
 			}
+			a.biliUsers = users
 			a.biliErr = ""
 			a.redraw()
 		})
@@ -197,44 +214,25 @@ func (a *app) biliPill(c *ui.Context, key, label string, on bool) (ui.Element, b
 	return b, b.Clicked()
 }
 
-// biliHeader is the page's head: its name, the search field, the kind of
-// what is searched for, and the uploaders followed.
+// biliHeader is the page's head: its name, one search field for videos and
+// uploaders alike, and what may be done with the feed.
 func (a *app) biliHeader(c *ui.Context) {
 	p := a.pal
-	sub := "关注 UP 主，他们新的投稿会出现在这里"
-	if a.biliMode == biliUploaders {
-		sub = "搜索 UP 主，关注只记在这台电脑上"
-	} else if len(a.follows) > 0 {
-		sub = "关注的 UP 主的新投稿；点开就是视频的音轨"
+	sub := "关注 UP 主，他们新的投稿会在这里变成歌单"
+	if a.biliShown != "" {
+		sub = "搜索视频或 UP 主，也可以粘贴链接、BV 号"
 	}
 	a.heading(c, "哔哩哔哩", sub)
 
 	row := ui.Row(c).Height(40).Gap(8).AlignItems(ui.Center).Margin(0, 0, 10, 0)
 	row.Children(func() {
-		for _, m := range []struct {
-			mode  biliSearchMode
-			label string
-		}{{biliVideos, "视频"}, {biliUploaders, "UP 主"}} {
-			if _, clicked := a.biliPill(c, "bili-mode-"+m.label, m.label, a.biliMode == m.mode); clicked {
-				a.biliMode = m.mode
-				a.biliErr = ""
-			}
-		}
 		field := ui.Row(c).Height(36).PaddingX(12).Gap(8).Radius(radiusField).Background(p.hover).Border(1, p.hairline).Grow(1).AlignItems(ui.Center)
 		field.Children(func() {
 			ui.Icon(c, iconSearch).Size(15, 15).TextColor(p.muted)
-			in := ui.TextInput(c, &a.biliQuery).Grow(1).MinWidth(0).FontSize(14)
-			if a.biliMode == biliUploaders {
-				in.Placeholder("搜索 UP 主").Label("搜索哔哩哔哩 UP 主")
-			} else {
-				in.Placeholder("搜索视频，或粘贴链接、BV 号").Label("搜索哔哩哔哩")
-			}
+			in := ui.TextInput(c, &a.biliQuery).Grow(1).MinWidth(0).FontSize(14).
+				Placeholder("搜索视频或 UP 主，或粘贴链接、BV 号").Label("搜索哔哩哔哩")
 			if in.Submitted() {
-				if a.biliMode == biliUploaders {
-					a.searchBiliUsers(a.biliQuery)
-				} else {
-					a.loadBili(a.biliQuery)
-				}
+				a.loadBili(a.biliQuery)
 			}
 		})
 		if a.biliShown != "" {
@@ -248,36 +246,18 @@ func (a *app) biliHeader(c *ui.Context) {
 		}
 	})
 
-	if len(a.follows) > 0 && a.biliMode == biliVideos && a.biliShown == "" {
-		ui.Row(c).Gap(6).Margin(0, 0, 12, 0).Children(func() {
-			type chip struct {
-				mid   int64
-				label string
-			}
-			chips := []chip{{0, "全部"}}
-			for _, f := range a.follows {
-				chips = append(chips, chip{f.Mid, f.Name})
-			}
-			for _, ch := range chips {
-				if _, clicked := a.biliPill(c, fmt.Sprintf("bili-chip-%d", ch.mid), ch.label, a.biliFilter == ch.mid); clicked {
-					a.biliFilter = ch.mid
-				}
-			}
-		})
-	}
-
 	switch {
-	case a.biliLoading || a.biliLoadingFeed:
+	case a.biliLoading:
 		ui.Text(c, "正在加载…").FontSize(13).TextColor(p.muted).Margin(0, 0, 8, 0)
 	case a.biliErr != "":
 		ui.Text(c, a.biliErr).FontSize(13).TextColor(p.muted).Margin(0, 0, 8, 0)
-	case a.biliFeedErr != "" && len(a.follows) > 0:
+	case a.biliFeedErr != "" && len(a.follows) > 0 && a.biliShown == "":
 		ui.Text(c, a.biliFeedErr).FontSize(13).TextColor(p.muted).Margin(0, 0, 8, 0)
 	}
 }
 
-// biliPage lists what the uploaders followed posted, and searches videos
-// or uploaders when asked. Without a follow there is nothing to show.
+// biliPage is the uploaders followed turned into playlists, like the page
+// of recommendations, and the search over videos and uploaders.
 func (a *app) biliPage(c *ui.Context) {
 	if len(a.biliNew) > 0 {
 		a.markBiliSeen()
@@ -286,121 +266,189 @@ func (a *app) biliPage(c *ui.Context) {
 		a.refreshBiliFeed()
 	}
 	switch {
-	case a.biliMode == biliUploaders:
-		a.biliUserResults(c)
 	case a.biliShown != "":
 		// What was searched for comes first, over the feed: a video a link
 		// names may be one no uploader followed posted.
 		a.biliResults(c)
 	case len(a.follows) == 0:
 		a.biliEmpty(c)
-	case len(a.feedTracks()) == 0:
-		if a.biliLoadingFeed || a.biliLoading {
-			a.trackSkeleton(c, a.pageShimmer(c), true, a.biliHeader)
-			return
-		}
-		a.biliEmpty(c)
 	default:
-		a.trackRows(c, a.feedTracks(), true, a.biliHeader)
+		a.biliHome(c)
 	}
 }
 
-// biliResults lists what the search found, or says it found nothing.
-func (a *app) biliResults(c *ui.Context) {
-	if a.biliLoading {
-		a.trackSkeleton(c, a.pageShimmer(c), true, a.biliHeader)
-		return
-	}
-	if len(a.biliTracks) > 0 {
-		a.trackRows(c, a.biliTracks, true, a.biliHeader)
-		return
-	}
-	top, bottom := a.insets(c)
-	ui.Scroll(c.Key("bili-found")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).Children(func() {
-		a.startMark(c)
+// biliHome is the feed of the uploaders followed: their latest videos, each
+// a card that opens its playlist.
+func (a *app) biliHome(c *ui.Context) {
+	videos := a.biliLatest()
+	a.scrollPage(c, func() {
 		a.biliHeader(c)
-		ui.Column(c).Center().Padding(60, 0, 40, 0).Gap(10).Children(func() {
-			msg := "没有找到这个视频"
-			if a.biliErr != "" {
-				msg = a.biliErr
+		a.biliFollowStrip(c)
+		if len(videos) == 0 {
+			if a.biliLoadingFeed {
+				a.section(c, "最新歌单")
+				a.playlistCardsSkeleton(c, a.pageShimmer(c), a.columns(c, 150)*2, 150, false)
+				return
 			}
-			ui.Text(c, msg).FontSize(16).TextColor(a.pal.muted)
-			if ui.Button(c, "返回关注").Clicked() {
-				a.backToBiliFeed()
+			ui.Column(c).Center().Padding(50, 0, 40, 0).Gap(10).Children(func() {
+				ui.Text(c, "还没有新的投稿").FontSize(18).FontWeight(600)
+				ui.Text(c, "点右上角的刷新再看一次").FontSize(14).TextColor(a.pal.muted)
+				if ui.Button(c, "刷新").Clicked() {
+					a.refreshBiliFeed()
+				}
+			})
+			return
+		}
+		a.section(c, "最新歌单")
+		ui.Grid(c).Columns(a.columns(c, 150)).GapX(20).GapY(28).Children(func() {
+			for _, v := range videos {
+				a.biliSongCard(c, v)
 			}
 		})
 	})
 }
 
+// biliFollowStrip is the uploaders followed, each a round face with a way
+// to stop following it.
+func (a *app) biliFollowStrip(c *ui.Context) {
+	if len(a.follows) == 0 {
+		return
+	}
+	p := a.pal
+	ui.Row(c).Wrap().Gap(16).Margin(0, 0, 20, 6).Children(func() {
+		for _, f := range a.follows {
+			f := f
+			cell := ui.Column(c.Key(f.Mid)).Width(96).Gap(6).AlignItems(ui.Center).Label(f.Name)
+			cell.Children(func() {
+				face := ui.Box(c).Size(60, 60).Radius(30).Shadow(0, 4, 12, -4, p.cardShade)
+				face.Children(func() {
+					a.coverFill(c, f.Face, 180, 30)
+					if cell.Hovered() {
+						off := ui.ButtonBase(c.Key("bili-off")).Absolute().Top(0).Right(0).Size(20, 20).
+							Radius(10).Background(p.bg).Border(1, p.hairline).Center().
+							Label("取消关注 " + f.Name)
+						off.Children(func() {
+							ui.Icon(c, iconX).Size(10, 10).TextColor(p.muted)
+						})
+						if off.Clicked() {
+							a.unfollowBili(f.Mid)
+						}
+					}
+				})
+				ui.Text(c, f.Name).FontSize(12.5).TextColor(p.muted).SingleLine().TextAlign(ui.Center).AlignSelf(ui.Stretch)
+			})
+		}
+	})
+}
+
+// biliSongCard is a video's card, as a playlist's is: its cover, its title,
+// and the uploader under it. It opens the playlist the video makes, or
+// makes it first, which the card says it is doing.
+func (a *app) biliSongCard(c *ui.Context, v bilibili.Video) {
+	sub := v.Up + " · " + time.Unix(v.PubDate, 0).Format("01-02")
+	if a.biliBuilding[v.Bvid] {
+		sub = "正在生成歌单…"
+	}
+	if a.coverCard(c.Key("bili-"+v.Bvid), v.Title, v.Cover, 0, sub, func() { a.openBiliVideo(v, true) }) {
+		a.openBiliVideo(v, false)
+	}
+}
+
+// biliResults lists what the search found: uploaders first, then videos.
+func (a *app) biliResults(c *ui.Context) {
+	if a.biliLoading {
+		a.trackSkeleton(c, a.pageShimmer(c), true, a.biliHeader)
+		return
+	}
+	p := a.pal
+	a.scrollPage(c, func() {
+		a.biliHeader(c)
+		if len(a.biliUsers) > 0 {
+			a.section(c, "UP 主")
+			for _, u := range a.biliUsers {
+				a.biliUserRow(c, u)
+			}
+		}
+		if len(a.biliHits) > 0 {
+			a.section(c, "视频")
+			ui.Grid(c).Columns(a.columns(c, 150)).GapX(20).GapY(28).Children(func() {
+				for _, v := range a.biliHits {
+					a.biliSongCard(c, v)
+				}
+			})
+		}
+		if len(a.biliUsers) == 0 && len(a.biliHits) == 0 {
+			ui.Column(c).Center().Padding(60, 0, 40, 0).Gap(10).Children(func() {
+				msg := "没有找到相关视频或 UP 主"
+				if a.biliErr != "" {
+					msg = a.biliErr
+				}
+				ui.Text(c, msg).FontSize(16).TextColor(p.muted)
+				if ui.Button(c, "返回关注").Clicked() {
+					a.backToBiliFeed()
+				}
+			})
+		}
+	})
+}
+
+// biliUserRow is an uploader an uploader search found, with what it takes
+// to follow them here or stop.
+func (a *app) biliUserRow(c *ui.Context, u bilibili.User) {
+	p := a.pal
+	followed := a.followed(u.Mid)
+	ui.Row(c.Key(u.Mid)).Height(72).Padding(8, 10).Gap(12).Radius(radiusRow).AlignItems(ui.Center).Children(func() {
+		a.cover(c, u.Face, 120, 48, 24)
+		ui.Column(c).Grow(1).Basis(0).MinWidth(0).Gap(3).Children(func() {
+			ui.Text(c, u.Name).FontSize(16).FontWeight(600).SingleLine()
+			line := fmt.Sprintf("%d 粉丝", u.Fans)
+			if u.Sign != "" {
+				line += " · " + u.Sign
+			}
+			ui.Text(c, line).FontSize(13).TextColor(p.muted).SingleLine()
+		})
+		if followed {
+			if pillButton(c.Key("bili-off"), nil, "取消关注", p.hover.Over(p.bg), p.text).Clicked() {
+				a.unfollowBili(u.Mid)
+			}
+		} else if pillButton(c.Key("bili-on"), nil, "关注", p.accent, p.onAccent).Clicked() {
+			a.followBili(u)
+		}
+	})
+}
+
 // backToBiliFeed puts the feed back where a search's results were.
 func (a *app) backToBiliFeed() {
-	a.biliShown, a.biliQuery, a.biliTracks = "", "", nil
+	a.biliShown, a.biliQuery, a.biliTracks, a.biliHits, a.biliUsers = "", "", nil, nil, nil
 	a.biliErr = ""
 	a.redraw()
 }
 
-// biliEmpty is the page before an uploader is followed, or when the ones
-// followed posted nothing the site shows.
+// biliEmpty is the page before an uploader is followed.
 func (a *app) biliEmpty(c *ui.Context) {
 	top, bottom := a.insets(c)
 	ui.Scroll(c.Key("bili-empty")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).Children(func() {
 		a.startMark(c)
 		a.biliHeader(c)
 		ui.Column(c).Center().Padding(60, 0, 40, 0).Gap(10).Children(func() {
-			if len(a.follows) == 0 {
-				ui.Text(c, "还没有关注 UP 主").FontSize(18).FontWeight(600)
-				ui.Text(c, "切到「UP 主」搜索并关注，他们新的投稿就会出现在这里").FontSize(14).TextColor(a.pal.muted)
-				if ui.Button(c, "去搜索 UP 主").Clicked() {
-					a.biliMode = biliUploaders
-				}
-				return
-			}
-			ui.Text(c, "还没有新的投稿").FontSize(18).FontWeight(600)
-			ui.Text(c, "点右上角的刷新再看一次").FontSize(14).TextColor(a.pal.muted)
-			if ui.Button(c, "刷新").Clicked() {
-				a.refreshBiliFeed()
-			}
+			ui.Text(c, "还没有关注 UP 主").FontSize(18).FontWeight(600)
+			ui.Text(c, "在上面的搜索框里搜一个 UP 主，关注后他的投稿会变成歌单").FontSize(14).TextColor(a.pal.muted)
 		})
 	})
 }
 
-// biliUserResults lists the uploaders an uploader search found, each with
-// what it takes to follow them here.
-func (a *app) biliUserResults(c *ui.Context) {
-	p := a.pal
-	top, bottom := a.insets(c)
-	ui.Scroll(c.Key("bili-users")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).Children(func() {
-		a.startMark(c)
-		a.biliHeader(c)
-		if a.biliLoading {
-			ui.Text(c, "正在搜索…").FontSize(14).TextColor(p.muted).Padding(20, 0)
-			return
+// biliLatest is the feed as the page lists it: the latest videos of each
+// uploader, three at most.
+func (a *app) biliLatest() []bilibili.Video {
+	const perUp = 3
+	count := map[int64]int{}
+	var out []bilibili.Video
+	for _, v := range a.biliFeed {
+		if count[v.UpMid] >= perUp {
+			continue
 		}
-		if len(a.biliUsers) == 0 {
-			ui.Text(c, "没有找到相关 UP 主").FontSize(14).TextColor(p.muted).Padding(20, 0)
-			return
-		}
-		for _, u := range a.biliUsers {
-			u := u
-			followed := a.followed(u.Mid)
-			ui.Row(c.Key(u.Mid)).Height(76).Padding(10, 12).Gap(12).Radius(radiusRow).AlignItems(ui.Center).Children(func() {
-				a.cover(c, u.Face, 120, 48, 24)
-				ui.Column(c).Grow(1).Basis(0).MinWidth(0).Gap(3).Children(func() {
-					ui.Text(c, u.Name).FontSize(16).FontWeight(600).SingleLine()
-					line := fmt.Sprintf("%d 粉丝", u.Fans)
-					if u.Sign != "" {
-						line += " · " + u.Sign
-					}
-					ui.Text(c, line).FontSize(13).TextColor(p.muted).SingleLine()
-				})
-				if followed {
-					if ui.Button(c, "已关注").Clicked() {
-						a.unfollowBili(u.Mid)
-					}
-				} else if ui.Button(c, "关注").Clicked() {
-					a.followBili(u)
-				}
-			})
-		}
-	})
+		count[v.UpMid]++
+		out = append(out, v)
+	}
+	return out
 }

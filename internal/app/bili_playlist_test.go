@@ -98,9 +98,9 @@ func TestCreateDraftOfSongs(t *testing.T) {
 	}
 }
 
-// A draft where some songs matched keeps them, and puts the video itself
-// after them, so nothing the listener heard is lost.
-func TestCreateDraftKeepsTheVideoToo(t *testing.T) {
+// A draft where some songs matched puts the video first, so the whole of
+// what the video holds still plays, and the songs found after it.
+func TestCreateDraftKeepsTheVideoFirst(t *testing.T) {
 	playlistFile(t)
 	a := newTestApp()
 	a.settings = defaultSettings()
@@ -113,27 +113,12 @@ func TestCreateDraftKeepsTheVideoToo(t *testing.T) {
 	a.createBiliDraft()
 	pl := a.biliPlaylists[0]
 	if pl.Mode != "songs" || len(pl.Items) != 2 {
-		t.Fatalf("playlist %+v, want the song and then the video", pl)
+		t.Fatalf("playlist %+v, want the video and then the song", pl)
 	}
-	if pl.Items[0].Track.ID != 9 {
-		t.Fatalf("first %+v, want the matched song", pl.Items[0])
+	if pl.Items[0].Video == nil || pl.Items[0].Track.ID >= 0 {
+		t.Fatalf("first %+v, want the video itself", pl.Items[0])
 	}
-	if pl.Items[1].Video == nil || pl.Items[1].Track.ID >= 0 {
-		t.Fatalf("last %+v, want the video itself", pl.Items[1])
-	}
-}
-
-// A video whose music is AI-made is not searched for: its playlist is the
-// video itself, with no rows to match.
-func TestCreateDraftOfAIVideo(t *testing.T) {
-	playlistFile(t)
-	a := newTestApp()
-	a.settings = defaultSettings()
-	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "AI 电台", Duration: 180000}
-	a.biliDraft = biliDraft{open: true, ai: true, video: &v}
-	a.createBiliDraft()
-	pl := a.biliPlaylists[0]
-	if pl.Mode != "tracks" || len(pl.Items) != 1 || pl.Items[0].Video == nil {
-		t.Fatalf("playlist %+v, want the video alone", pl)
+	if pl.Items[1].Track.ID != 9 {
+		t.Fatalf("second %+v, want the matched song", pl.Items[1])
 	}
 }

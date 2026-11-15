@@ -13,7 +13,6 @@ import (
 
 	"netease-music-mygo/internal/bilibili"
 	"netease-music-mygo/internal/diag"
-	"netease-music-mygo/internal/netease"
 )
 
 // A biliFollow is an uploader the listener follows on this machine alone:
@@ -26,14 +25,6 @@ type biliFollow struct {
 	Added int64    `json:"added"`
 	Seen  []string `json:"seen,omitempty"`
 }
-
-// biliSearchMode is what the search field looks for: videos, or uploaders.
-type biliSearchMode int
-
-const (
-	biliVideos biliSearchMode = iota
-	biliUploaders
-)
 
 // biliPollEvery is how often the uploaders followed are looked up again.
 const biliPollEvery = 15 * time.Minute
@@ -303,13 +294,15 @@ func (a *app) scheduleBiliPoll() {
 	})
 }
 
-// searchBiliUsers searches uploaders, for the page's follow list.
+// searchBiliUsers searches uploaders alone, for a page that wants only
+// them: the feed searches both at once.
 func (a *app) searchBiliUsers(q string) {
 	q = strings.TrimSpace(q)
 	if q == "" {
 		return
 	}
-	a.biliUserQ, a.biliLoading, a.biliErr = q, true, ""
+	a.biliShown, a.biliQuery, a.biliLoading, a.biliErr = q, q, true, ""
+	a.biliUsers, a.biliHits = nil, nil
 	go func() {
 		defer diag.Recover("bili-users")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -330,16 +323,3 @@ func (a *app) searchBiliUsers(q string) {
 	}()
 }
 
-// feedTracks returns the feed filtered by the uploader picked.
-func (a *app) feedTracks() []netease.Track {
-	if a.biliFilter == 0 {
-		return a.biliFeedTr
-	}
-	out := make([]netease.Track, 0, len(a.biliFeedTr))
-	for i, v := range a.biliFeed {
-		if v.UpMid == a.biliFilter && i < len(a.biliFeedTr) {
-			out = append(out, a.biliFeedTr[i])
-		}
-	}
-	return out
-}
