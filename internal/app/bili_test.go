@@ -7,6 +7,7 @@ import (
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/bilibili"
+	"netease-music-mygo/internal/netease"
 )
 
 // A video of Bilibili is listed as a song: its title, its uploader and its
@@ -128,5 +129,25 @@ func TestBiliFollowFromResults(t *testing.T) {
 	}
 	if len(loadBiliFollows()) != 1 {
 		t.Error("the follow was not kept")
+	}
+}
+
+// A video searched for shows over the feed of the uploaders followed, so a
+// link or a BV number still plays what it names.
+func TestSearchedVideoShowsOverFeed(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.follows = []biliFollow{{Mid: 7, Name: "音乐UP"}}
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "一首歌", Up: "UP", Duration: 3 * time.Minute}
+	a.biliShown, a.biliTracks = v.Bvid, []netease.Track{a.biliTrack(v)}
+	a.show(route{page: pageBili})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("一首歌"); err != nil {
+		t.Fatalf("the searched video is not listed: %v", err)
+	}
+	tt.Frame()
+	if cur := a.pl.Current(); cur == nil || cur.Name != "一首歌" {
+		t.Fatalf("current %+v, want the video clicked", cur)
 	}
 }

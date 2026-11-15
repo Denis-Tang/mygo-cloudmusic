@@ -72,7 +72,7 @@ func (a *app) loadBili(query string) {
 	if query == "" {
 		return
 	}
-	a.biliQuery, a.biliLoading, a.biliErr = query, true, ""
+	a.biliQuery, a.biliShown, a.biliLoading, a.biliErr = query, query, true, ""
 	go func() {
 		defer diag.Recover("bili")
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -178,14 +178,18 @@ func (a *app) biliHeader(c *ui.Context) {
 				}
 			}
 		})
-		if len(a.follows) > 0 {
+		if a.biliShown != "" {
+			if pillButton(c.Key("bili-back"), nil, "返回关注", p.hover.Over(p.bg), p.text).Clicked() {
+				a.backToBiliFeed()
+			}
+		} else if len(a.follows) > 0 {
 			if iconButton(c.Key("bili-refresh"), iconReload, 16, p.muted, "刷新投稿").Clicked() {
 				a.refreshBiliFeed()
 			}
 		}
 	})
 
-	if len(a.follows) > 0 && a.biliMode == biliVideos {
+	if len(a.follows) > 0 && a.biliMode == biliVideos && a.biliShown == "" {
 		ui.Row(c).Gap(6).Margin(0, 0, 12, 0).Children(func() {
 			type chip struct {
 				mid   int64
@@ -225,6 +229,10 @@ func (a *app) biliPage(c *ui.Context) {
 	switch {
 	case a.biliMode == biliUploaders:
 		a.biliUserResults(c)
+	case a.biliShown != "":
+		// What was searched for comes first, over the feed: a video a link
+		// names may be one no uploader followed posted.
+		a.biliResults(c)
 	case len(a.follows) == 0:
 		a.biliEmpty(c)
 	case len(a.feedTracks()) == 0:
@@ -236,6 +244,40 @@ func (a *app) biliPage(c *ui.Context) {
 	default:
 		a.trackRows(c, a.feedTracks(), true, a.biliHeader)
 	}
+}
+
+// biliResults lists what the search found, or says it found nothing.
+func (a *app) biliResults(c *ui.Context) {
+	if a.biliLoading {
+		a.trackSkeleton(c, a.pageShimmer(c), true, a.biliHeader)
+		return
+	}
+	if len(a.biliTracks) > 0 {
+		a.trackRows(c, a.biliTracks, true, a.biliHeader)
+		return
+	}
+	top, bottom := a.insets(c)
+	ui.Scroll(c.Key("bili-found")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).Children(func() {
+		a.startMark(c)
+		a.biliHeader(c)
+		ui.Column(c).Center().Padding(60, 0, 40, 0).Gap(10).Children(func() {
+			msg := "没有找到这个视频"
+			if a.biliErr != "" {
+				msg = a.biliErr
+			}
+			ui.Text(c, msg).FontSize(16).TextColor(a.pal.muted)
+			if ui.Button(c, "返回关注").Clicked() {
+				a.backToBiliFeed()
+			}
+		})
+	})
+}
+
+// backToBiliFeed puts the feed back where a search's results were.
+func (a *app) backToBiliFeed() {
+	a.biliShown, a.biliQuery, a.biliTracks = "", "", nil
+	a.biliErr = ""
+	a.redraw()
 }
 
 // biliEmpty is the page before an uploader is followed, or when the ones
