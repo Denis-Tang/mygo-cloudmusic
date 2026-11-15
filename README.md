@@ -8,7 +8,7 @@
 
 MyGo 云音乐是一款面向 Windows 和 Linux 的第三方网易云音乐客户端。如果你主要用网易云音乐听歌，想保留日推、搜索、歌单和歌词，同时减少不常用的功能入口，可以用它专注听歌。
 
-它也能播放本机的音乐文件夹，当作本地播放器使用，还可以搜索哔哩哔哩并播放视频的音轨。它默认按发行日期筛选每日推荐和私人 FM，减少遇到新近发行的 AI 歌曲的机会；你也可以自己选择筛选范围。播放时使用网易云音乐提供的音源，支持从标准到超清母带等音质选择。
+它也能播放本机的音乐文件夹，当作本地播放器使用。它默认按发行日期筛选每日推荐和私人 FM，减少遇到新近发行的 AI 歌曲的机会；你也可以自己选择筛选范围。播放时使用网易云音乐提供的音源，支持从标准到超清母带等音质选择。
 
 ## Preview | 产品预览
 
@@ -49,16 +49,6 @@ Windows 任务栏预览显示当前歌曲的封面和歌名，可直接切歌、
 ### 5. 本地音乐
 
 在设置的“本地音乐”中添加存放音乐的文件夹，其中的 MP3、FLAC 与 M4A 会按歌手、专辑、歌名排列在侧栏的“本地音乐”中。播放时读取文件内的标签和封面，同名 `.lrc` 歌词随歌曲滚动，可以直接当作本地播放器使用。本地歌曲不进在线缓存，也不参与每日推荐、私人 FM 和发行日期过滤。
-
-### 6. 哔哩哔哩音轨与订阅
-
-侧栏的“哔哩哔哩”默认是空的。切到“UP 主”搜索并关注后，他们新的投稿会出现在这里，新的会标“新”，侧栏显示未读数量。关注只记在这台电脑上，不会写进哔哩哔哩账号，也不需要登录。
-
-在视频的“⋯”菜单里可以“收藏为歌单”，存成侧栏“哔哩哔哩歌单”下的本机歌单，和网易云歌单分开；也可以“生成歌单”，程序会依次读分 P、简介时间戳、简介列表、简介里的书名号、UP 主自己的评论，猜出歌名后在网易云里匹配。全部匹配就存成一首一行的歌曲歌单，有没匹配上的就退回存视频本身的音轨。
-
-切到“视频”可以搜索视频、粘贴视频链接、BV 号或 `b23.tv` 短链；播放的是视频的音轨，没有画面。视频标题作为歌名，UP 主作为歌手。
-
-视频带有字幕轨时，字幕会作为歌词显示；未登录时哔哩哔哩通常不返回字幕地址，所以歌词可能为空。收藏夹、关注和评论不写回哔哩哔哩。
 
 ## Quick Start | 快速开始
 
@@ -152,9 +142,9 @@ go vet ./...           # 检查 Go 代码
 | --- | --- |
 | `GET /state` | 当前页面、播放状态、进度、队列数量、最近错误 |
 | `GET /screenshot.png?w=1200&h=800` | 按当前状态在后台渲染一张截图 |
-| `POST /click?label=哔哩哔哩` | 点击带有该无障碍标签的控件 |
+| `POST /click?label=为你推荐` | 点击带有该无障碍标签的控件 |
 | `POST /type?text=晴天` / `POST /key?key=Enter` | 向当前输入框输入文字或按键 |
-| `POST /open?page=bili` | 打开页面：`home`、`fm`、`collected`、`local`、`bili` 等 |
+| `POST /open?page=local` | 打开页面：`home`、`fm`、`collected`、`local` 等 |
 | `POST /play?index=0` | 播放当前页面列表的第几条 |
 | `POST /search?q=周杰伦` | 在当前页面搜索 |
 | `POST /seek?sec=120` | 跳转到指定秒数 |
@@ -168,7 +158,7 @@ go vet ./...           # 检查 Go 代码
 TOKEN=$(jq -r .token "$APPDATA/MyGo 云音乐/control.json")
 PORT=$(jq -r .port "$APPDATA/MyGo 云音乐/control.json")
 curl -s "http://127.0.0.1:$PORT/state?token=$TOKEN"
-curl -s -X POST "http://127.0.0.1:$PORT/open?page=bili&token=$TOKEN"
+curl -s -X POST "http://127.0.0.1:$PORT/open?page=local&token=$TOKEN"
 curl -s "http://127.0.0.1:$PORT/screenshot.png?token=$TOKEN" -o shot.png
 ```
 
@@ -206,7 +196,6 @@ curl -s "http://127.0.0.1:$PORT/screenshot.png?token=$TOKEN" -o shot.png
 - [NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi)：eapi 加密与登录流程的参考
 - [go-m4a](https://github.com/tphakala/go-m4a)（MIT）与 [go-aac](https://github.com/tphakala/go-aac)（LGPL-2.1-or-later）：M4A 容器的解析与 AAC 解码
 - [dhowden/tag](https://github.com/dhowden/tag)：本地音乐的标签与封面读取
-- [bilibili-API-collect](https://github.com/SocialSisterYi/bilibili-API-collect)：哔哩哔哩接口的公开整理
 - [folia-major](https://github.com/chthollyphile/folia-major)：歌词动画效果的参考
 - [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[Qwen3-ASR](https://github.com/QwenLM/Qwen3-ASR) 与 [Silero VAD](https://github.com/snakers4/silero-vad)：本机语音识别
 
