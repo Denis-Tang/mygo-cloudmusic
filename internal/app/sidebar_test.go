@@ -77,7 +77,7 @@ func TestSidebarPlaylistCollapse(t *testing.T) {
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
 
-	if err := tt.Click("我的歌单"); err != nil {
+	if err := tt.Click("创建的歌单"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -134,11 +134,11 @@ func TestNewPlaylistInCollapsedSidebar(t *testing.T) {
 	a := editTestApp()
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
-	if err := tt.Click("我的歌单"); err != nil {
+	if err := tt.Click("创建的歌单"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if !a.mineCollapsed {
+	if !a.mineListCollapsed {
 		t.Fatal("the section did not collapse")
 	}
 	if err := tt.Click("新建歌单"); err != nil {
@@ -148,7 +148,7 @@ func TestNewPlaylistInCollapsedSidebar(t *testing.T) {
 	if !a.naming.open {
 		t.Error("the plus did not open the naming dialog")
 	}
-	if !a.mineCollapsed {
+	if !a.mineListCollapsed {
 		t.Error("the plus also toggled the section")
 	}
 }

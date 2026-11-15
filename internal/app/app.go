@@ -165,7 +165,9 @@ type app struct {
 	navScroll  ui.ScrollState
 	scrolled   route // the page trackList and pageScroll are of
 
-	mineCollapsed bool
+	mineCollapsed     bool
+	mineListCollapsed bool
+	savedCollapsed    bool
 	// mineSrc is which playlists the sidebar's 我的歌单 lists: the site's
 	// or the ones made here.
 	mineSrc int

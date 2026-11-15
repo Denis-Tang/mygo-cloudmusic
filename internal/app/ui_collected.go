@@ -49,6 +49,7 @@ func (a *app) collectedPage(c *ui.Context) {
 	a.scrollPage(c, func() {
 		a.heading(c, "我的收藏", sub)
 		segmented(c.Key("collected-kind"), &a.collectedTab, "专辑", "歌单", "哔哩哔哩歌单")
+		ui.Box(c).Height(24)
 		switch a.collectedTab {
 		case 1:
 			a.collectedPlaylists(c)
