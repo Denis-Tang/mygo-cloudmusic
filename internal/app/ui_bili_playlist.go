@@ -212,6 +212,12 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 						mygo.Shell.OpenExternal(pl.Origin)
 					}
 				}
+				if v := biliPlaylistVideo(pl); v != nil {
+					if pillButton(c.Key("bili-rebuild"), iconReload, "重新生成", p.hover.Over(p.bg), p.text).Clicked() {
+						a.deleteBiliPlaylist(pl.ID)
+						a.openBiliVideo(*v, false)
+					}
+				}
 				if pillButton(c.Key("bili-rename"), iconPencil, "重命名", p.hover.Over(p.bg), p.text).Clicked() {
 					a.openBiliNaming(nil, pl.ID, pl.Name)
 				}
@@ -356,4 +362,15 @@ func (a *app) biliPlaylistsSidebar(c *ui.Context) {
 			a.open(route{page: pageBiliPlaylist, id: pl.ID})
 		}
 	}
+}
+
+// biliPlaylistVideo is the video a playlist stands for, where it holds the
+// video itself as its first item.
+func biliPlaylistVideo(pl *biliPlaylist) *bilibili.Video {
+	for i := range pl.Items {
+		if v := pl.Items[i].Video; v != nil {
+			return v
+		}
+	}
+	return nil
 }

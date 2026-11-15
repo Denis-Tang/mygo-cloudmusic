@@ -65,16 +65,32 @@ func biliExtract(v bilibili.Video, comment string, chapters []bilibili.Chapter) 
 	if len(pick) == 0 {
 		pick = biliFromChapters(chapters)
 	}
+	// A chapter names the song; the uploader's comment under the video
+	// often names its artist too, so a comment that names more is read in
+	// its place.
+	pick = biliUnique(pick)
+	if c := biliUnique(biliFromText(comment)); len(c) > 0 && (len(pick) == 0 || (len(c) >= len(pick) && biliNamedRows(c) > biliNamedRows(pick))) {
+		pick = c
+	}
 	if len(pick) > 0 {
-		return biliUnique(pick)
+		return pick
 	}
 	if c := biliFromQuotes(v.Desc); len(c) > 0 {
 		return biliUnique(c)
 	}
-	if c := biliFromText(comment); len(c) > 0 {
-		return biliUnique(c)
-	}
 	return nil
+}
+
+// biliNamedRows counts the lines that name two things, a song and beside
+// it whoever plays it, which a bare chapter does not.
+func biliNamedRows(cs []biliCand) int {
+	n := 0
+	for _, c := range cs {
+		if strings.ContainsAny(c.Raw, "/／") || biliSepRe.MatchString(c.Raw) {
+			n++
+		}
+	}
+	return n
 }
 
 // biliFromPages reads a video's parts, one song each, where their titles

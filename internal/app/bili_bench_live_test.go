@@ -36,7 +36,7 @@ var biliSamples = []biliSample{
 	{"BV18XWB69Eiy", "詹姆斯的歌单 时间 歌名 (英文) 无歌手", 9},
 	{"BV1PuWD6kEuP", "音浪群岛FM 无曲目表", 0},
 	{"BV1tLHxz9EJj", "士多啤梨留声机 无曲目表", 0},
-	{"BV1924m68E5c", "发条小饭团 2个分P 无曲目表", 0},
+	{"BV1924m68E5c", "发条小饭团 评论里是 36 首的曲目表", 36},
 }
 
 // TestBiliSamplesLive tries the rules on real videos and prints how many

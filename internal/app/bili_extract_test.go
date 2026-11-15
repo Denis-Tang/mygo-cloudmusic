@@ -103,8 +103,28 @@ func TestExtractChapters(t *testing.T) {
 	}
 }
 
-// Without a list the songs a video names in book quotes are read, then the
-// uploader's own comment.
+// The uploader's comment is read over the chapters when it holds as many
+// songs: a chapter names the song, the comment names its artist too.
+func TestExtractCommentOverChapters(t *testing.T) {
+	v := bilibili.Video{Desc: "今晚的爵士"}
+	chapters := []bilibili.Chapter{
+		{Title: "Serena", From: 208000000000},
+		{Title: "In the Mood", From: 688000000000},
+	}
+	comment := strings.Join([]string{"☞ PLaYLisT ☞", "00:00 Adi Oasis,Samm Henshaw - Serena", "07:15 Tyrone Davis - In the Mood"}, string(rune(10)))
+	got := biliExtract(v, comment, chapters)
+	if len(got) != 2 {
+		t.Fatalf("cands %+v, want the two lines of the comment", got)
+	}
+	if got[0].Raw != "Adi Oasis,Samm Henshaw - Serena" || got[0].StartMs != 0 {
+		t.Fatalf("first %+v, want the comment's own line", got[0])
+	}
+	if got[1].StartMs != 435000 {
+		t.Fatalf("second starts %d, want 07:15", got[1].StartMs)
+	}
+}
+
+// Without a list the songs a video names in book quotes are read.
 func TestExtractQuotesAndComment(t *testing.T) {
 	quotes := bilibili.Video{Desc: "这次用了《晴天》和《夜曲》，还有一首《稻香》。"}
 	if got := biliExtract(quotes, "", nil); len(got) != 3 {

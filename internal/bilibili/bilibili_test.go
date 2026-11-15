@@ -2,6 +2,7 @@ package bilibili
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -480,5 +481,17 @@ func TestSearchUsers(t *testing.T) {
 	}
 	if q := rec.query("/x/web-interface/wbi/search/type"); q.Get("search_type") != "bili_user" || q.Get("w_rid") == "" {
 		t.Fatalf("search query %v, want a signed uploader search", q)
+	}
+}
+
+// A comment's member id comes as a string in places, and reading it must
+// not lose the whole comment: a tracklist often lives in one.
+func TestReplyMidAsString(t *testing.T) {
+	var r reply
+	if err := json.Unmarshal([]byte(`{"member":{"mid":"12345"},"content":{"message":"晴天"}}`), &r); err != nil {
+		t.Fatal(err)
+	}
+	if int64(r.Member.Mid) != 12345 || r.Content.Message != "晴天" {
+		t.Fatalf("reply %+v, want the id and the words", r)
 	}
 }

@@ -1092,10 +1092,29 @@ func SearchUsers(ctx context.Context, query string, page int) ([]User, error) {
 	return out, nil
 }
 
+// jsonInt is a number the site writes as a string in places, as a
+// comment's member id.
+type jsonInt int64
+
+// UnmarshalJSON reads a number written either way.
+func (j *jsonInt) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == "" || s == "null" {
+		*j = 0
+		return nil
+	}
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return err
+	}
+	*j = jsonInt(n)
+	return nil
+}
+
 // A reply is a comment of the site's, as far as this needs it.
 type reply struct {
 	Member struct {
-		Mid int64 `json:"mid"`
+		Mid jsonInt `json:"mid"`
 	} `json:"member"`
 	Content struct {
 		Message string `json:"message"`
@@ -1130,7 +1149,7 @@ func UpperComments(ctx context.Context, v Video) (string, error) {
 	}
 	var out []string
 	add := func(r *reply) {
-		if r != nil && r.Member.Mid == v.UpMid && strings.TrimSpace(r.Content.Message) != "" {
+		if r != nil && int64(r.Member.Mid) == v.UpMid && strings.TrimSpace(r.Content.Message) != "" {
 			out = append(out, r.Content.Message)
 		}
 	}
