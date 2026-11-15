@@ -127,6 +127,9 @@ func (a *app) unfollowBili(mid int64) {
 		}
 	}
 	a.biliFeed = keptFeed
+	if a.biliFilter == mid {
+		a.biliFilter = 0
+	}
 	a.rebuildFeedTracks()
 	diag.Logf("bili unfollow %d", mid)
 	a.redraw()

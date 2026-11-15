@@ -280,14 +280,14 @@ func (a *app) biliPage(c *ui.Context) {
 // biliHome is the feed of the uploaders followed: their latest videos, each
 // a card that opens its playlist.
 func (a *app) biliHome(c *ui.Context) {
-	videos := a.biliLatest()
+	videos := a.biliListed()
 	a.scrollPage(c, func() {
 		a.biliHeader(c)
 		a.biliFollowStrip(c)
 		if len(videos) == 0 {
 			if a.biliLoadingFeed {
 				a.section(c, "最新歌单")
-				a.playlistCardsSkeleton(c, a.pageShimmer(c), a.columns(c, 150)*2, 150, false)
+				a.playlistCardsSkeleton(c, a.pageShimmer(c), a.columns(c, 168)*2, 168, false)
 				return
 			}
 			ui.Column(c).Center().Padding(50, 0, 40, 0).Gap(10).Children(func() {
@@ -299,8 +299,8 @@ func (a *app) biliHome(c *ui.Context) {
 			})
 			return
 		}
-		a.section(c, "最新歌单")
-		ui.Grid(c).Columns(a.columns(c, 150)).GapX(20).GapY(28).Children(func() {
+		a.section(c, a.biliSectionTitle())
+		ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
 			for _, v := range videos {
 				a.biliSongCard(c, v)
 			}
@@ -308,22 +308,33 @@ func (a *app) biliHome(c *ui.Context) {
 	})
 }
 
-// biliFollowStrip is the uploaders followed, each a round face with a way
-// to stop following it.
+// biliFollowStrip is the uploaders followed, each a round face: a click
+// lists that uploader's playlists alone, and another click lists them all
+// again. The face carries the way to stop following it under the pointer.
 func (a *app) biliFollowStrip(c *ui.Context) {
 	if len(a.follows) == 0 {
 		return
 	}
 	p := a.pal
-	ui.Row(c).Wrap().Gap(16).Margin(0, 0, 20, 6).Children(func() {
+	ui.Row(c).Wrap().Gap(16).Margin(0, 0, 18, 6).Children(func() {
 		for _, f := range a.follows {
 			f := f
 			cell := ui.Column(c.Key(f.Mid)).Width(96).Gap(6).AlignItems(ui.Center).Label(f.Name)
 			cell.Children(func() {
-				face := ui.Box(c).Size(60, 60).Radius(30).Shadow(0, 4, 12, -4, p.cardShade)
+				face := ui.ButtonBase(c.Key("bili-pick")).Size(66, 66).Radius(33).Padding(3).
+					Label("查看 " + f.Name + " 的歌单")
+				switch {
+				case a.biliFilter == f.Mid:
+					face.Border(2.5, p.accent)
+				case face.Hovered():
+					face.Border(2.5, p.hairline)
+				}
 				face.Children(func() {
-					a.coverFill(c, f.Face, 180, 30)
-					if cell.Hovered() {
+					inner := ui.Box(c).Size(60, 60).Radius(30).Shadow(0, 4, 12, -4, p.cardShade)
+					inner.Children(func() {
+						a.coverFill(c, f.Face, 180, 30)
+					})
+					if face.Hovered() {
 						off := ui.ButtonBase(c.Key("bili-off")).Absolute().Top(0).Right(0).Size(20, 20).
 							Radius(10).Background(p.bg).Border(1, p.hairline).Center().
 							Label("取消关注 " + f.Name)
@@ -335,10 +346,46 @@ func (a *app) biliFollowStrip(c *ui.Context) {
 						}
 					}
 				})
+				if face.Clicked() {
+					if a.biliFilter == f.Mid {
+						a.biliFilter = 0
+					} else {
+						a.biliFilter = f.Mid
+					}
+				}
 				ui.Text(c, f.Name).FontSize(12.5).TextColor(p.muted).SingleLine().TextAlign(ui.Center).AlignSelf(ui.Stretch)
 			})
 		}
 	})
+}
+
+// biliListed is the feed as the page lists it: all the playlists of the
+// uploaders followed, or those of the uploader picked.
+func (a *app) biliListed() []bilibili.Video {
+	if a.biliFilter == 0 {
+		return a.biliFeed
+	}
+	var out []bilibili.Video
+	for _, v := range a.biliFeed {
+		if v.UpMid == a.biliFilter {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// biliSectionTitle says what the cards below are: everybody's, or one
+// uploader's.
+func (a *app) biliSectionTitle() string {
+	if a.biliFilter == 0 {
+		return "全部歌单"
+	}
+	for _, f := range a.follows {
+		if f.Mid == a.biliFilter {
+			return f.Name + " 的歌单"
+		}
+	}
+	return "全部歌单"
 }
 
 // biliSongCard is a video's card, as a playlist's is: its cover, its title,
@@ -371,7 +418,7 @@ func (a *app) biliResults(c *ui.Context) {
 		}
 		if len(a.biliHits) > 0 {
 			a.section(c, "视频")
-			ui.Grid(c).Columns(a.columns(c, 150)).GapX(20).GapY(28).Children(func() {
+			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
 				for _, v := range a.biliHits {
 					a.biliSongCard(c, v)
 				}
@@ -435,20 +482,4 @@ func (a *app) biliEmpty(c *ui.Context) {
 			ui.Text(c, "在上面的搜索框里搜一个 UP 主，关注后他的投稿会变成歌单").FontSize(14).TextColor(a.pal.muted)
 		})
 	})
-}
-
-// biliLatest is the feed as the page lists it: the latest videos of each
-// uploader, three at most.
-func (a *app) biliLatest() []bilibili.Video {
-	const perUp = 3
-	count := map[int64]int{}
-	var out []bilibili.Video
-	for _, v := range a.biliFeed {
-		if count[v.UpMid] >= perUp {
-			continue
-		}
-		count[v.UpMid]++
-		out = append(out, v)
-	}
-	return out
 }

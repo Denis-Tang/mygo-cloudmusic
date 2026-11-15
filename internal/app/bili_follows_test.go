@@ -82,8 +82,9 @@ func TestFeedMarksNew(t *testing.T) {
 	}
 }
 
-// The page lists three videos of each uploader at most, newest first.
-func TestBiliLatestThreePerUploader(t *testing.T) {
+// The page lists every video of the uploaders followed, and only one
+// uploader's once their face is clicked.
+func TestBiliListsAllAndOne(t *testing.T) {
 	a := newTestApp()
 	a.biliFeed = []bilibili.Video{
 		{Bvid: "BV1", UpMid: 7, PubDate: 300},
@@ -92,11 +93,15 @@ func TestBiliLatestThreePerUploader(t *testing.T) {
 		{Bvid: "BV4", UpMid: 7, PubDate: 297},
 		{Bvid: "BV5", UpMid: 8, PubDate: 296},
 	}
-	got := a.biliLatest()
-	if len(got) != 4 {
-		t.Fatalf("videos %d %+v, want three of one and one of the other", len(got), got)
+	if got := a.biliListed(); len(got) != 5 {
+		t.Fatalf("videos %d, want all five", len(got))
 	}
-	if got[0].Bvid != "BV1" || got[3].Bvid != "BV5" {
-		t.Fatalf("order %+v, want the feed's own", got)
+	a.biliFilter = 7
+	if got := a.biliListed(); len(got) != 4 || got[0].Bvid != "BV1" {
+		t.Fatalf("filtered %+v, want the four of uploader 7", got)
+	}
+	a.biliFilter = 0
+	if got := a.biliListed(); len(got) != 5 {
+		t.Fatalf("videos %d, want all five again", len(got))
 	}
 }

@@ -130,6 +130,40 @@ func TestBiliFollowStripUnfollows(t *testing.T) {
 	}
 }
 
+// A face of the strip lists that uploader's playlists alone, and another
+// click lists everybody's again.
+func TestBiliFilterByFace(t *testing.T) {
+	followsFile(t)
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.follows = []biliFollow{{Mid: 7, Name: "甲UP"}, {Mid: 8, Name: "乙UP"}}
+	a.biliFeed = []bilibili.Video{
+		{Bvid: "BV1", UpMid: 7, Up: "甲UP", Title: "甲的歌单", PubDate: 300},
+		{Bvid: "BV2", UpMid: 8, Up: "乙UP", Title: "乙的歌单", PubDate: 299},
+	}
+	a.show(route{page: pageBili})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("查看 甲UP 的歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("乙的歌单"); ok {
+		t.Fatal("another uploader's playlist stayed")
+	}
+	if _, ok := tt.Find("甲的歌单"); !ok {
+		t.Fatal("the uploader's playlist went")
+	}
+	if err := tt.Click("查看 甲UP 的歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("乙的歌单"); !ok {
+		t.Fatal("all the playlists did not come back")
+	}
+}
+
 // An uploader search lists whom it found, and its button follows or stops
 // following them.
 func TestBiliFollowFromResults(t *testing.T) {

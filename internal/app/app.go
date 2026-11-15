@@ -66,6 +66,7 @@ type app struct {
 	// biliRemotes what plays each: see ui_bili.go.
 	biliTracks  []netease.Track
 	biliHits    []bilibili.Video
+	biliFilter  int64 // the uploader whose playlists the page lists
 	biliBuilding map[string]bool
 	biliVideos  map[int64]bilibili.Video
 	biliRemotes map[int64]player.Remote
