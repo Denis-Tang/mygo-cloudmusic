@@ -156,6 +156,7 @@ func (a *app) viewBody(c *ui.Context) {
 	a.biliNameDialog(c)
 	a.biliDeleteDialog(c)
 	a.biliDraftDialog(c)
+	a.biliCollectDialog(c)
 	a.deletePlaylistDialog(c)
 	a.settingsDialog(c)
 	a.windowControls(c)
@@ -286,9 +287,7 @@ func (a *app) sidebar(c *ui.Context) {
 			if a.searched.query != "" {
 				a.navItem(c, iconSearch, "搜索结果", a.searched)
 			}
-			a.myPlaylists(c, "我的歌单", a.mine, true, &a.mineCollapsed)
-			a.myPlaylists(c, "收藏的歌单", a.saved, false, &a.savedCollapsed)
-			a.biliPlaylistsSidebar(c)
+			a.mineSidebar(c)
 		})
 	})
 }
@@ -672,3 +671,69 @@ func firstPlayable(tracks []netease.Track) int {
 	}
 	return 0
 }
+
+// mineSidebar is 我的歌单: the playlists of the site, or the ones made here
+// from videos, the switch between them at its head.
+func (a *app) mineSidebar(c *ui.Context) {
+	p := a.pal
+	title := "我的歌单"
+	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(18, 0, 6, 2).Children(func() {
+		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(32).PaddingX(5).Gap(7).Radius(radiusTile).
+			AlignItems(ui.Center).Justify(ui.Start).Role(ui.RoleDisclosure).Label(title)
+		if b.Clicked() {
+			a.mineCollapsed = !a.mineCollapsed
+		}
+		b.Expanded(!a.mineCollapsed)
+		hb := ui.Transparent
+		if b.Hovered() {
+			hb = p.hover
+		}
+		b.Background(b.AnimateColor("bg", hb, ui.Animation{Duration: 120 * time.Millisecond}))
+		b.Children(func() {
+			ui.Text(c, title).FontSize(sideFont(11.5)).FontWeight(600).TextColor(p.faint).Grow(1)
+			arrow := iconDown
+			if a.mineCollapsed {
+				arrow = iconForward
+			}
+			ui.Icon(c, arrow).Size(15, 15).TextColor(p.faint)
+		})
+		if a.mineSrc == mineSite && iconButton(c.Key("new"), iconPlus, 15, p.faint, "新建歌单").Size(30, 30).Radius(radiusTile).Clicked() {
+			a.newPlaylist(nil)
+		}
+	})
+	if a.mineCollapsed {
+		return
+	}
+	// The switch itself: the site's playlists, or the ones made here.
+	ui.Row(c).Gap(4).PaddingX(6).Margin(0, 0, 6, 4).Children(func() {
+		for i, label := range []string{"网易云", "哔哩哔哩"} {
+			on := a.mineSrc == i
+			b := ui.ButtonBase(c.Key("bili-mine-" + label)).Height(26).PaddingX(9).Radius(radiusTile).FocusRing(false).Label("看" + label + "歌单")
+			bg := ui.Transparent
+			color := p.muted
+			if on {
+				bg, color = p.press, p.text
+			} else if b.Hovered() {
+				bg = p.hover
+			}
+			b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 100 * time.Millisecond}))
+			b.Children(func() {
+				ui.Text(c, label).FontSize(sideFont(12)).FontWeight(600).TextColor(color).SingleLine()
+			})
+			if b.Clicked() && !on {
+				a.mineSrc = i
+			}
+		}
+	})
+	if a.mineSrc == mineBili {
+		a.biliPlaylistRows(c)
+		return
+	}
+	a.playlistRows(c, a.mine, true)
+}
+
+// which playlists the sidebar's 我的歌单 lists.
+const (
+	mineSite = iota
+	mineBili
+)

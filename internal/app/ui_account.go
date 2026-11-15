@@ -334,41 +334,10 @@ func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.E
 	return b
 }
 
-// myPlaylists lists the listener's playlists under a header that opens
-// and closes them: those they made, if mine, with a button to make one
-// and a menu to rename them.
-func (a *app) myPlaylists(c *ui.Context, title string, lists []netease.Playlist, mine bool, collapsed *bool) {
-	if len(lists) == 0 {
-		return
-	}
+// playlistRows lists a listener's playlists, with the menu of the ones
+// they made.
+func (a *app) playlistRows(c *ui.Context, lists []netease.Playlist, mine bool) {
 	p := a.pal
-	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(18, 0, 6, 6).Children(func() {
-		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(32).PaddingX(5).Gap(7).Radius(radiusTile).
-			AlignItems(ui.Center).Justify(ui.Start).Role(ui.RoleDisclosure).Label(title)
-		if b.Clicked() {
-			*collapsed = !*collapsed
-		}
-		b.Expanded(!*collapsed)
-		hb := ui.Transparent
-		if b.Hovered() {
-			hb = p.hover
-		}
-		b.Background(b.AnimateColor("bg", hb, ui.Animation{Duration: 120 * time.Millisecond}))
-		b.Children(func() {
-			ui.Text(c, title).FontSize(sideFont(11.5)).FontWeight(600).TextColor(p.faint).Grow(1)
-			arrow := iconDown
-			if *collapsed {
-				arrow = iconForward
-			}
-			ui.Icon(c, arrow).Size(15, 15).TextColor(p.faint)
-		})
-		if mine && iconButton(c.Key("new"), iconPlus, 15, p.faint, "新建歌单").Size(30, 30).Radius(radiusTile).Clicked() {
-			a.newPlaylist(nil)
-		}
-	})
-	if *collapsed {
-		return
-	}
 	for i := range lists {
 		pl := &lists[i]
 		selected := a.route.page == pagePlaylist && a.route.id == pl.ID && !a.nowPlaying

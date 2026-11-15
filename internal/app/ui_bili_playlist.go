@@ -26,6 +26,9 @@ type biliPlaylist struct {
 	Mode    string     `json:"mode"`             // tracks, songs or slices
 	Created int64      `json:"created"`
 	Cloud   int64      `json:"cloudID,omitempty"` // the site's playlist it went to
+	// Collected says the listener keeps it among what they collect, which
+	// stays on this machine: the site only holds the songs found.
+	Collected bool `json:"collected,omitempty"`
 	Items   []biliItem `json:"items"`
 }
 
@@ -218,8 +221,11 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 					a.pl.PlayQueue(tracks, firstPlayable(tracks))
 				}
 				icon, label := iconCollect, "收藏"
-				if pl.Cloud != 0 {
+				switch {
+				case pl.Cloud != 0:
 					icon, label = iconCheck, "已收藏到网易云"
+				case pl.Collected:
+					icon, label = iconCheck, "已收藏到本机"
 				}
 				if pillButton(c.Key("bili-collect"), icon, label, p.hover.Over(p.bg), p.text).Clicked() {
 					a.collectBiliPlaylist(pl)
@@ -324,38 +330,10 @@ func (a *app) biliDeleteDialog(c *ui.Context) {
 	})
 }
 
-// biliPlaylistsSidebar lists the playlists kept on this machine, under a
-// header of their own: apart from the ones of NetEase's.
-func (a *app) biliPlaylistsSidebar(c *ui.Context) {
-	if len(a.biliPlaylists) == 0 {
-		return
-	}
+// biliPlaylistRows lists the playlists kept on this machine, the last made
+// first.
+func (a *app) biliPlaylistRows(c *ui.Context) {
 	p := a.pal
-	title := "哔哩哔哩歌单"
-	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(18, 0, 6, 6).Children(func() {
-		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(32).PaddingX(5).Gap(7).Radius(radiusTile).
-			AlignItems(ui.Center).Justify(ui.Start).Role(ui.RoleDisclosure).Label(title)
-		if b.Clicked() {
-			a.biliPLCollapsed = !a.biliPLCollapsed
-		}
-		b.Expanded(!a.biliPLCollapsed)
-		hb := ui.Transparent
-		if b.Hovered() {
-			hb = p.hover
-		}
-		b.Background(b.AnimateColor("bg", hb, ui.Animation{Duration: 120 * time.Millisecond}))
-		b.Children(func() {
-			ui.Text(c, title).FontSize(sideFont(11.5)).FontWeight(600).TextColor(p.faint).Grow(1)
-			arrow := iconDown
-			if a.biliPLCollapsed {
-				arrow = iconForward
-			}
-			ui.Icon(c, arrow).Size(15, 15).TextColor(p.faint)
-		})
-	})
-	if a.biliPLCollapsed {
-		return
-	}
 	for i := range a.biliPlaylists {
 		pl := &a.biliPlaylists[i]
 		selected := a.route.page == pageBiliPlaylist && a.route.id == pl.ID && !a.nowPlaying
@@ -368,8 +346,8 @@ func (a *app) biliPlaylistsSidebar(c *ui.Context) {
 			pb = p.hover
 		}
 		b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
-		cover := ""
-		if len(pl.Items) > 0 {
+		cover := pl.Cover
+		if cover == "" && len(pl.Items) > 0 {
 			cover = pl.Items[0].Track.Album.PicURL
 		}
 		b.Children(func() {
@@ -402,33 +380,112 @@ func biliPlayTracks(pl *biliPlaylist) []netease.Track {
 	return tracks
 }
 
-// collectBiliPlaylist makes a playlist of the songs found on the site, so
-// the listener keeps them there rather than only on this machine.
-func (a *app) collectBiliPlaylist(pl *biliPlaylist) {
-	if pl.Cloud != 0 {
-		a.toast = "已经收藏到网易云"
-		a.redraw()
-		return
-	}
+// biliSongIDs are the songs of a playlist the site knows, which are the
+// ones it can hold.
+func biliSongIDs(pl *biliPlaylist) []int64 {
 	var ids []int64
 	for _, it := range pl.Items {
 		if it.Track.ID > 0 {
 			ids = append(ids, it.Track.ID)
 		}
 	}
-	switch {
-	case len(ids) == 0:
-		a.toast = "没有可以收藏到网易云的歌曲"
-		a.redraw()
-		return
-	case a.profile == nil:
-		a.toast = "请先登录网易云"
+	return ids
+}
+
+// biliCloudName is a name the site takes for a playlist: the one it is
+// given, cut to the length the site allows.
+func biliCloudName(name string) string {
+	name = strings.TrimSpace(name)
+	rs := []rune(name)
+	if len(rs) > biliCloudNameMost {
+		name = strings.TrimSpace(string(rs[:biliCloudNameMost]))
+	}
+	return strings.TrimRight(name, " -–—·|｜:：,，、")
+}
+
+// biliCloudNameMost is the longest name the site takes for a playlist.
+const biliCloudNameMost = 40
+
+// collectBiliPlaylist keeps the playlist among what the listener collects:
+// on the site too where the songs found there may go, which takes a name.
+// The playlist itself stays here, with the videos' own sound.
+func (a *app) collectBiliPlaylist(pl *biliPlaylist) {
+	if pl.Cloud != 0 {
+		a.toast = "已经收藏到网易云"
 		a.redraw()
 		return
 	}
-	a.toast = "正在收藏到网易云…"
+	if a.profile != nil && len(biliSongIDs(pl)) > 0 {
+		a.biliCollect = biliCollecting{open: true, name: biliCloudName(pl.Name), playlist: pl.ID}
+		return
+	}
+	pl.Collected = true
+	a.saveBiliPlaylists()
+	if a.profile == nil {
+		a.toast = "已收藏到本机；未登录，未同步到网易云"
+	} else {
+		a.toast = "已收藏到本机；没有可同步到网易云的歌曲"
+	}
 	a.redraw()
-	name := pl.Name
+}
+
+// A biliCollecting is the name dialog of a playlist going to the site.
+type biliCollecting struct {
+	open     bool
+	name     string
+	playlist int64
+	busy     bool
+}
+
+// biliCollectDialog asks what name the playlist takes on the site.
+func (a *app) biliCollectDialog(c *ui.Context) {
+	p := a.pal
+	d := &a.biliCollect
+	ui.DialogBase(c.Key("bili-collect"), &d.open, func(backdrop, panel ui.Element) {
+		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
+		panel.Width(400).Padding(24).Radius(radiusPanel).Gap(14).
+			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
+			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
+		ui.Text(c, "收藏到网易云").FontSize(17).FontWeight(700)
+		ui.Text(c, "只收藏匹配到的歌曲；视频音轨留在这个程序里。").FontSize(13).TextColor(p.muted).LineHeight(1.45)
+		in := ui.TextInput(c.Key("bili-collect-name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(16).Radius(radiusField).AutoFocus()
+		if in.Submitted() {
+			a.submitBiliCollect()
+		}
+		ui.Row(c).Gap(10).Justify(ui.End).Children(func() {
+			if pillButton(c.Key("cancel"), nil, "取消", p.hover.Over(p.bg), p.text).Clicked() {
+				d.open = false
+			}
+			ok := pillButton(c.Key("ok"), nil, "收藏", p.accent, p.onAccent)
+			if strings.TrimSpace(d.name) == "" || d.busy {
+				ok.Disabled(true)
+			}
+			if ok.Clicked() {
+				a.submitBiliCollect()
+			}
+		})
+	})
+}
+
+// submitBiliCollect makes the playlist the dialog names on the site, and
+// keeps it here among what the listener collects.
+func (a *app) submitBiliCollect() {
+	d := &a.biliCollect
+	name := biliCloudName(d.name)
+	pl := a.biliPlaylist(d.playlist)
+	if name == "" || pl == nil || d.busy {
+		return
+	}
+	ids := biliSongIDs(pl)
+	if len(ids) == 0 {
+		d.open = false
+		a.toast = "没有可以收藏到网易云的歌曲"
+		a.redraw()
+		return
+	}
+	id := pl.ID
+	d.busy = true
+	a.toast = "正在收藏到网易云…"
 	go func() {
 		defer diag.Recover("bili-collect")
 		made, err := netease.CreatePlaylist(name)
@@ -436,18 +493,21 @@ func (a *app) collectBiliPlaylist(pl *biliPlaylist) {
 			err = netease.AddToPlaylist(made.ID, ids...)
 		}
 		a.post(func() {
+			d.busy = false
 			if err != nil {
 				diag.Errorf("bili collect %q: %v", name, err)
-				a.toast = "收藏失败，请稍后再试"
+				a.toast = "收藏失败：" + err.Error()
 				a.redraw()
 				return
 			}
 			for i := range a.biliPlaylists {
-				if a.biliPlaylists[i].ID == pl.ID {
+				if a.biliPlaylists[i].ID == id {
 					a.biliPlaylists[i].Cloud = made.ID
+					a.biliPlaylists[i].Collected = true
 				}
 			}
 			a.saveBiliPlaylists()
+			d.open = false
 			a.toast = "已收藏到网易云"
 			a.redraw()
 		})

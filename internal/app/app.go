@@ -118,6 +118,8 @@ type app struct {
 	naming       nameDialog     // the name of a playlist asked for
 	deleting     deleteDialog   // whether to delete a playlist, asked
 	collecting   collectDialog  // the playlists a song of the playing page may go into
+	biliCollect  biliCollecting // the name a Bilibili playlist takes on the site
+	collectedTab int            // which kind of what the listener keeps 我的收藏 lists
 	liked        map[int64]bool // the songs the listener likes
 	toast        string         // a message to show once
 	picked       pickedUp       // the song a login picked up, waiting to play
@@ -163,7 +165,10 @@ type app struct {
 	navScroll  ui.ScrollState
 	scrolled   route // the page trackList and pageScroll are of
 
-	mineCollapsed, savedCollapsed bool
+	mineCollapsed bool
+	// mineSrc is which playlists the sidebar's 我的歌单 lists: the site's
+	// or the ones made here.
+	mineSrc int
 
 	query       string
 	searchBox   ui.Handle

@@ -169,3 +169,34 @@ func TestCollectFrames(t *testing.T) {
 	narrow.openCollect(narrow.pl.Current())
 	save(nt, "collect-narrow")
 }
+
+// 我的收藏 keeps the playlists of the site beside the Bilibili ones the
+// listener collected, and leaves out the ones they did not.
+func TestCollectedTabs(t *testing.T) {
+	a := editTestApp()
+	a.saved = []netease.Playlist{{ID: 20, Name: "飙升榜"}}
+	a.biliPlaylists = []biliPlaylist{
+		{ID: 900, Name: "收藏来的", Collected: true, Items: []biliItem{{Track: netease.Track{ID: 9, Name: "晴天"}}}},
+		{ID: 901, Name: "没收藏的"},
+	}
+	a.show(route{page: pageCollected})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("飙升榜"); !ok {
+		t.Fatal("the collected playlist of the site is not listed")
+	}
+	if err := tt.Click("哔哩哔哩歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("收藏来的"); !ok {
+		t.Fatal("the collected Bilibili playlist is not listed")
+	}
+	if _, ok := tt.Find("没收藏的"); ok {
+		t.Fatal("an uncollected Bilibili playlist is listed")
+	}
+}

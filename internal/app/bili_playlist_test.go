@@ -123,21 +123,33 @@ func TestCreateDraftKeepsTheVideoFirst(t *testing.T) {
 	}
 }
 
-// Collecting a playlist to the site needs songs found there and a listener
-// signed in, and says which is missing.
-func TestCollectBiliPlaylistSaysWhatIsMissing(t *testing.T) {
+// A playlist with nothing the site holds is collected here alone, and the
+// page says so; with songs and a listener signed in, it asks a name.
+func TestCollectBiliPlaylistKeepsItHere(t *testing.T) {
+	playlistFile(t)
 	a := newTestApp()
 	a.settings = defaultSettings()
-	a.collectBiliPlaylist(&biliPlaylist{ID: 1, Name: "只有音轨", Items: []biliItem{
+	pl := biliPlaylist{ID: 1, Name: "只有音轨", Items: []biliItem{
 		{Track: netease.Track{ID: -5, Name: "一首歌"}},
-	}})
-	if a.toast != "没有可以收藏到网易云的歌曲" {
+	}}
+	a.biliPlaylists = []biliPlaylist{pl}
+	a.collectBiliPlaylist(&a.biliPlaylists[0])
+	if !a.biliPlaylists[0].Collected || a.toast != "已收藏到本机；未登录，未同步到网易云" {
+		t.Fatalf("collected %v, toast %q", a.biliPlaylists[0].Collected, a.toast)
+	}
+
+	a.profile = &netease.Profile{UserID: 1}
+	a.collectBiliPlaylist(&a.biliPlaylists[0])
+	if a.toast != "已收藏到本机；没有可同步到网易云的歌曲" {
 		t.Fatalf("toast %q, want what is missing", a.toast)
 	}
-	a.collectBiliPlaylist(&biliPlaylist{ID: 2, Name: "有歌", Items: []biliItem{
-		{Track: netease.Track{ID: 9, Name: "晴天"}},
-	}})
-	if a.toast != "请先登录网易云" {
-		t.Fatalf("toast %q, want the sign-in asked for", a.toast)
+
+	a.biliPlaylists[0].Items = append(a.biliPlaylists[0].Items, biliItem{Track: netease.Track{ID: 9, Name: "晴天"}})
+	a.collectBiliPlaylist(&a.biliPlaylists[0])
+	if !a.biliCollect.open || a.biliCollect.name == "" {
+		t.Fatalf("dialog %+v, want a name asked for", a.biliCollect)
+	}
+	if len([]rune(a.biliCollect.name)) > biliCloudNameMost {
+		t.Fatalf("name %q, want it cut to the site's length", a.biliCollect.name)
 	}
 }

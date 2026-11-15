@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/egoist/mygo/ui"
@@ -38,25 +39,82 @@ func (a *app) loadCollected() {
 	}()
 }
 
-// collectedPage shows the collected albums as the albums' pages show
-// theirs: their covers in a grid, the name and the year under each.
+// collectedPage shows what the listener keeps: the albums collected, the
+// playlists of the site collected, and the Bilibili playlists kept here.
 func (a *app) collectedPage(c *ui.Context) {
 	if a.collectedErr == "" {
 		a.loadCollected()
 	}
+	sub := []string{"收藏的专辑", "收藏的歌单", "收藏的哔哩哔哩歌单"}[a.collectedTab]
 	a.scrollPage(c, func() {
-		a.heading(c, "我的收藏", "收藏的专辑")
-		switch {
-		case a.collectedErr != "":
-			a.centered(c, a.collectedErr, a.loadCollected)
-		case a.collectedLoaded && len(a.collected) == 0:
-			a.empty(c, "还没有收藏的专辑")
-		case len(a.collected) > 0:
-			a.albumGrid(c, a.collected)
+		a.heading(c, "我的收藏", sub)
+		segmented(c.Key("collected-kind"), &a.collectedTab, "专辑", "歌单", "哔哩哔哩歌单")
+		switch a.collectedTab {
+		case 1:
+			a.collectedPlaylists(c)
+		case 2:
+			a.collectedBiliPlaylists(c)
 		default:
-			s := a.pageShimmer(c)
-			cards := a.columns(c, 168)
-			a.playlistCardsSkeleton(c.Key("collected"), s, cards*2, 168, false)
+			switch {
+			case a.collectedErr != "":
+				a.centered(c, a.collectedErr, a.loadCollected)
+			case a.collectedLoaded && len(a.collected) == 0:
+				a.empty(c, "还没有收藏的专辑")
+			case len(a.collected) > 0:
+				a.albumGrid(c, a.collected)
+			default:
+				s := a.pageShimmer(c)
+				cards := a.columns(c, 168)
+				a.playlistCardsSkeleton(c.Key("collected"), s, cards*2, 168, false)
+			}
+		}
+	})
+}
+
+// collectedPlaylists lists the playlists of the site the listener keeps.
+func (a *app) collectedPlaylists(c *ui.Context) {
+	if len(a.saved) == 0 {
+		a.empty(c, "还没有收藏的歌单")
+		return
+	}
+	ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
+		for i := range a.saved {
+			a.playlistCard(c.Key(a.saved[i].ID), &a.saved[i])
+		}
+	})
+}
+
+// collectedBiliPlaylists lists the playlists made from videos and kept
+// among what the listener collects: they play here, with the videos' own
+// sound, which the site does not hold.
+func (a *app) collectedBiliPlaylists(c *ui.Context) {
+	var kept []*biliPlaylist
+	for i := range a.biliPlaylists {
+		if a.biliPlaylists[i].Collected {
+			kept = append(kept, &a.biliPlaylists[i])
+		}
+	}
+	if len(kept) == 0 {
+		a.empty(c, "还没有收藏的哔哩哔哩歌单")
+		return
+	}
+	ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
+		for _, pl := range kept {
+			pl := pl
+			cover := pl.Cover
+			if cover == "" && len(pl.Items) > 0 {
+				cover = pl.Items[0].Track.Album.PicURL
+			}
+			tracks := biliPlayTracks(pl)
+			sub := fmt.Sprintf("%d 首", len(pl.Items))
+			if play := func() {
+				if a.pl.Shuffle() {
+					a.pl.ToggleShuffle()
+				}
+				a.pl.PlayQueue(tracks, firstPlayable(tracks))
+			}; a.coverCard(c.Key(pl.ID), pl.Name, cover, 0, sub, play) {
+				a.open(route{page: pageBiliPlaylist, id: pl.ID})
+			}
 		}
 	})
 }

@@ -67,64 +67,79 @@ func TestArtistTabsKeepHeaderPosition(t *testing.T) {
 	}
 }
 
-// Each playlist header hides only its own rows without changing the page
-// or queue, and Enter restores their navigation.
+// The playlists of 我的歌单 hide when its header is clicked, and come back
+// with Enter, without changing the page or the queue.
 func TestSidebarPlaylistCollapse(t *testing.T) {
-	for _, tc := range []struct {
-		name, header, row, other string
-		playlist                 int64
-	}{
-		{"mine", "我的歌单", "睡前", "飙升榜", 11},
-		{"saved", "收藏的歌单", "飙升榜", "睡前", 20},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			a := editTestApp()
-			a.playlists[tc.playlist] = &netease.Playlist{ID: tc.playlist, Name: tc.row}
-			a.pl.Cue(a.playlists[10].Tracks)
-			before := a.route
-			tt := ui.NewTester(a.view, 1200, 800)
-			tt.Frame()
+	a := editTestApp()
+	a.playlists[11] = &netease.Playlist{ID: 11, Name: "睡前"}
+	a.pl.Cue(a.playlists[10].Tracks)
+	before := a.route
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
 
-			if err := tt.Click(tc.header); err != nil {
-				t.Fatal(err)
-			}
-			tt.Frame()
-			if _, ok := tt.Find(tc.row); ok {
-				t.Error("the collapsed section still builds its playlist rows")
-			}
-			if _, ok := tt.Find(tc.other); !ok {
-				t.Error("collapsing one section hid the other section's rows")
-			}
-			if a.route != before || len(a.pl.Queue()) != 2 || len(a.mine) != 3 || len(a.saved) != 1 {
-				t.Error("collapsing the section changed the page, queue or playlists")
-			}
+	if err := tt.Click("我的歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("睡前"); ok {
+		t.Error("the collapsed section still builds its rows")
+	}
+	if a.route != before || len(a.pl.Queue()) != 2 || len(a.mine) != 3 {
+		t.Error("collapsing the section changed the page, queue or playlists")
+	}
 
-			tt.Key(0, ui.KeyEnter)
-			tt.Frame()
-			if err := tt.Click(tc.row); err != nil {
-				t.Fatalf("the restored playlist cannot be opened: %v", err)
-			}
-			tt.Frame()
-			if a.route != (route{page: pagePlaylist, id: tc.playlist}) {
-				t.Errorf("opened %+v, want playlist %d", a.route, tc.playlist)
-			}
-		})
+	tt.Key(0, ui.KeyEnter)
+	tt.Frame()
+	if err := tt.Click("睡前"); err != nil {
+		t.Fatalf("the restored playlist cannot be opened: %v", err)
+	}
+	tt.Frame()
+	if a.route != (route{page: pagePlaylist, id: 11}) {
+		t.Errorf("opened %+v, want playlist 11", a.route)
 	}
 }
 
-// The plus still opens the naming dialog with both sections collapsed, without expanding either one.
+// 我的歌单 switches between the playlists of the site and the ones made
+// here.
+func TestSidebarSwitchesToBiliPlaylists(t *testing.T) {
+	a := editTestApp()
+	a.playlists[11] = &netease.Playlist{ID: 11, Name: "睡前"}
+	a.biliPlaylists = []biliPlaylist{{ID: 900, Name: "从视频来的", Mode: "songs"}}
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if _, ok := tt.Find("从视频来的"); ok {
+		t.Fatal("the Bilibili playlists show before the switch")
+	}
+	if err := tt.Click("看哔哩哔哩歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("从视频来的"); !ok {
+		t.Fatal("the Bilibili playlists did not show")
+	}
+	if _, ok := tt.Find("睡前"); ok {
+		t.Fatal("the site's playlists stayed beside them")
+	}
+	if err := tt.Click("看网易云歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("睡前"); !ok {
+		t.Fatal("the site's playlists did not come back")
+	}
+}
+
+// The plus still opens the naming dialog with the section collapsed, without expanding it.
 func TestNewPlaylistInCollapsedSidebar(t *testing.T) {
 	a := editTestApp()
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
-	for _, header := range []string{"我的歌单", "收藏的歌单"} {
-		if err := tt.Click(header); err != nil {
-			t.Fatal(err)
-		}
-		tt.Frame()
+	if err := tt.Click("我的歌单"); err != nil {
+		t.Fatal(err)
 	}
-	if !a.mineCollapsed || !a.savedCollapsed {
-		t.Fatal("the sections did not collapse independently")
+	tt.Frame()
+	if !a.mineCollapsed {
+		t.Fatal("the section did not collapse")
 	}
 	if err := tt.Click("新建歌单"); err != nil {
 		t.Fatal(err)
@@ -133,7 +148,7 @@ func TestNewPlaylistInCollapsedSidebar(t *testing.T) {
 	if !a.naming.open {
 		t.Error("the plus did not open the naming dialog")
 	}
-	if !a.mineCollapsed || !a.savedCollapsed {
-		t.Error("the plus also toggled a playlist section")
+	if !a.mineCollapsed {
+		t.Error("the plus also toggled the section")
 	}
 }
