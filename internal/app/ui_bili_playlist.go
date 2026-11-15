@@ -182,6 +182,10 @@ func (a *app) biliPlaylistPage(c *ui.Context) {
 	tracks := make([]netease.Track, len(pl.Items))
 	for i := range pl.Items {
 		tracks[i] = pl.Items[i].Track
+		if v := pl.Items[i].Video; v != nil {
+			// The page says whether the site has these songs, so it looks.
+			a.probeBiliSource(tracks[i].ID, *v)
+		}
 	}
 	a.trackRows(c, tracks, true, func(c *ui.Context) { a.biliPlaylistHeader(c, pl) })
 }

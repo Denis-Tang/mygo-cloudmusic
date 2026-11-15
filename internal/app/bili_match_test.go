@@ -78,3 +78,17 @@ func TestScoreKeepsRomanizedArtist(t *testing.T) {
 		t.Fatalf("score %d, want the title to carry it", got)
 	}
 }
+
+// The name beside a title confirms the artist only by the characters it is
+// written in: letters that also come up in another name do not.
+func TestScoreIgnoresLettersInArtist(t *testing.T) {
+	got := biliScore("夜 话 - 当山瞳 - 《Darling》", biliTrackOf("夜話 (City Lights) (Feat. TAEYONG of NCT)", "东方神起"))
+	if got >= 50 {
+		t.Fatalf("score %d, want the other artist to rule it out", got)
+	}
+	// The same title, with its artist on the track, is the song.
+	got = biliScore("Darling - 当山瞳", biliTrackOf("Darling (2023 Remaster)", "当山ひとみ"))
+	if got < 130 {
+		t.Fatalf("score %d, want the title and the artist to count", got)
+	}
+}

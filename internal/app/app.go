@@ -69,6 +69,7 @@ type app struct {
 	biliRemotes map[int64]player.Remote
 	biliQuery   string
 	biliShown   string // the query whose results the page lists
+	biliSources map[int64]biliSource
 	biliLoading bool
 	biliErr     string
 

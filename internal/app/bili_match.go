@@ -6,6 +6,9 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
+// biliSongSearch is the site's song search, which tests replace.
+var biliSongSearch = netease.Search
+
 // biliFind returns the NetEase track that best names the song a line of a
 // tracklist tells, or nil where nothing is close enough.
 func biliFind(raw string) *netease.Track {
@@ -35,7 +38,7 @@ func biliFind(raw string) *netease.Track {
 
 // biliBestOf searches one query and keeps the track that scores highest.
 func biliBestOf(raw, q string, best *netease.Track, bestScore int) (*netease.Track, int) {
-	hits, err := netease.Search(q, 8)
+	hits, err := biliSongSearch(q, 8)
 	if err != nil {
 		return best, bestScore
 	}
@@ -194,14 +197,19 @@ func biliNamed(name string, t *netease.Track) bool {
 		}
 		return false
 	}
+	// Only the characters the name is written in count: letters that
+	// happen to come up in another name say nothing.
 	common, total := 0, 0
-	for _, r := range []rune(n) {
+	for _, r := range n {
+		if !biliIsCJK(r) {
+			continue
+		}
 		total++
 		if strings.ContainsRune(hay, r) {
 			common++
 		}
 	}
-	return total > 0 && common*10 >= total*6
+	return total >= 2 && common*10 >= total*6
 }
 
 // biliHasCJK reports whether a name is written in Chinese or Japanese
@@ -293,4 +301,10 @@ func biliCommonWord(w string) bool {
 		return true
 	}
 	return false
+}
+
+// biliIsCJK reports whether a rune is written in Chinese or Japanese
+// characters.
+func biliIsCJK(r rune) bool {
+	return (r >= 0x4e00 && r <= 0x9fff) || (r >= 0x3040 && r <= 0x30ff)
 }

@@ -399,9 +399,15 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 					}
 					a.artistLinks(c, tr, p.muted, p.text).FontSize(15).SingleLine().Shrink(1).MinWidth(0)
 					if tr.ID < 0 {
-						// A video of Bilibili's stands where the site has no
-						// source for the song.
-						ui.Text(c, "网易云无音源").FontSize(12).FontWeight(600).TextColor(p.faint).Padding(1, 6).Radius(radiusPill).Background(p.faint.Alpha(0.12)).SingleLine()
+						// A video of Bilibili's: the site was asked what it
+						// has for the song, and the page says what it said.
+						if src := a.biliSourceOf(tr.ID); src.done {
+							label, ink := "网易云无音源", p.faint
+							if src.track != nil {
+								label, ink = "网易云有音源", p.muted
+							}
+							ui.Text(c, label).FontSize(12).FontWeight(600).TextColor(ink).Padding(1, 6).Radius(radiusPill).Background(ink.Alpha(0.12)).SingleLine()
+						}
 					}
 					if tr.Reason != "" {
 						ui.Text(c, tr.Reason).FontSize(12).FontWeight(600).TextColor(p.accent).Padding(1, 6).Radius(radiusPill).Background(p.accent.Alpha(0.1)).SingleLine()

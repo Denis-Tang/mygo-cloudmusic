@@ -90,3 +90,26 @@ func TestBiliSamplesLive(t *testing.T) {
 	}
 	t.Logf("TOTAL extracted=%d matched=%d", totalGot, totalMatch)
 }
+
+// A music video's title names the song the site has, so the pages can say
+// the site has a source for it rather than guess.
+func TestBiliProbeLive(t *testing.T) {
+	if os.Getenv("LIVE") == "" {
+		t.Skip("LIVE=1 to call NetEase")
+	}
+	for _, c := range []struct{ title, want string }{
+		{"夜 话｜当山瞳 - 《Darling》 1985", "Darling"},
+		{"太超越时代了｜大橋純子 - 《I LOVE YOU SO》 1984", "I LOVE YOU SO"},
+		{"慵懒公路情歌｜杏里 - 《MORNING HIGHWAY》1984", "MORNING HIGHWAY"},
+	} {
+		got := biliFind(biliProbeQuery(c.title))
+		if got == nil {
+			t.Errorf("%q, want the song the site has", c.title)
+			continue
+		}
+		a, b := biliNorm(got.Name), biliNorm(c.want)
+		if !strings.Contains(a, b) && !strings.Contains(b, a) {
+			t.Errorf("%q found %q · %s, want %q", c.title, got.Name, got.ArtistNames(), c.want)
+		}
+	}
+}

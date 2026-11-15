@@ -97,7 +97,9 @@ func (a *app) loadBili(query string) {
 			}
 			a.biliTracks = a.biliTracks[:0]
 			for _, v := range videos {
-				a.biliTracks = append(a.biliTracks, a.biliTrack(v))
+				tr := a.biliTrack(v)
+				a.biliTracks = append(a.biliTracks, tr)
+				a.probeBiliSource(tr.ID, v)
 			}
 			a.biliErr = ""
 			a.redraw()
@@ -117,6 +119,63 @@ func biliMessage(err error) string {
 		return err.Error()
 	}
 	return ""
+}
+
+// A biliSource is what NetEase has for the song a video names: it is
+// looked for once the video is shown, so a page can say whether it is
+// there instead of guessing.
+type biliSource struct {
+	done  bool
+	track *netease.Track
+}
+
+// probeBiliSource looks the song a video's title names up on NetEase, once
+// per video.
+func (a *app) probeBiliSource(id int64, v bilibili.Video) {
+	if a.biliSources == nil {
+		a.biliSources = map[int64]biliSource{}
+	}
+	if _, ok := a.biliSources[id]; ok {
+		return
+	}
+	a.biliSources[id] = biliSource{}
+	go func() {
+		defer diag.Recover("bili-source")
+		t := biliFind(biliProbeQuery(v.Title))
+		name := ""
+		if t != nil {
+			name = t.Name + " · " + t.ArtistNames()
+		}
+		diag.Logf("bili source %d (%s): %q", id, v.Bvid, name)
+		a.post(func() {
+			a.biliSources[id] = biliSource{done: true, track: t}
+		})
+	}()
+}
+
+// biliProbeQuery is the words a video's title gives to look its song up
+// by: the title in book quotes with the name beside it, or the title.
+func biliProbeQuery(title string) string {
+	title = strings.TrimSpace(title)
+	if m := biliQuoteRe.FindStringSubmatch(title); m != nil {
+		name := biliClean(m[1])
+		before := strings.TrimSpace(title[:strings.Index(title, m[0])])
+		if i := strings.LastIndexAny(before, "｜|"); i >= 0 {
+			before = before[i+len("｜"):]
+		}
+		before = strings.TrimSpace(strings.TrimRight(before, "-–—:： "))
+		if before != "" {
+			return name + " - " + before
+		}
+		return name
+	}
+	return biliClean(title)
+}
+
+// biliSourceOf is what the site has for a video's song, when it has been
+// looked for.
+func (a *app) biliSourceOf(id int64) biliSource {
+	return a.biliSources[id]
 }
 
 // biliPill is a small rounded choice, lit when it is the one chosen.
