@@ -122,3 +122,22 @@ func TestCreateDraftKeepsTheVideoFirst(t *testing.T) {
 		t.Fatalf("second %+v, want the matched song", pl.Items[1])
 	}
 }
+
+// Collecting a playlist to the site needs songs found there and a listener
+// signed in, and says which is missing.
+func TestCollectBiliPlaylistSaysWhatIsMissing(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.collectBiliPlaylist(&biliPlaylist{ID: 1, Name: "只有音轨", Items: []biliItem{
+		{Track: netease.Track{ID: -5, Name: "一首歌"}},
+	}})
+	if a.toast != "没有可以收藏到网易云的歌曲" {
+		t.Fatalf("toast %q, want what is missing", a.toast)
+	}
+	a.collectBiliPlaylist(&biliPlaylist{ID: 2, Name: "有歌", Items: []biliItem{
+		{Track: netease.Track{ID: 9, Name: "晴天"}},
+	}})
+	if a.toast != "请先登录网易云" {
+		t.Fatalf("toast %q, want the sign-in asked for", a.toast)
+	}
+}

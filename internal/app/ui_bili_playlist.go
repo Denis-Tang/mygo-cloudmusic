@@ -22,8 +22,10 @@ type biliPlaylist struct {
 	ID      int64      `json:"id"`
 	Name    string     `json:"name"`
 	Origin  string     `json:"origin,omitempty"` // the video's page
+	Cover   string     `json:"cover,omitempty"`  // the video's cover
 	Mode    string     `json:"mode"`             // tracks, songs or slices
 	Created int64      `json:"created"`
+	Cloud   int64      `json:"cloudID,omitempty"` // the site's playlist it went to
 	Items   []biliItem `json:"items"`
 }
 
@@ -190,14 +192,16 @@ func (a *app) biliPlaylistPage(c *ui.Context) {
 	a.trackRows(c, tracks, true, func(c *ui.Context) { a.biliPlaylistHeader(c, pl) })
 }
 
-// biliPlaylistHeader is the page's head: the cover, the name, what it
-// holds, and what may be done with it.
+// biliPlaylistHeader is the page's head: the video's cover, the name,
+// what it holds, and what may be done with it.
 func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 	p := a.pal
-	cover := ""
-	if len(pl.Items) > 0 {
+	cover := pl.Cover
+	if cover == "" && len(pl.Items) > 0 {
+		// A playlist kept before covers were: the first song's stands in.
 		cover = pl.Items[0].Track.Album.PicURL
 	}
+	tracks := biliPlayTracks(pl)
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 			a.coverFill(c, cover, 600, radiusCard)
@@ -206,11 +210,25 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 			ui.Text(c, "本机歌单 · 哔哩哔哩").FontSize(headSub).FontWeight(600).TextColor(p.accent)
 			ui.Text(c, pl.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 			ui.Text(c, fmt.Sprintf("%d 首", len(pl.Items))).FontSize(15).TextColor(p.muted)
-			ui.Row(c).Gap(8).Margin(6, 0, 0, 0).Children(func() {
-				if pl.Origin != "" {
-					if pillButton(c.Key("bili-origin"), iconLink, "打开视频页", p.hover.Over(p.bg), p.text).Clicked() {
-						mygo.Shell.OpenExternal(pl.Origin)
+			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
+				if pillButton(c.Key("bili-play"), iconPlay, "播放", p.accent, p.onAccent).Clicked() {
+					if a.pl.Shuffle() {
+						a.pl.ToggleShuffle()
 					}
+					a.pl.PlayQueue(tracks, firstPlayable(tracks))
+				}
+				icon, label := iconCollect, "收藏"
+				if pl.Cloud != 0 {
+					icon, label = iconCheck, "已收藏到网易云"
+				}
+				if pillButton(c.Key("bili-collect"), icon, label, p.hover.Over(p.bg), p.text).Clicked() {
+					a.collectBiliPlaylist(pl)
+				}
+				if pillButton(c.Key("bili-shuffle"), iconShuffle, "随机播放", p.hover.Over(p.bg), p.text).Clicked() {
+					if !a.pl.Shuffle() {
+						a.pl.ToggleShuffle()
+					}
+					a.pl.PlayQueue(tracks, firstPlayable(tracks))
 				}
 				if v := biliPlaylistVideo(pl); v != nil {
 					if pillButton(c.Key("bili-rebuild"), iconReload, "重新生成", p.hover.Over(p.bg), p.text).Clicked() {
@@ -373,4 +391,65 @@ func biliPlaylistVideo(pl *biliPlaylist) *bilibili.Video {
 		}
 	}
 	return nil
+}
+
+// biliPlayTracks is what a playlist holds, as the player lists it.
+func biliPlayTracks(pl *biliPlaylist) []netease.Track {
+	tracks := make([]netease.Track, len(pl.Items))
+	for i := range pl.Items {
+		tracks[i] = pl.Items[i].Track
+	}
+	return tracks
+}
+
+// collectBiliPlaylist makes a playlist of the songs found on the site, so
+// the listener keeps them there rather than only on this machine.
+func (a *app) collectBiliPlaylist(pl *biliPlaylist) {
+	if pl.Cloud != 0 {
+		a.toast = "已经收藏到网易云"
+		a.redraw()
+		return
+	}
+	var ids []int64
+	for _, it := range pl.Items {
+		if it.Track.ID > 0 {
+			ids = append(ids, it.Track.ID)
+		}
+	}
+	switch {
+	case len(ids) == 0:
+		a.toast = "没有可以收藏到网易云的歌曲"
+		a.redraw()
+		return
+	case a.profile == nil:
+		a.toast = "请先登录网易云"
+		a.redraw()
+		return
+	}
+	a.toast = "正在收藏到网易云…"
+	a.redraw()
+	name := pl.Name
+	go func() {
+		defer diag.Recover("bili-collect")
+		made, err := netease.CreatePlaylist(name)
+		if err == nil {
+			err = netease.AddToPlaylist(made.ID, ids...)
+		}
+		a.post(func() {
+			if err != nil {
+				diag.Errorf("bili collect %q: %v", name, err)
+				a.toast = "收藏失败，请稍后再试"
+				a.redraw()
+				return
+			}
+			for i := range a.biliPlaylists {
+				if a.biliPlaylists[i].ID == pl.ID {
+					a.biliPlaylists[i].Cloud = made.ID
+				}
+			}
+			a.saveBiliPlaylists()
+			a.toast = "已收藏到网易云"
+			a.redraw()
+		})
+	}()
 }

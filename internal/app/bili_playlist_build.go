@@ -127,6 +127,7 @@ func (a *app) makeBiliPlaylist(v bilibili.Video, cands []biliCand, ai bool) bili
 		ID:      time.Now().UnixNano(),
 		Name:    strings.TrimSpace(v.Title),
 		Origin:  v.URL(),
+		Cover:   v.Cover,
 		Mode:    "songs",
 		Created: time.Now().Unix(),
 	}
