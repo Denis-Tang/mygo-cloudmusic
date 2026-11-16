@@ -19,7 +19,7 @@ type dragRow struct {
 
 // dragHold is how long a row is held before it may be dragged, so that a
 // press stays a click. Tests take it to zero.
-var dragHold = 400 * time.Millisecond
+var dragHold = 200 * time.Millisecond
 
 // rowPitch is a sidebar row's height and the gap after it, which a dragged
 // row moves by.

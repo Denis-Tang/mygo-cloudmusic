@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/egoist/mygo/ui"
+
 	"netease-music-mygo/internal/bilibili"
 	"netease-music-mygo/internal/netease"
 )
@@ -116,5 +118,46 @@ func TestRemovingAnAddedSongLeavesTheSiteAlone(t *testing.T) {
 	}
 	if a.toast != "已从歌单移除" {
 		t.Fatalf("toast %q", a.toast)
+	}
+}
+
+// A video's row in a Bilibili playlist offers itself to a playlist, and a
+// site playlist takes it after its own songs.
+func TestVideoRowGoesIntoASitePlaylist(t *testing.T) {
+	playlistFile(t)
+	localAddsFileAt(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "一首歌", Up: "UP主", Duration: 180000}
+	bili := a.makeBiliPlaylist(v, nil, false)
+	bili.Collected = true
+	a.biliPlaylists = []biliPlaylist{bili}
+	site := netease.Playlist{ID: 7, Name: "睡前", Tracks: []netease.Track{{ID: 1, Name: "云端一"}}}
+	a.mine = []netease.Playlist{site}
+	a.playlists[7] = &netease.Playlist{ID: 7, Name: "睡前", Tracks: []netease.Track{{ID: 1, Name: "云端一"}}}
+	a.show(route{page: pageBiliPlaylist, id: bili.ID})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("歌曲操作：一首歌"); err != nil {
+		t.Fatalf("no menu for the video: %v", err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("添加到歌单"); !ok {
+		t.Fatal("a video's row offers no way into a playlist")
+	}
+	if err := tt.Click("添加到歌单"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("添加到 睡前"); err != nil {
+		t.Fatalf("the site playlist is not offered: %v", err)
+	}
+	tt.Frame()
+	got := a.playlists[7].Tracks
+	if len(got) != 2 || got[1].Name != "一首歌" {
+		t.Fatalf("tracks %+v, want the video after the site's song", got)
+	}
+	if len(a.localAdds[7]) != 1 || a.localAdds[7][0].Video == nil {
+		t.Fatalf("adds %+v, want the video kept with what plays it", a.localAdds[7])
 	}
 }
