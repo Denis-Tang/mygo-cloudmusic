@@ -162,7 +162,8 @@ func (a *app) nowPlayingView(c *ui.Context, open, settled bool) {
 // it goes to the bar's own box, so it stays over the page's words to the
 // end.
 func (a *app) npHero(c *ui.Context, tr *netease.Track, art *artwork, open, settled bool) {
-	sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, 1536), false))
+	w, h := c.Size()
+	sharp := bitmap(a.art.get(netease.Sized(tr.Album.PicURL, npSharpSize(w, h)), false))
 	if sharp == nil {
 		sharp = bitmap(art)
 	}
@@ -189,6 +190,13 @@ func (a *app) npHero(c *ui.Context, tr *netease.Track, art *artwork, open, settl
 		}
 		blendShader().Draw(p, r, shader.Options{Images: [4]*ui.Bitmap{sharp, soft}})
 	})
+}
+
+// npSharpSize is how large the playing page's cover is asked for: the
+// window's longer side, within what the image CDNs serve, so the picture
+// fills the page with no more scaling up than it takes.
+func npSharpSize(w, h float32) int {
+	return min(max(int(max(w, h)), 1200), 2560)
 }
 
 // npCoverOrigin is where the bar's cover sits in the window, which the

@@ -158,6 +158,8 @@ func (a *app) viewBody(c *ui.Context) {
 	a.biliDeleteDialog(c)
 	a.biliDraftDialog(c)
 	a.biliCollectDialog(c)
+	a.biliLoginDialog(c)
+	a.biliImportDialog(c)
 	a.deletePlaylistDialog(c)
 	a.settingsDialog(c)
 	a.windowControls(c)
@@ -701,9 +703,10 @@ func (a *app) mineSidebar(c *ui.Context) {
 		}
 	})
 	if a.mineSrc == mineBili {
-		a.sideGroup(c, "哔哩哔哩歌单", len(a.biliPlaylists), &a.biliPLCollapsed, nil)
+		kept := a.biliKept()
+		a.sideGroup(c, "哔哩哔哩歌单", len(kept), &a.biliPLCollapsed, nil)
 		if !a.biliPLCollapsed {
-			a.biliPlaylistRows(c)
+			a.biliPlaylistRows(c, kept)
 		}
 		return
 	}

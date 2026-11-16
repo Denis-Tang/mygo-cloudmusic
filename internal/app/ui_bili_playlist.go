@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -16,28 +17,46 @@ import (
 	"netease-music-mygo/internal/netease"
 )
 
+// biliIDSeq counts the playlists made, so that two made in a moment do not
+// share an ID, which the sidebar keys its rows by.
+var biliIDSeq atomic.Int64
+
+// biliNewID is a new playlist's ID, later than the one before it.
+func biliNewID() int64 {
+	for {
+		last := biliIDSeq.Load()
+		id := max(time.Now().UnixNano(), last+1)
+		if biliIDSeq.CompareAndSwap(last, id) {
+			return id
+		}
+	}
+}
+
 // A biliPlaylist is a playlist kept on this machine: the videos, or later
 // the songs, a video's page was turned into.
 type biliPlaylist struct {
-	ID      int64      `json:"id"`
-	Name    string     `json:"name"`
-	Origin  string     `json:"origin,omitempty"` // the video's page
-	Cover   string     `json:"cover,omitempty"`  // the video's cover
-	Mode    string     `json:"mode"`             // tracks, songs or slices
-	Created int64      `json:"created"`
-	Cloud   int64      `json:"cloudID,omitempty"` // the site's playlist it went to
+	ID      int64  `json:"id"`
+	Name    string `json:"name"`
+	Origin  string `json:"origin,omitempty"` // the video's page
+	Cover   string `json:"cover,omitempty"`  // the video's cover
+	Mode    string `json:"mode"`             // tracks, songs or slices
+	Created int64  `json:"created"`
+	Cloud   int64  `json:"cloudID,omitempty"` // the site's playlist it went to
 	// Collected says the listener keeps it among what they collect, which
 	// stays on this machine: the site only holds the songs found.
 	Collected bool `json:"collected,omitempty"`
-	Items   []biliItem `json:"items"`
+	// Remote is the Bilibili collection this playlist was imported from, so
+	// that importing it again updates it rather than adds another.
+	Remote int64      `json:"remoteID,omitempty"`
+	Items  []biliItem `json:"items"`
 }
 
 // A biliItem is one row of such a playlist: a track, and the video it
 // came from, if any.
 type biliItem struct {
-	Track netease.Track     `json:"track"`
-	Video *bilibili.Video   `json:"video,omitempty"`
-	Start int64             `json:"startMs,omitempty"` // for a slice
+	Track netease.Track   `json:"track"`
+	Video *bilibili.Video `json:"video,omitempty"`
+	Start int64           `json:"startMs,omitempty"` // for a slice
 }
 
 // biliPlaylistsFile is where the playlists are kept.
@@ -92,39 +111,41 @@ func (a *app) saveBiliPlaylists() {
 	}
 }
 
-// biliPlaylist finds a playlist by ID.
+// biliPlaylist finds a playlist by ID, kept or a preview of a video.
 func (a *app) biliPlaylist(id int64) *biliPlaylist {
 	for i := range a.biliPlaylists {
 		if a.biliPlaylists[i].ID == id {
 			return &a.biliPlaylists[i]
 		}
 	}
+	if p := a.biliPreview; p != nil && p.ID == id {
+		return p
+	}
 	return nil
 }
 
-// addBiliPlaylist makes a playlist of one video, with the name given.
-func (a *app) addBiliPlaylist(name string, v *bilibili.Video) *biliPlaylist {
-	pl := biliPlaylist{
-		ID:      time.Now().UnixNano(),
-		Name:    strings.TrimSpace(name),
-		Mode:    "tracks",
-		Created: time.Now().Unix(),
+// keepBiliPlaylist puts a preview among the playlists kept, where it was
+// collected; a playlist kept already is returned as it is.
+func (a *app) keepBiliPlaylist(pl *biliPlaylist) *biliPlaylist {
+	if pl == nil || pl != a.biliPreview {
+		return pl
 	}
-	if pl.Name == "" {
-		pl.Name = "未命名歌单"
-	}
-	if v != nil {
-		pl.Origin = v.URL()
-		pl.Items = append(pl.Items, biliItem{Track: a.biliTrack(*v), Video: v})
-	}
-	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
+	kept := *pl
+	a.biliPreview = nil
+	a.biliPlaylists = append([]biliPlaylist{kept}, a.biliPlaylists...)
 	a.saveBiliPlaylists()
-	diag.Logf("bili playlist %q with %d", pl.Name, len(pl.Items))
 	return &a.biliPlaylists[0]
 }
 
 // deleteBiliPlaylist drops one, which cannot be undone.
 func (a *app) deleteBiliPlaylist(id int64) {
+	if p := a.biliPreview; p != nil && p.ID == id {
+		a.biliPreview = nil
+		if a.route.page == pageBiliPlaylist && a.route.id == id {
+			a.back()
+		}
+		return
+	}
 	kept := a.biliPlaylists[:0]
 	for _, pl := range a.biliPlaylists {
 		if pl.ID != id {
@@ -150,34 +171,25 @@ func (a *app) renameBiliPlaylist(id int64, name string) {
 	}
 }
 
-// openBiliNaming asks for the name of a playlist: a new one of video v, or
-// the one being renamed when v is nil.
-func (a *app) openBiliNaming(v *bilibili.Video, id int64, name string) {
-	a.biliNaming = biliNaming{open: true, name: name, video: v, playlist: id}
+// openBiliRename asks for the name a playlist takes here.
+func (a *app) openBiliRename(id int64, name string) {
+	a.biliNaming = biliNaming{open: true, name: name, playlist: id}
 }
 
-// submitBiliNaming makes or renames the playlist the dialog asked about.
+// submitBiliNaming renames the playlist the dialog asked about.
 func (a *app) submitBiliNaming() {
 	d := &a.biliNaming
 	name := strings.TrimSpace(d.name)
-	if name == "" || d.busy {
+	if name == "" || d.busy || d.playlist == 0 {
 		return
 	}
-	if d.playlist != 0 {
-		a.renameBiliPlaylist(d.playlist, name)
-		d.open = false
-		a.redraw()
-		return
-	}
-	pl := a.addBiliPlaylist(name, d.video)
+	a.renameBiliPlaylist(d.playlist, name)
 	d.open = false
 	a.redraw()
-	if pl != nil {
-		a.open(route{page: pageBiliPlaylist, id: pl.ID})
-	}
 }
 
-// biliPlaylistPage lists a playlist kept on this machine.
+// biliPlaylistPage lists a playlist kept on this machine, or a preview of
+// a video not collected yet.
 func (a *app) biliPlaylistPage(c *ui.Context) {
 	pl := a.biliPlaylist(a.route.id)
 	if pl == nil {
@@ -185,10 +197,14 @@ func (a *app) biliPlaylistPage(c *ui.Context) {
 		return
 	}
 	tracks := make([]netease.Track, len(pl.Items))
+	// A collection imported from an account may hold hundreds of videos:
+	// the site is not asked about each of them, which would be as many
+	// searches as it has rows. A playlist made from one video asks, as the
+	// page says what the site has for its songs.
+	look := pl.Remote == 0
 	for i := range pl.Items {
 		tracks[i] = pl.Items[i].Track
-		if v := pl.Items[i].Video; v != nil {
-			// The page says whether the site has these songs, so it looks.
+		if v := pl.Items[i].Video; v != nil && look {
 			a.probeBiliSource(tracks[i].ID, *v)
 		}
 	}
@@ -207,10 +223,14 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 	tracks := biliPlayTracks(pl)
 	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
-			a.coverFill(c, cover, 600, radiusCard)
+			a.coverFill(c, cover, 1200, radiusCard)
 		})
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
-			ui.Text(c, "本机歌单 · 哔哩哔哩").FontSize(headSub).FontWeight(600).TextColor(p.accent)
+			kind := "本机歌单 · 哔哩哔哩"
+			if pl == a.biliPreview {
+				kind = "临时预览 · 哔哩哔哩"
+			}
+			ui.Text(c, kind).FontSize(headSub).FontWeight(600).TextColor(p.accent)
 			ui.Text(c, pl.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 			ui.Text(c, fmt.Sprintf("%d 首", len(pl.Items))).FontSize(15).TextColor(p.muted)
 			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
@@ -236,14 +256,15 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 					}
 					a.pl.PlayQueue(tracks, firstPlayable(tracks))
 				}
-				if v := biliPlaylistVideo(pl); v != nil {
+				// Only a playlist a video made is made again; one imported
+				// from a collection of videos is that collection.
+				if v := biliPlaylistVideo(pl); v != nil && pl.Origin != "" {
 					if pillButton(c.Key("bili-rebuild"), iconReload, "重新生成", p.hover.Over(p.bg), p.text).Clicked() {
-						a.deleteBiliPlaylist(pl.ID)
-						a.openBiliVideo(*v, false)
+						a.rebuildBiliPlaylist(pl, *v)
 					}
 				}
 				if pillButton(c.Key("bili-rename"), iconPencil, "重命名", p.hover.Over(p.bg), p.text).Clicked() {
-					a.openBiliNaming(nil, pl.ID, pl.Name)
+					a.openBiliRename(pl.ID, pl.Name)
 				}
 				if pillButton(c.Key("bili-delete"), iconTrash, "删除", p.hover.Over(p.bg), p.text).Clicked() {
 					a.biliDeleting = biliDeleting{open: true, playlist: pl.ID, name: pl.Name}
@@ -253,12 +274,23 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 	})
 }
 
+// rebuildBiliPlaylist drops what the page shows and makes it again from
+// the video: a preview goes without leaving anything behind.
+func (a *app) rebuildBiliPlaylist(pl *biliPlaylist, v bilibili.Video) {
+	if pl == a.biliPreview {
+		a.biliPreview = nil
+		a.openBiliVideo(v, false)
+		return
+	}
+	a.deleteBiliPlaylist(pl.ID)
+	a.openBiliVideo(v, false)
+}
+
 // biliNaming is the dialog that asks a playlist's name.
 type biliNaming struct {
 	open     bool
 	name     string
 	playlist int64
-	video    *bilibili.Video
 	busy     bool
 }
 
@@ -269,7 +301,7 @@ type biliDeleting struct {
 	name     string
 }
 
-// biliNameDialog asks for a playlist's name.
+// biliNameDialog asks for the name a playlist takes here.
 func (a *app) biliNameDialog(c *ui.Context) {
 	p := a.pal
 	d := &a.biliNaming
@@ -278,14 +310,7 @@ func (a *app) biliNameDialog(c *ui.Context) {
 		panel.Width(380).Padding(24).Radius(radiusPanel).Gap(16).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		title, action := "收藏为歌单", "创建"
-		if d.playlist != 0 {
-			title, action = "重命名歌单", "保存"
-		}
-		ui.Text(c, title).FontSize(17).FontWeight(700)
-		if d.video != nil {
-			ui.Text(c, "把《"+d.video.Title+"》存成一个本机歌单。").FontSize(14).TextColor(p.muted).LineHeight(1.45)
-		}
+		ui.Text(c, "重命名歌单").FontSize(17).FontWeight(700)
 		in := ui.TextInput(c.Key("bili-name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(17).Radius(radiusField).AutoFocus()
 		if in.Submitted() {
 			a.submitBiliNaming()
@@ -295,7 +320,7 @@ func (a *app) biliNameDialog(c *ui.Context) {
 				d.open = false
 			}
 			fill, ink := p.accent, p.onAccent
-			ok := pillButton(c.Key("ok"), nil, action, fill, ink)
+			ok := pillButton(c.Key("ok"), nil, "保存", fill, ink)
 			if strings.TrimSpace(d.name) == "" {
 				ok.Disabled(true)
 			}
@@ -330,12 +355,41 @@ func (a *app) biliDeleteDialog(c *ui.Context) {
 	})
 }
 
-// biliPlaylistRows lists the playlists kept on this machine, the last made
-// first.
-func (a *app) biliPlaylistRows(c *ui.Context) {
-	p := a.pal
+// biliKept are the playlists kept among what the listener collects:
+// collected here or imported from the account. A playlist an older
+// version kept on merely opening a video is left out, where it stays in
+// the store alone.
+func (a *app) biliKept() []*biliPlaylist {
+	out := make([]*biliPlaylist, 0, len(a.biliPlaylists))
 	for i := range a.biliPlaylists {
 		pl := &a.biliPlaylists[i]
+		if pl.Collected || pl.Cloud != 0 || pl.Remote != 0 {
+			out = append(out, pl)
+		}
+	}
+	return out
+}
+
+// biliPlaylistRows lists the playlists kept on this machine: the
+// collections imported from an account first, then the ones collected here.
+func (a *app) biliPlaylistRows(c *ui.Context, kept []*biliPlaylist) {
+	var imported, collected []*biliPlaylist
+	for _, pl := range kept {
+		if pl.Remote != 0 {
+			imported = append(imported, pl)
+		} else {
+			collected = append(collected, pl)
+		}
+	}
+	a.biliPlaylistGroup(c, imported, true)
+	a.biliPlaylistGroup(c, collected, false)
+}
+
+// biliPlaylistGroup lists one group of them, each a row that may be held
+// and dragged among the group.
+func (a *app) biliPlaylistGroup(c *ui.Context, lists []*biliPlaylist, imported bool) {
+	p := a.pal
+	for i, pl := range lists {
 		selected := a.route.page == pageBiliPlaylist && a.route.id == pl.ID && !a.nowPlaying
 		b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
 		pb := ui.Transparent
@@ -354,6 +408,11 @@ func (a *app) biliPlaylistRows(c *ui.Context) {
 			a.cover(c, cover, 80, 28, radiusTile-1)
 			ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		})
+		st := ui.Local(b, "drag", func() dragRow { return dragRow{} })
+		if st.off.Y != 0 {
+			b.Shadow(0, 10, 24, -6, p.cardShade)
+		}
+		a.dragRowOf(b, i, len(lists), st, func(steps int) { a.moveBiliPlaylist(pl.ID, steps, imported) })
 		if b.Clicked() {
 			a.open(route{page: pageBiliPlaylist, id: pl.ID})
 		}
@@ -406,25 +465,49 @@ func biliCloudName(name string) string {
 // biliCloudNameMost is the longest name the site takes for a playlist.
 const biliCloudNameMost = 40
 
-// collectBiliPlaylist keeps the playlist among what the listener collects:
-// on the site too where the songs found there may go, which takes a name.
-// The playlist itself stays here, with the videos' own sound.
+// collectBiliPlaylist keeps the playlist where the settings say: here, on
+// this machine, or on the site, which takes a name. A preview is kept
+// here first when it goes to the site, so nothing is lost if that fails.
 func (a *app) collectBiliPlaylist(pl *biliPlaylist) {
+	if pl == nil {
+		return
+	}
 	if pl.Cloud != 0 {
 		a.toast = "已经收藏到网易云"
 		a.redraw()
 		return
 	}
-	if a.profile != nil && len(biliSongIDs(pl)) > 0 {
+	if pl.Collected {
+		a.toast = "已经收藏到本机"
+		a.redraw()
+		return
+	}
+	if a.settings.CollectTo == collectCloud && a.profile != nil && len(biliSongIDs(pl)) > 0 {
 		a.biliCollect = biliCollecting{open: true, name: biliCloudName(pl.Name), playlist: pl.ID}
+		return
+	}
+	switch {
+	case a.settings.CollectTo != collectCloud:
+		a.collectBiliHere(pl, "")
+	case a.profile == nil:
+		a.collectBiliHere(pl, "未登录网易云")
+	default:
+		a.collectBiliHere(pl, "没有可同步到网易云的歌曲")
+	}
+}
+
+// collectBiliHere keeps the playlist among what the listener collects, on
+// this machine alone; why says what kept it from the site, if anything.
+func (a *app) collectBiliHere(pl *biliPlaylist, why string) {
+	pl = a.keepBiliPlaylist(pl)
+	if pl == nil {
 		return
 	}
 	pl.Collected = true
 	a.saveBiliPlaylists()
-	if a.profile == nil {
-		a.toast = "已收藏到本机；未登录，未同步到网易云"
-	} else {
-		a.toast = "已收藏到本机；没有可同步到网易云的歌曲"
+	a.toast = "已收藏到本机"
+	if why != "" {
+		a.toast += "；" + why
 	}
 	a.redraw()
 }
@@ -494,20 +577,19 @@ func (a *app) submitBiliCollect() {
 		}
 		a.post(func() {
 			d.busy = false
+			d.open = false
 			if err != nil {
 				diag.Errorf("bili collect %q: %v", name, err)
-				a.toast = "收藏失败：" + err.Error()
-				a.redraw()
+				// The site did not take it: the playlist stays here, so
+				// the listener keeps what they collected.
+				a.collectBiliHere(a.biliPlaylist(id), "网易云收藏失败")
 				return
 			}
-			for i := range a.biliPlaylists {
-				if a.biliPlaylists[i].ID == id {
-					a.biliPlaylists[i].Cloud = made.ID
-					a.biliPlaylists[i].Collected = true
-				}
+			if kept := a.keepBiliPlaylist(a.biliPlaylist(id)); kept != nil {
+				kept.Cloud = made.ID
+				kept.Collected = true
+				a.saveBiliPlaylists()
 			}
-			a.saveBiliPlaylists()
-			d.open = false
 			a.toast = "已收藏到网易云"
 			a.redraw()
 		})

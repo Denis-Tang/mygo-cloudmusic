@@ -129,7 +129,14 @@ func TestEpisodeLikeClickBeatsAnswer(t *testing.T) {
 func TestLikeEpisodeRow(t *testing.T) {
 	programsLiked = func([]int64) (map[int64]bool, error) { return nil, nil }
 	liked := make(chan int64, 4)
-	likeProgram = func(id int64, like bool) error { liked <- id; return nil }
+	// Another test's like may reach this one after its own test ended:
+	// only the episode this one presses is taken as its own.
+	likeProgram = func(id int64, like bool) error {
+		if id == 42 {
+			liked <- id
+		}
+		return nil
+	}
 	defer func() { programsLiked, likeProgram = netease.ProgramsLiked, netease.LikeProgram }()
 	a := catalogApp()
 	a.profile = &netease.Profile{UserID: 1}

@@ -2,6 +2,7 @@ package app
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -19,14 +20,17 @@ func playlistFile(t *testing.T) {
 	t.Cleanup(func() { biliPlaylistsFile = old })
 }
 
-// A video is kept as a playlist of this machine, apart from NetEase's,
-// and is renamed or deleted there.
+// A video collected as a playlist is kept here, apart from NetEase's, and
+// is renamed or deleted there.
 func TestBiliPlaylistKeepsAVideo(t *testing.T) {
 	playlistFile(t)
 	a := newTestApp()
 	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "一首歌", Up: "UP主", Duration: 180000, PubDate: 100}
-	pl := a.addBiliPlaylist("通勤", &v)
-	if pl == nil || len(pl.Items) != 1 || pl.Items[0].Track.Name != "一首歌" {
+	pl := a.makeBiliPlaylist(v, nil, false)
+	pl.Collected = true
+	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
+	a.saveBiliPlaylists()
+	if len(pl.Items) != 1 || pl.Items[0].Track.Name != "一首歌" {
 		t.Fatalf("playlist %+v", pl)
 	}
 	if pl.Origin == "" || pl.Mode != "tracks" {
@@ -57,7 +61,10 @@ func TestBiliPlaylistPage(t *testing.T) {
 	a := newTestApp()
 	a.settings = defaultSettings()
 	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "一首歌", Up: "UP主", Duration: 180000}
-	pl := a.addBiliPlaylist("通勤", &v)
+	pl := a.makeBiliPlaylist(v, nil, false)
+	pl.Name = "通勤"
+	pl.Collected = true
+	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
 	a.show(route{page: pageBiliPlaylist, id: pl.ID})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -85,7 +92,7 @@ func TestCreateDraftOfSongs(t *testing.T) {
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
-	if err := tt.Click("创建歌单"); err != nil {
+	if err := tt.Click("收藏"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
@@ -124,7 +131,7 @@ func TestCreateDraftKeepsTheVideoFirst(t *testing.T) {
 }
 
 // A playlist with nothing the site holds is collected here alone, and the
-// page says so; with songs and a listener signed in, it asks a name.
+// page says so, once.
 func TestCollectBiliPlaylistKeepsItHere(t *testing.T) {
 	playlistFile(t)
 	a := newTestApp()
@@ -134,22 +141,78 @@ func TestCollectBiliPlaylistKeepsItHere(t *testing.T) {
 	}}
 	a.biliPlaylists = []biliPlaylist{pl}
 	a.collectBiliPlaylist(&a.biliPlaylists[0])
-	if !a.biliPlaylists[0].Collected || a.toast != "已收藏到本机；未登录，未同步到网易云" {
+	if !a.biliPlaylists[0].Collected || a.toast != "已收藏到本机" {
 		t.Fatalf("collected %v, toast %q", a.biliPlaylists[0].Collected, a.toast)
 	}
-
-	a.profile = &netease.Profile{UserID: 1}
 	a.collectBiliPlaylist(&a.biliPlaylists[0])
-	if a.toast != "已收藏到本机；没有可同步到网易云的歌曲" {
-		t.Fatalf("toast %q, want what is missing", a.toast)
+	if a.toast != "已经收藏到本机" {
+		t.Fatalf("toast %q, want it said twice", a.toast)
 	}
+}
 
-	a.biliPlaylists[0].Items = append(a.biliPlaylists[0].Items, biliItem{Track: netease.Track{ID: 9, Name: "晴天"}})
+// Collecting where the site is chosen and no one is signed in keeps the
+// playlist here, and says what the site was missing.
+func TestCollectBiliPlaylistFallsBackHere(t *testing.T) {
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.settings.CollectTo = collectCloud
+	pl := biliPlaylist{ID: 1, Name: "有歌", Items: []biliItem{
+		{Track: netease.Track{ID: 9, Name: "晴天"}},
+	}}
+	a.biliPlaylists = []biliPlaylist{pl}
+	a.collectBiliPlaylist(&a.biliPlaylists[0])
+	if a.biliCollect.open || !a.biliPlaylists[0].Collected {
+		t.Fatalf("dialog %+v, collected %v, want it kept here", a.biliCollect, a.biliPlaylists[0].Collected)
+	}
+	if a.toast != "已收藏到本机；未登录网易云" {
+		t.Fatalf("toast %q, want the reason", a.toast)
+	}
+}
+
+// Collecting where the site is chosen, signed in and with songs, asks for
+// a name the site takes, cut to its length.
+func TestCollectBiliPlaylistAsksTheSiteForAName(t *testing.T) {
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.settings.CollectTo = collectCloud
+	a.profile = &netease.Profile{UserID: 1}
+	long := strings.Repeat("长", biliCloudNameMost+12)
+	pl := biliPlaylist{ID: 1, Name: long, Items: []biliItem{
+		{Track: netease.Track{ID: 9, Name: "晴天"}},
+	}}
+	a.biliPlaylists = []biliPlaylist{pl}
 	a.collectBiliPlaylist(&a.biliPlaylists[0])
 	if !a.biliCollect.open || a.biliCollect.name == "" {
 		t.Fatalf("dialog %+v, want a name asked for", a.biliCollect)
 	}
-	if len([]rune(a.biliCollect.name)) > biliCloudNameMost {
-		t.Fatalf("name %q, want it cut to the site's length", a.biliCollect.name)
+	if n := len([]rune(a.biliCollect.name)); n != biliCloudNameMost {
+		t.Fatalf("name %q is %d runes, want it cut to the site's %d", a.biliCollect.name, n, biliCloudNameMost)
+	}
+}
+
+// A video opened makes a preview: nothing is kept, in the sidebar or on
+// disk, until the listener collects it, and then the name is kept whole.
+func TestBiliPreviewIsKeptOnlyWhenCollected(t *testing.T) {
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	long := strings.Repeat("长", biliCloudNameMost+30)
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: long, Up: "UP主", Duration: 180000}
+	pl := a.makeBiliPlaylist(v, nil, false)
+	a.biliPreview = &pl
+	if len(a.biliPlaylists) != 0 {
+		t.Fatalf("preview kept among %+v", a.biliPlaylists)
+	}
+	if got := a.biliPlaylist(pl.ID); got == nil || got != a.biliPreview {
+		t.Fatalf("the preview is not found by its page: %+v", got)
+	}
+	a.collectBiliPlaylist(a.biliPlaylist(pl.ID))
+	if a.biliPreview != nil || len(a.biliPlaylists) != 1 || !a.biliPlaylists[0].Collected {
+		t.Fatalf("preview %+v, playlists %+v, want it kept here", a.biliPreview, a.biliPlaylists)
+	}
+	if a.biliPlaylists[0].Name != long {
+		t.Fatalf("name %q, want it whole", a.biliPlaylists[0].Name)
 	}
 }

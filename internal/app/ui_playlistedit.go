@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -56,10 +57,86 @@ func (a *app) loadMine(uid int64) {
 		made, saved, err := netease.UserPlaylists(uid)
 		a.post(func() {
 			if err == nil && a.profile != nil && a.profile.UserID == uid {
-				a.mine, a.saved = made, saved
+				a.mine, a.saved = orderPlaylists(made, a.settings.MineOrder), orderPlaylists(saved, a.settings.SavedOrder)
 			}
 		})
 	}()
+}
+
+// orderPlaylists puts the playlists in the order the listener dragged them
+// to, which only this machine keeps: the others follow the site's own.
+func orderPlaylists(list []netease.Playlist, order []int64) []netease.Playlist {
+	if len(order) == 0 || len(list) < 2 {
+		return list
+	}
+	rank := make(map[int64]int, len(order))
+	for i, id := range order {
+		rank[id] = i
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		ri, iok := rank[list[i].ID]
+		rj, jok := rank[list[j].ID]
+		switch {
+		case iok && jok:
+			return ri < rj
+		case iok:
+			return true
+		case jok:
+			return false
+		}
+		return false
+	})
+	return list
+}
+
+// moveSitePlaylist moves one of the site's playlists by steps within its
+// group, among the ones the site keeps apart, and keeps the order here. The
+// site is never told: its own order stays as it is.
+func (a *app) moveSitePlaylist(mine bool, id int64, steps int) {
+	list, order := &a.saved, &a.settings.SavedOrder
+	if mine {
+		list, order = &a.mine, &a.settings.MineOrder
+	}
+	var slots []int
+	for i := range *list {
+		if (*list)[i].SpecialType == 0 {
+			slots = append(slots, i)
+		}
+	}
+	from := -1
+	for k, i := range slots {
+		if (*list)[i].ID == id {
+			from = k
+			break
+		}
+	}
+	if from < 0 || steps == 0 {
+		return
+	}
+	to := max(0, min(from+steps, len(slots)-1))
+	if to == from {
+		return
+	}
+	items := make([]netease.Playlist, len(slots))
+	for k, i := range slots {
+		items[k] = (*list)[i]
+	}
+	item := items[from]
+	if to > from {
+		copy(items[from:to], items[from+1:to+1])
+	} else {
+		copy(items[to+1:from+1], items[to:from])
+	}
+	items[to] = item
+	for k, i := range slots {
+		(*list)[i] = items[k]
+	}
+	seq := make([]int64, 0, len(*list))
+	for i := range *list {
+		seq = append(seq, (*list)[i].ID)
+	}
+	*order = seq
+	a.settings.save()
 }
 
 // togglePlaylistSubscription saves a playlist in the sidebar, undoing the

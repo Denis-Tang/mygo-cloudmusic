@@ -89,12 +89,7 @@ func (a *app) collectedPlaylists(c *ui.Context) {
 // among what the listener collects: they play here, with the videos' own
 // sound, which the site does not hold.
 func (a *app) collectedBiliPlaylists(c *ui.Context) {
-	var kept []*biliPlaylist
-	for i := range a.biliPlaylists {
-		if a.biliPlaylists[i].Collected {
-			kept = append(kept, &a.biliPlaylists[i])
-		}
-	}
+	kept := a.biliKept()
 	if len(kept) == 0 {
 		a.empty(c, "还没有收藏的哔哩哔哩歌单")
 		return

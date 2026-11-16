@@ -66,13 +66,22 @@ func (a *app) startBiliPlaylist(v bilibili.Video) {
 
 // openBiliVideo opens the playlist a video makes, making it first where it
 // is not there yet, and playing it when asked. The card of a video takes
-// this way, so a video of the feed becomes a playlist in one click.
+// this way, so a video of the feed becomes a playlist in one click. A
+// playlist that is not collected is a preview: it leaves no trace in the
+// sidebar or in what the listener keeps, and a new search drops it.
 func (a *app) openBiliVideo(v bilibili.Video, play bool) {
 	if pl := a.biliPlaylistOf(v.Bvid); pl != nil {
 		id := pl.ID
 		a.open(route{page: pageBiliPlaylist, id: id})
 		if play {
 			a.playBiliPlaylist(*pl)
+		}
+		return
+	}
+	if p := a.biliPreview; p != nil && p.Origin == v.URL() {
+		a.open(route{page: pageBiliPlaylist, id: p.ID})
+		if play {
+			a.playBiliPlaylist(*p)
 		}
 		return
 	}
@@ -90,6 +99,7 @@ func (a *app) openBiliVideo(v bilibili.Video, play bool) {
 		a.post(func() {
 			delete(a.biliBuilding, v.Bvid)
 			pl := a.makeBiliPlaylist(v, cands, ai)
+			a.biliPreview = &pl
 			a.open(route{page: pageBiliPlaylist, id: pl.ID})
 			if play {
 				a.playBiliPlaylist(pl)
@@ -121,10 +131,12 @@ func (a *app) playBiliPlaylist(pl biliPlaylist) {
 }
 
 // makeBiliPlaylist turns what a video tells into a playlist: the video's
-// own sound first where a song was not found, then the songs found.
+// own sound first where a song was not found, then the songs found. It is
+// not kept: the page that shows it is a preview, until the listener
+// collects it.
 func (a *app) makeBiliPlaylist(v bilibili.Video, cands []biliCand, ai bool) biliPlaylist {
 	pl := biliPlaylist{
-		ID:      time.Now().UnixNano(),
+		ID:      biliNewID(),
 		Name:    strings.TrimSpace(v.Title),
 		Origin:  v.URL(),
 		Cover:   v.Cover,
@@ -148,9 +160,7 @@ func (a *app) makeBiliPlaylist(v bilibili.Video, cands []biliCand, ai bool) bili
 		}
 	}
 	pl.Items = append(pl.Items, songs...)
-	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
-	a.saveBiliPlaylists()
-	diag.Logf("bili playlist %q: %d items, mode %s", pl.Name, len(pl.Items), pl.Mode)
+	diag.Logf("bili preview %q: %d items, mode %s", pl.Name, len(pl.Items), pl.Mode)
 	return pl
 }
 
@@ -179,13 +189,17 @@ func biliMatch(cands []biliCand) {
 	wg.Wait()
 }
 
-// createBiliDraft keeps the playlist the draft lists.
+// createBiliDraft keeps the playlist the draft lists: the listener asked
+// for it by name, so it is kept here at once.
 func (a *app) createBiliDraft() {
 	d := &a.biliDraft
 	if d.video == nil {
 		return
 	}
 	pl := a.makeBiliPlaylist(*d.video, d.cands, d.ai)
+	pl.Collected = true
+	a.biliPlaylists = append([]biliPlaylist{pl}, a.biliPlaylists...)
+	a.saveBiliPlaylists()
 	d.open = false
 	a.redraw()
 	a.open(route{page: pageBiliPlaylist, id: pl.ID})
@@ -200,7 +214,7 @@ func (a *app) biliDraftDialog(c *ui.Context) {
 		panel.Width(520).MaxHeight(560).Padding(24).Radius(radiusPanel).Gap(12).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		ui.Text(c, "从视频生成歌单").FontSize(17).FontWeight(700)
+		ui.Text(c, "收藏为歌单").FontSize(17).FontWeight(700)
 		if d.video != nil {
 			ui.Text(c, d.video.Title).FontSize(14).TextColor(p.muted).MaxLines(2)
 		}
@@ -244,7 +258,7 @@ func (a *app) biliDraftDialog(c *ui.Context) {
 			if pillButton(c.Key("cancel"), nil, "取消", p.hover.Over(p.bg), p.text).Clicked() {
 				d.open = false
 			}
-			ok := pillButton(c.Key("ok"), nil, "创建歌单", p.accent, p.onAccent)
+			ok := pillButton(c.Key("ok"), nil, "收藏", p.accent, p.onAccent)
 			if d.loading || (len(d.cands) == 0 && !d.ai) {
 				ok.Disabled(true)
 			}

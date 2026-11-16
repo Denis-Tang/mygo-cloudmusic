@@ -104,7 +104,10 @@ func TestSidebarPlaylistCollapse(t *testing.T) {
 func TestSidebarSwitchesToBiliPlaylists(t *testing.T) {
 	a := editTestApp()
 	a.playlists[11] = &netease.Playlist{ID: 11, Name: "睡前"}
-	a.biliPlaylists = []biliPlaylist{{ID: 900, Name: "从视频来的", Mode: "songs"}}
+	a.biliPlaylists = []biliPlaylist{
+		{ID: 900, Name: "从视频来的", Mode: "songs", Collected: true},
+		{ID: 901, Name: "只看过的", Mode: "songs"},
+	}
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
 	if _, ok := tt.Find("从视频来的"); ok {
@@ -116,6 +119,9 @@ func TestSidebarSwitchesToBiliPlaylists(t *testing.T) {
 	tt.Frame()
 	if _, ok := tt.Find("从视频来的"); !ok {
 		t.Fatal("the Bilibili playlists did not show")
+	}
+	if _, ok := tt.Find("只看过的"); ok {
+		t.Fatal("a playlist only looked at stays out of the sidebar")
 	}
 	if _, ok := tt.Find("睡前"); ok {
 		t.Fatal("the site's playlists stayed beside them")

@@ -163,6 +163,23 @@ func (a *app) settingsView(c *ui.Context) {
 			})
 		})
 
+		group("收藏", func() {
+			row("收藏方式", "哔哩哔哩歌单收藏时保存在本机，或在网易云新建同名歌单；本机收藏不限制名称长度", func() {
+				i := 0
+				if s.CollectTo == collectCloud {
+					i = 1
+				}
+				if segmented(c.Key("collect-to"), &i, "收藏到本机", "创建到网易云") {
+					if i == 1 {
+						s.CollectTo = collectCloud
+					} else {
+						s.CollectTo = collectHere
+					}
+					a.changed()
+				}
+			})
+		})
+
 		group("本地音乐", func() {
 			row("音乐文件夹", "添加存放音乐的文件夹，其中的 MP3 和 FLAC 会出现在侧栏的「本地音乐」中，封面与同名 .lrc 歌词一并读取", func() {
 				if ui.Button(c, "添加…").Clicked() {

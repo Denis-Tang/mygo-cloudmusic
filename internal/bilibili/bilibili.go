@@ -145,7 +145,14 @@ func (e *apiError) Unwrap() error {
 func request(req *http.Request) ([]byte, int, error) {
 	req.Header.Set("User-Agent", UserAgent)
 	req.Header.Set("Referer", wwwBase+"/")
-	if c := anonCookie(); c != "" {
+	// A signed-in listener's cookie carries everything the account needs;
+	// without one, the site's own for a listener it does not know is
+	// enough for the calls that ask for it.
+	c := SessionCookie()
+	if c == "" {
+		c = anonCookie()
+	}
+	if c != "" {
 		req.Header.Set("Cookie", c)
 	}
 	var res *http.Response
@@ -462,10 +469,15 @@ func parseDuration(s string) time.Duration {
 	return time.Duration(secs) * time.Second
 }
 
-// picURL is a picture's address in full, as the image CDN serves it.
+// picURL is a picture's address in full, as the image CDN serves it. A
+// size the API asked for is dropped: the picture itself is kept, so every
+// page may ask for the size it shows.
 func picURL(p string) string {
 	if p == "" {
 		return ""
+	}
+	if i := strings.Index(p, "@"); i > 0 {
+		p = p[:i]
 	}
 	if strings.HasPrefix(p, "//") {
 		p = "https:" + p

@@ -32,7 +32,8 @@ func TestBiliTrack(t *testing.T) {
 	}
 }
 
-// A card of the feed opens the playlist its video makes.
+// A card of the feed opens the playlist its video makes, as a preview
+// that leaves the sidebar and the store alone.
 func TestBiliFeedCardOpensPlaylist(t *testing.T) {
 	followsFile(t)
 	playlistFile(t)
@@ -43,6 +44,7 @@ func TestBiliFeedCardOpensPlaylist(t *testing.T) {
 	a.addFeedVideo(v)
 	a.rebuildFeedTracks()
 	pl := a.makeBiliPlaylist(v, nil, false)
+	a.biliPreview = &pl
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
@@ -52,6 +54,9 @@ func TestBiliFeedCardOpensPlaylist(t *testing.T) {
 	tt.Frame()
 	if a.route.page != pageBiliPlaylist || a.route.id != pl.ID {
 		t.Fatalf("route %+v, want the video's playlist", a.route)
+	}
+	if len(a.biliPlaylists) != 0 {
+		t.Fatalf("playlists %+v, want the preview left out", a.biliPlaylists)
 	}
 }
 
@@ -230,6 +235,7 @@ func TestSearchedVideoShowsOverFeed(t *testing.T) {
 	a.follows = []biliFollow{{Mid: 7, Name: "音乐UP"}}
 	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "一首歌", Up: "UP", Duration: 3 * time.Minute}
 	pl := a.makeBiliPlaylist(v, nil, false)
+	a.biliPreview = &pl
 	a.biliShown, a.biliHits = v.Bvid, []bilibili.Video{v}
 	a.show(route{page: pageBili})
 	tt := ui.NewTester(a.view, 1200, 800)

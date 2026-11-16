@@ -44,8 +44,7 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 		}
 		if tr.ID < 0 {
 			if v, ok := a.biliVideos[tr.ID]; ok {
-				item(iconPlus, "收藏为歌单", func() { a.openBiliNaming(&v, 0, v.Title) })
-				item(iconQueue, "生成歌单…", func() { a.startBiliPlaylist(v) })
+				item(iconCollect, "收藏为歌单", func() { a.startBiliPlaylist(v) })
 				ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
 				item(iconVideo, "打开视频页", func() {
 					mygo.Shell.OpenExternal("https://www.bilibili.com/video/" + v.Bvid)

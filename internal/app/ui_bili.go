@@ -74,6 +74,9 @@ func (a *app) loadBili(query string) {
 	if query == "" {
 		return
 	}
+	// Another search is a new look: the preview the last video made goes,
+	// so the same video makes a fresh one.
+	a.biliPreview = nil
 	a.biliQuery, a.biliShown, a.biliLoading, a.biliErr = query, query, true, ""
 	a.biliUsers = nil
 	go func() {
@@ -256,6 +259,13 @@ func (a *app) biliHeader(c *ui.Context) {
 			if iconButton(c.Key("bili-refresh"), iconReload, 16, p.muted, "刷新投稿").Clicked() {
 				a.refreshBiliFeed()
 			}
+		}
+		if a.biliAcc == nil {
+			if pillButton(c.Key("bili-signin"), nil, "登录 B 站", p.hover.Over(p.bg), p.text).Clicked() {
+				a.openBiliLogin()
+			}
+		} else if pillButton(c.Key("bili-import"), iconFolder, "导入收藏", p.hover.Over(p.bg), p.text).Clicked() {
+			a.openBiliImport()
 		}
 	})
 

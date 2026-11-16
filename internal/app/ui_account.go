@@ -32,6 +32,7 @@ func (a *app) boot() {
 	a.loadLibrary()
 	a.follows = loadBiliFollows()
 	a.loadBiliPlaylists()
+	a.loadBiliAccount()
 	a.scheduleBiliPoll()
 	if len(a.follows) > 0 {
 		a.refreshBiliFeed()
@@ -335,30 +336,52 @@ func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.E
 }
 
 // playlistRows lists a listener's playlists, with the menu of the ones
-// they made.
+// they made. The ones the site keeps apart, as the liked songs, stay at
+// the head of the group; the rest may be held and dragged among them.
 func (a *app) playlistRows(c *ui.Context, lists []netease.Playlist, mine bool) {
-	p := a.pal
+	var fixed, movable []int
 	for i := range lists {
-		pl := &lists[i]
-		selected := a.route.page == pagePlaylist && a.route.id == pl.ID && !a.nowPlaying
-		b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
-		pb := ui.Transparent
-		switch {
-		case selected:
-			pb = p.press
-		case b.Hovered():
-			pb = p.hover
+		if lists[i].SpecialType != 0 {
+			fixed = append(fixed, i)
+		} else {
+			movable = append(movable, i)
 		}
-		b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
-		b.Children(func() {
-			a.cover(c, pl.Cover(), 80, 28, radiusTile-1)
-			ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
-		})
-		if mine && pl.SpecialType != 5 {
-			a.playlistMenu(c.Key(pl.ID), b, pl, false)
-		}
-		if b.Clicked() {
-			a.open(route{page: pagePlaylist, id: pl.ID})
-		}
+	}
+	for _, i := range fixed {
+		a.playlistRow(c, &lists[i], mine, -1, 0)
+	}
+	for k, i := range movable {
+		a.playlistRow(c, &lists[i], mine, k, len(movable))
+	}
+}
+
+// playlistRow is one of them, draggable within its group when index and
+// count say where it is.
+func (a *app) playlistRow(c *ui.Context, pl *netease.Playlist, mine bool, index, count int) {
+	p := a.pal
+	selected := a.route.page == pagePlaylist && a.route.id == pl.ID && !a.nowPlaying
+	b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+	pb := ui.Transparent
+	switch {
+	case selected:
+		pb = p.press
+	case b.Hovered():
+		pb = p.hover
+	}
+	b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
+	b.Children(func() {
+		a.cover(c, pl.Cover(), 80, 28, radiusTile-1)
+		ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+	})
+	if mine && pl.SpecialType != 5 {
+		a.playlistMenu(c.Key(pl.ID), b, pl, false)
+	}
+	st := ui.Local(b, "drag", func() dragRow { return dragRow{} })
+	if st.off.Y != 0 {
+		b.Shadow(0, 10, 24, -6, p.cardShade)
+	}
+	a.dragRowOf(b, index, count, st, func(steps int) { a.moveSitePlaylist(mine, pl.ID, steps) })
+	if b.Clicked() {
+		a.open(route{page: pagePlaylist, id: pl.ID})
 	}
 }

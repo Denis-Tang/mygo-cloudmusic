@@ -94,6 +94,10 @@ type app struct {
 	// is set: see control.go.
 	control *control.Server
 	biliPlaylists  []biliPlaylist
+	// biliPreview is the playlist the video last opened made: it stays in
+	// memory, out of the sidebar and what the listener keeps, until it is
+	// collected. A new search drops it.
+	biliPreview    *biliPlaylist
 	biliNaming     biliNaming
 	biliDeleting   biliDeleting
 	biliPLCollapsed bool
@@ -120,6 +124,9 @@ type app struct {
 	deleting     deleteDialog   // whether to delete a playlist, asked
 	collecting   collectDialog  // the playlists a song of the playing page may go into
 	biliCollect  biliCollecting // the name a Bilibili playlist takes on the site
+	biliAcc      *biliAccount   // the Bilibili account signed in, read alone
+	biliLogin    biliLogin
+	biliImport   biliImport
 	collectedTab int            // which kind of what the listener keeps 我的收藏 lists
 	liked        map[int64]bool // the songs the listener likes
 	toast        string         // a message to show once

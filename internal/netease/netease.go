@@ -544,6 +544,14 @@ func Sized(pic string, n int) string {
 		return pic
 	}
 	pic = strings.Replace(pic, "http://", "https://", 1)
+	// A picture of Bilibili's CDN takes its size as an @ suffix of its
+	// own; the site's param would be read as part of the name and ignored.
+	if strings.Contains(pic, "hdslb.com/") {
+		if i := strings.Index(pic, "@"); i > 0 {
+			pic = pic[:i]
+		}
+		return fmt.Sprintf("%s@%dw", pic, n)
+	}
 	return fmt.Sprintf("%s?param=%dy%d", pic, n, n)
 }
 

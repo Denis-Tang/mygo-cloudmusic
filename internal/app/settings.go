@@ -60,13 +60,26 @@ type settings struct {
 	FilterDaily bool `json:"filterDaily"`
 	FilterFM    bool `json:"filterFM"`
 	FilterOther bool `json:"filterOther"`
+	// CollectTo is where a Bilibili playlist is collected: here, on this
+	// machine (collectHere), or on the site (collectCloud).
+	CollectTo string `json:"collectTo"`
+	// MineOrder and SavedOrder are the order the sidebar lists the site's
+	// playlists in: only this machine keeps it, the site never hears of it.
+	MineOrder  []int64 `json:"mineOrder,omitempty"`
+	SavedOrder []int64 `json:"savedOrder,omitempty"`
 
 	path string // where they were loaded from, and are saved to
 }
 
 func defaultSettings() settings {
-	return settings{NotchActivity: true, Quality: "exhigh", Appearance: "system", Volume: 0.8, Normalize: true, AppIcon: "dock-and-menubar", CacheMB: 2048, Captions: true, Sidebar: true, FilterDaily: true, FilterFM: true}
+	return settings{NotchActivity: true, Quality: "exhigh", Appearance: "system", Volume: 0.8, Normalize: true, AppIcon: "dock-and-menubar", CacheMB: 2048, Captions: true, Sidebar: true, FilterDaily: true, FilterFM: true, CollectTo: collectHere}
 }
+
+// Where collecting a Bilibili playlist puts it.
+const (
+	collectHere  = "here"
+	collectCloud = "cloud"
+)
 
 func settingsPath() (string, error) {
 	dir, err := mygo.App.Path(mygo.PathUserData)
