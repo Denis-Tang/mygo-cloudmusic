@@ -23,6 +23,7 @@ import (
 	"netease-music-mygo/internal/bilibili"
 	"netease-music-mygo/internal/diag"
 	"netease-music-mygo/internal/local"
+	"netease-music-mygo/internal/netease"
 	"netease-music-mygo/internal/player"
 )
 
@@ -263,7 +264,7 @@ func cutBiliSlice(ctx context.Context, ffmpeg, src string, it biliItem) (string,
 	}
 	// The cover beside the file, as the library reads one.
 	if it.Track.Album.PicURL != "" {
-		if b, err := fetchCoverBytes(it.Track.Album.PicURL); err == nil {
+		if b, err := netease.Fetch(netease.Sized(it.Track.Album.PicURL, 1200)); err == nil {
 			os.WriteFile(strings.TrimSuffix(path, ".m4a")+".jpg", b, 0o600)
 		}
 	}
@@ -273,6 +274,27 @@ func cutBiliSlice(ctx context.Context, ffmpeg, src string, it biliItem) (string,
 // seconds writes a moment as ffmpeg reads it.
 func seconds(ms int64) string {
 	return strconv.FormatFloat(float64(ms)/1000, 'f', 3, 64)
+}
+
+// bindBiliSlice makes a stretch play from the sound kept on this machine,
+// where it was kept whole.
+func (a *app) bindBiliSlice(v bilibili.Video, id int64, start, end int64) {
+	dir, err := biliAudioDir()
+	if err != nil {
+		return
+	}
+	path := filepath.Join(dir, v.Bvid+".m4a")
+	if info, err := os.Stat(path); err != nil || info.Size() == 0 {
+		return
+	}
+	if a.biliLocals == nil {
+		a.biliLocals = map[int64]player.Local{}
+	}
+	a.biliLocals[id] = player.Local{
+		File:  path,
+		Start: time.Duration(start) * time.Millisecond,
+		End:   time.Duration(end) * time.Millisecond,
+	}
 }
 
 // biliAudioFile keeps a video's sound whole under dir, once, and returns
@@ -319,19 +341,6 @@ func biliAudioFile(ctx context.Context, dir string, v bilibili.Video) (string, e
 		return "", err
 	}
 	return path, os.Rename(tmp, path)
-}
-
-// fetchCoverBytes reads a cover to put beside a cut file.
-func fetchCoverBytes(url string) ([]byte, error) {
-	res, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("封面下载失败（HTTP %d）", res.StatusCode)
-	}
-	return io.ReadAll(io.LimitReader(res.Body, 8<<20))
 }
 
 // biliSliceDialog asks whether to cut a playlist's stretches into files,

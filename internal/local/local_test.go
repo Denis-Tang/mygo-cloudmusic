@@ -61,6 +61,18 @@ func TestCoverBesideTheFile(t *testing.T) {
 	}
 }
 
+// A picture named as the song is the song's own cover, before the folder's.
+func TestCoverNamedAsTheSong(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "歌二.mp3"), []byte("ID3"))
+	writeFile(t, filepath.Join(dir, "歌二.jpg"), []byte("own"))
+	writeFile(t, filepath.Join(dir, "cover.jpg"), []byte("jpeg"))
+	got := Open([]string{dir}, "").Tracks()
+	if len(got) != 1 || got[0].Cover != filepath.Join(dir, "歌二.jpg") {
+		t.Fatalf("cover %q, want the song's own picture", got[0].Cover)
+	}
+}
+
 // A folder inside a folder is read, and a hidden one is not.
 func TestSkipsHiddenFolders(t *testing.T) {
 	dir := t.TempDir()

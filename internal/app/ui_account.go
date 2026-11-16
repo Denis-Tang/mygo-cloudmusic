@@ -33,6 +33,7 @@ func (a *app) boot() {
 	a.follows = loadBiliFollows()
 	a.loadBiliPlaylists()
 	a.loadBiliAccount()
+	a.loadLocalAdds()
 	a.scheduleBiliPoll()
 	if len(a.follows) > 0 {
 		a.refreshBiliFeed()

@@ -163,6 +163,7 @@ func (a *app) viewBody(c *ui.Context) {
 	a.biliCollectDialog(c)
 	a.biliSliceDialog(c)
 	a.addToPlaylistDialog(c)
+	a.biliNewDialog(c)
 	a.biliLoginDialog(c)
 	a.biliImportDialog(c)
 	a.deletePlaylistDialog(c)
@@ -663,6 +664,7 @@ func (a *app) loadPlaylist(id int64, thenPlay bool) {
 				a.plErr[id] = "歌单加载失败"
 				return
 			}
+			a.mergeLocalAdds(pl)
 			a.playlists[id] = pl
 			if a.takePlay(r) {
 				a.pl.PlayQueue(pl.Tracks, firstPlayable(pl.Tracks))
@@ -709,7 +711,7 @@ func (a *app) mineSidebar(c *ui.Context) {
 	})
 	if a.mineSrc == mineBili {
 		kept := a.biliKept()
-		a.sideGroup(c, "哔哩哔哩歌单", len(kept), &a.biliPLCollapsed, nil)
+		a.sideGroup(c, "哔哩哔哩歌单", len(kept), &a.biliPLCollapsed, func() { a.openBiliNew() })
 		if !a.biliPLCollapsed {
 			a.biliPlaylistRows(c, kept)
 		}

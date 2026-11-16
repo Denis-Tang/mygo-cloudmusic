@@ -52,26 +52,39 @@ func (a *app) addToPlaylistDialog(c *ui.Context) {
 				}
 			})
 			ui.Text(c, d.track.Name).FontSize(13).TextColor(p.muted).Padding(0, 20, 8, 20).MaxLines(1)
-			kept := a.biliKept()
-			if len(kept) == 0 {
-				ui.Text(c, "还没有本机歌单").FontSize(13).TextColor(p.muted).Padding(10, 20, 20, 20)
-				return
-			}
 			ui.Scroll(c).Grow(1).MinHeight(0).Padding(4, 12, 16, 12).Gap(2).Children(func() {
-				for _, pl := range kept {
-					pl := pl
-					b := ui.ButtonBase(c.Key(pl.ID)).Height(40).PaddingX(8).Gap(10).Radius(radiusRow).
-						AlignItems(ui.Center).Justify(ui.Start).Label("添加到 " + pl.Name)
+				row := func(key any, cover, name string, add func()) {
+					b := ui.ButtonBase(c.Key(key)).Height(40).PaddingX(8).Gap(10).Radius(radiusRow).
+						AlignItems(ui.Center).Justify(ui.Start).Label("添加到 " + name)
 					if b.Hovered() {
 						b.Background(p.hover)
 					}
 					b.Children(func() {
-						a.cover(c, pl.Cover, 80, 26, radiusTile-1)
-						ui.Text(c, pl.Name).FontSize(14).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+						a.cover(c, cover, 80, 26, radiusTile-1)
+						ui.Text(c, name).FontSize(14).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 					})
 					if b.Clicked() {
-						a.addToBiliPlaylist(pl.ID, d.track)
+						add()
 					}
+				}
+				site := append(append([]netease.Playlist(nil), a.mine...), a.saved...)
+				if len(site) > 0 {
+					ui.Text(c, "网易云歌单").FontSize(12).FontWeight(600).TextColor(p.faint).Padding(6, 8, 2, 8)
+					for i := range site {
+						pl := site[i]
+						row(pl.ID, pl.Cover(), pl.Name, func() { a.addLocalToPlaylist(pl.ID, d.track) })
+					}
+				}
+				kept := a.biliKept()
+				if len(kept) > 0 {
+					ui.Text(c, "本机歌单").FontSize(12).FontWeight(600).TextColor(p.faint).Padding(12, 8, 2, 8)
+					for _, pl := range kept {
+						pl := pl
+						row(pl.ID, pl.Cover, pl.Name, func() { a.addToBiliPlaylist(pl.ID, d.track) })
+					}
+				}
+				if len(site) == 0 && len(kept) == 0 {
+					ui.Text(c, "还没有歌单").FontSize(13).TextColor(p.muted).Padding(10, 8, 20, 8)
 				}
 			})
 		})

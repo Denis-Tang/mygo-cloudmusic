@@ -76,6 +76,10 @@ type app struct {
 	// biliSliceAsk asks whether to cut a playlist's stretches into files.
 	biliSliceAsk biliSliceAsk
 	plAdding     playlistAdding
+	biliNewPL    biliNewPlaylist
+	// localAdds are songs of this machine in the site's playlists, kept
+	// here alone: see local_adds.go.
+	localAdds map[int64][]biliItem
 	biliQuery   string
 	biliBox     ui.Handle // the search field of the page, for its focus look
 	biliShown   string // the query whose results the page lists

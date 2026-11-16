@@ -194,6 +194,20 @@ func (l *Library) cover(id int64, path string, picture *tag.Picture) string {
 	if err != nil {
 		return ""
 	}
+	// A picture named as the file is its own, before the folder's.
+	stem := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(e.Name()))
+		if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSuffix(e.Name(), filepath.Ext(e.Name())), stem) {
+			return filepath.Join(base, e.Name())
+		}
+	}
 	for _, name := range []string{"cover", "folder", "front"} {
 		for _, e := range entries {
 			if e.IsDir() {

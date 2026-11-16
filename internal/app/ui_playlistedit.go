@@ -331,6 +331,12 @@ func (a *app) addTo(pid int64, tr *netease.Track) {
 // app and then with NetEase, which may refuse: the song comes back then.
 func (a *app) removeFrom(pid int64, tr *netease.Track) {
 	id := tr.ID
+	// A song added here is taken out here: the site never had it.
+	if a.removeLocalFromPlaylist(pid, id) {
+		a.toast = "已从歌单移除"
+		a.redraw()
+		return
+	}
 	pl := a.playlists[pid]
 	var before []netease.Track
 	if pl != nil {

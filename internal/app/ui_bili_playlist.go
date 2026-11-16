@@ -91,6 +91,7 @@ func (a *app) loadBiliPlaylists() {
 				// The same ID, with the way to play it, kept afresh.
 				if item.End > item.Start {
 					item.Track = a.biliSliceTrack(*v, item.Track.Name, item.Start, item.End)
+					a.bindBiliSlice(*v, item.Track.ID, item.Start, item.End)
 				} else {
 					item.Track = a.biliTrack(*v)
 				}
