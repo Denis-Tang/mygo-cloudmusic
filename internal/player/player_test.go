@@ -392,3 +392,28 @@ func TestLocalFileGone(t *testing.T) {
 		t.Fatal("opened a file that is not there")
 	}
 }
+
+// A stretch of a video shows the position of its own: from its start, and
+// a seek is within it, not the whole sound.
+func TestSlicePositionIsItsOwn(t *testing.T) {
+	p := New(func(func()) {})
+	p.Cue([]netease.Track{{ID: 1, Name: "歌", Duration: 20000}})
+	p.start, p.end = 30*time.Second, 50*time.Second
+	if got := p.Position(); got != 0 {
+		t.Fatalf("position %v before it plays, want it held at its start", got)
+	}
+	p.pending = 35 * time.Second
+	if got := p.Position(); got != 5*time.Second {
+		t.Fatalf("position %v, want five seconds into the stretch", got)
+	}
+	p.Seek(7 * time.Second)
+	if p.pending != 37*time.Second || p.Position() != 7*time.Second {
+		t.Fatalf("pending %v, position %v, want seven seconds into the stretch", p.pending, p.Position())
+	}
+	// A whole track is not moved.
+	p.start = 0
+	p.pending = 7 * time.Second
+	if got := p.Position(); got != 7*time.Second {
+		t.Fatalf("position %v of a whole track", got)
+	}
+}

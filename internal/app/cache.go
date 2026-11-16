@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/egoist/mygo"
@@ -46,6 +47,10 @@ func (a *app) measureCache() {
 }
 
 func (a *app) clearCache() {
+	// The whole sound of a video kept for its stretches goes with it.
+	if dir, err := biliAudioDir(); err == nil {
+		os.RemoveAll(dir)
+	}
 	if cache := a.pl.Cache; cache != nil {
 		a.cacheUsed = 0
 		go func() {

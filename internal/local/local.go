@@ -108,6 +108,14 @@ func (l *Library) scan() {
 	})
 }
 
+// Read returns the track of one file, as a scan of its folder would, with
+// its cover kept under cacheDir: for a file just written, before the next
+// scan finds it.
+func Read(path, cacheDir string) (Track, bool) {
+	l := &Library{cacheDir: cacheDir, byID: map[int64]Track{}}
+	return l.read(path)
+}
+
 // isAudio reports whether path is a file the library reads.
 func isAudio(path string) bool {
 	switch strings.ToLower(filepath.Ext(path)) {

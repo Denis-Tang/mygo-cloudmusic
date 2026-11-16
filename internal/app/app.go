@@ -70,6 +70,12 @@ type app struct {
 	biliBuilding map[string]bool
 	biliVideos  map[int64]bilibili.Video
 	biliRemotes map[int64]player.Remote
+	// biliLocals are the video's stretches kept on this machine, which play
+	// from their file.
+	biliLocals map[int64]player.Local
+	// biliSliceAsk asks whether to cut a playlist's stretches into files.
+	biliSliceAsk biliSliceAsk
+	plAdding     playlistAdding
 	biliQuery   string
 	biliBox     ui.Handle // the search field of the page, for its focus look
 	biliShown   string // the query whose results the page lists
@@ -303,6 +309,7 @@ func Run() error {
 		cacheUsed:  -1,
 		biliVideos:  map[int64]bilibili.Video{},
 		biliRemotes: map[int64]player.Remote{},
+		biliLocals:  map[int64]player.Local{},
 		pubAsked:   map[int64]bool{},
 	}
 	moveOldData()
@@ -330,6 +337,9 @@ func Run() error {
 			return r, ok
 		}
 		a.pl.LocalOf = func(id int64) (player.Local, bool) {
+			if loc, ok := a.biliLocals[id]; ok {
+				return loc, true
+			}
 			if a.lib == nil || id >= 0 {
 				return player.Local{}, false
 			}

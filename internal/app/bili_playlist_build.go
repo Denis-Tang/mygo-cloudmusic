@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -130,10 +131,10 @@ func (a *app) playBiliPlaylist(pl biliPlaylist) {
 	}
 }
 
-// makeBiliPlaylist turns what a video tells into a playlist: the video's
-// own sound first where a song was not found, then the songs found. It is
-// not kept: the page that shows it is a preview, until the listener
-// collects it.
+// makeBiliPlaylist turns what a video tells into a playlist: the songs the
+// site has, and, where the tracklist times the ones it has not, each of
+// those cut from the video's own sound. A video whose songs are not timed,
+// or one of several parts, keeps the whole of its sound instead.
 func (a *app) makeBiliPlaylist(v bilibili.Video, cands []biliCand, ai bool) biliPlaylist {
 	pl := biliPlaylist{
 		ID:      biliNewID(),
@@ -143,23 +144,74 @@ func (a *app) makeBiliPlaylist(v bilibili.Video, cands []biliCand, ai bool) bili
 		Mode:    "songs",
 		Created: time.Now().Unix(),
 	}
-	var songs []biliItem
-	missing := ai
+	songs, missing := 0, 0
+	slice := !ai && len(v.Pages) < 2 && v.Duration > 0
 	for _, c := range cands {
 		if c.Track != nil {
-			songs = append(songs, biliItem{Track: *c.Track})
-		} else {
-			missing = true
+			songs++
+			continue
+		}
+		missing++
+		if c.StartMs < 0 {
+			slice = false
 		}
 	}
-	if missing || len(songs) == 0 {
+	if slice && missing > 0 && len(cands) > 0 {
+		timed := make([]int64, 0, len(cands))
+		for _, c := range cands {
+			if c.StartMs >= 0 {
+				timed = append(timed, c.StartMs)
+			}
+		}
+		sort.Slice(timed, func(i, j int) bool { return timed[i] < timed[j] })
+		endOf := func(start int64) int64 {
+			end := v.Duration.Milliseconds()
+			for _, s := range timed {
+				if s > start {
+					end = s
+					break
+				}
+			}
+			return end
+		}
+		for _, c := range cands {
+			if c.Track != nil {
+				pl.Items = append(pl.Items, biliItem{Track: *c.Track})
+				continue
+			}
+			end := endOf(c.StartMs)
+			if end <= c.StartMs {
+				continue
+			}
+			video := v
+			pl.Items = append(pl.Items, biliItem{
+				Track: a.biliSliceTrack(video, c.Raw, c.StartMs, end),
+				Video: &video,
+				Start: c.StartMs,
+				End:   end,
+			})
+		}
+		if len(pl.Items) > 0 {
+			pl.Mode = "slices"
+			diag.Logf("bili playlist %q: %d slices and songs", pl.Name, len(pl.Items))
+			return pl
+		}
+	}
+	var items []biliItem
+	whole := missing > 0 || songs == 0 || ai
+	if whole {
 		video := v
-		pl.Items = append(pl.Items, biliItem{Track: a.biliTrack(video), Video: &video})
-		if len(songs) == 0 {
+		items = append(items, biliItem{Track: a.biliTrack(video), Video: &video})
+		if songs == 0 {
 			pl.Mode = "tracks"
 		}
 	}
-	pl.Items = append(pl.Items, songs...)
+	for _, c := range cands {
+		if c.Track != nil {
+			items = append(items, biliItem{Track: *c.Track})
+		}
+	}
+	pl.Items = items
 	diag.Logf("bili preview %q: %d items, mode %s", pl.Name, len(pl.Items), pl.Mode)
 	return pl
 }

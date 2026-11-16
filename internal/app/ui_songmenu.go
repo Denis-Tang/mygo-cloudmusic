@@ -54,6 +54,7 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 				item(iconCopy, "复制链接", func() { copyText("https://www.bilibili.com/video/" + v.Bvid) })
 				return
 			}
+			item(iconCollect, "添加到歌单", func() { a.plAdding = playlistAdding{open: true, track: *tr} })
 			item(iconFolder, "在文件夹中显示", func() { a.showLocalFile(tr.ID) })
 			ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
 			item(iconCopy, "复制歌名", func() { copyText(tr.Name) })

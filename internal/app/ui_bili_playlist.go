@@ -57,6 +57,7 @@ type biliItem struct {
 	Track netease.Track   `json:"track"`
 	Video *bilibili.Video `json:"video,omitempty"`
 	Start int64           `json:"startMs,omitempty"` // for a slice
+	End   int64           `json:"endMs,omitempty"`   // where the slice ends
 }
 
 // biliPlaylistsFile is where the playlists are kept.
@@ -85,9 +86,14 @@ func (a *app) loadBiliPlaylists() {
 	}
 	for i := range list {
 		for j := range list[i].Items {
-			if v := list[i].Items[j].Video; v != nil {
+			item := &list[i].Items[j]
+			if v := item.Video; v != nil {
 				// The same ID, with the way to play it, kept afresh.
-				list[i].Items[j].Track = a.biliTrack(*v)
+				if item.End > item.Start {
+					item.Track = a.biliSliceTrack(*v, item.Track.Name, item.Start, item.End)
+				} else {
+					item.Track = a.biliTrack(*v)
+				}
 			}
 		}
 	}
@@ -201,7 +207,7 @@ func (a *app) biliPlaylistPage(c *ui.Context) {
 	// the site is not asked about each of them, which would be as many
 	// searches as it has rows. A playlist made from one video asks, as the
 	// page says what the site has for its songs.
-	look := pl.Remote == 0
+	look := pl.Remote == 0 && pl.Mode != "slices"
 	for i := range pl.Items {
 		tracks[i] = pl.Items[i].Track
 		if v := pl.Items[i].Video; v != nil && look {
@@ -506,6 +512,7 @@ func (a *app) collectBiliHere(pl *biliPlaylist, why string) {
 	pl.Collected = true
 	a.saveBiliPlaylists()
 	a.toast = "已收藏到本机"
+	a.prepareBiliPlaylist(pl.ID)
 	if why != "" {
 		a.toast += "；" + why
 	}
@@ -591,6 +598,7 @@ func (a *app) submitBiliCollect() {
 				a.saveBiliPlaylists()
 			}
 			a.toast = "已收藏到网易云"
+			a.prepareBiliPlaylist(id)
 			a.redraw()
 		})
 	}()

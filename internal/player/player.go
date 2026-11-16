@@ -83,6 +83,10 @@ type Player struct {
 
 	// pending holds a seek asked for while the track loads.
 	pending time.Duration
+	// A slice of a longer stream or file plays from start to end, and what
+	// follows begins there. Both are zero for a whole track.
+	start time.Duration
+	end   time.Duration
 	// A seek playing fades out, then lands, then fades in: meanwhile the
 	// position is where it goes.
 	seeking bool
@@ -121,6 +125,10 @@ type Remote struct {
 	Headers map[string]string
 	Cover   string
 	Lyrics  string
+	// Start and End cut a slice out of the stream: it plays from Start, and
+	// what follows begins at End.
+	Start time.Duration
+	End   time.Duration
 	// Resolve, if set, finds the URL and lyrics when the track is loaded.
 	// It runs on the goroutine loading, not on the main thread, as it asks
 	// the source's server.
@@ -148,6 +156,10 @@ type Local struct {
 	File  string
 	Cover string
 	LRC   string
+	// Start and End cut a slice out of the file, as a video's track is: it
+	// plays from Start, and what follows begins at End.
+	Start time.Duration
+	End   time.Duration
 }
 
 // sync shows the system, and Changed, where playback is.
@@ -522,21 +534,22 @@ const seekGap = 30 * time.Millisecond
 // which the audio player fades over a few milliseconds, rather than
 // cutting from one sound to the other with a click.
 func (p *Player) Seek(t time.Duration) {
+	abs := t + p.start
 	if p.out == nil {
-		p.pending = t
+		p.pending = abs
 		return
 	}
 	out := p.out
 	// Paused, it jumps at once; but a seek on its way paused it only for
 	// the jump, and this one takes its place, playing on from there.
 	if !out.Playing() && !p.seeking {
-		out.Seek(t)
+		out.Seek(abs)
 		p.sync()
 		return
 	}
 	p.seekGen++
 	gen := p.seekGen
-	p.seeking, p.seekTo = true, t
+	p.seeking, p.seekTo = true, abs
 	out.Pause()
 	time.AfterFunc(seekGap, func() {
 		p.post(func() {
@@ -544,7 +557,7 @@ func (p *Player) Seek(t time.Duration) {
 				return
 			}
 			p.seeking = false
-			out.Seek(t)
+			out.Seek(abs)
 			if p.playing || !p.fade.silent() {
 				out.Play()
 			}
@@ -552,6 +565,18 @@ func (p *Player) Seek(t time.Duration) {
 		})
 	})
 	p.sync()
+}
+
+// CheckSliceEnd ends a sliced track once it has played to its end, and
+// begins what follows, as its own ending would. It runs on the main thread.
+func (p *Player) CheckSliceEnd() {
+	if p.out == nil || p.end <= p.start {
+		return
+	}
+	if p.out.Position() < p.end {
+		return
+	}
+	p.ended()
 }
 
 func (p *Player) SetVolume(v float64) {
@@ -587,13 +612,16 @@ func normGain(st *netease.Stream) float64 {
 }
 
 func (p *Player) Position() time.Duration {
+	var pos time.Duration
 	switch {
 	case p.out == nil:
-		return p.pending
+		pos = p.pending
 	case p.seeking:
-		return p.seekTo
+		pos = p.seekTo
+	default:
+		pos = p.out.Position()
 	}
-	return p.out.Position()
+	return max(pos-p.start, 0)
 }
 
 func (p *Player) Duration() time.Duration {
@@ -612,7 +640,7 @@ func (p *Player) Levels() ([Bands]float32, bool) {
 	if spec == nil {
 		return [Bands]float32{}, false
 	}
-	frame := int64(p.Position().Seconds() * float64(p.stream.SampleRate()))
+	frame := int64((p.Position() + p.start).Seconds() * float64(p.stream.SampleRate()))
 	return spec.at(frame)
 }
 
@@ -669,6 +697,16 @@ func (p *Player) loadSkipping(at, skipped int, play bool, from time.Duration, sk
 	rem, remote := Remote{}, false
 	if !onDisk && p.RemoteOf != nil {
 		rem, remote = p.RemoteOf(t.ID)
+	}
+	p.start, p.end = 0, 0
+	if onDisk {
+		p.start, p.end = loc.Start, loc.End
+	}
+	if remote {
+		p.start, p.end = rem.Start, rem.End
+	}
+	if p.start > 0 {
+		p.pending += p.start
 	}
 	if t.ID < 0 && !onDisk && !remote {
 		// A track of another source whose information is gone, as one of

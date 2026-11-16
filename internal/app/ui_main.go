@@ -65,6 +65,9 @@ func (a *app) view(c *ui.Context) {
 }
 
 func (a *app) viewBody(c *ui.Context) {
+	// A slice of a video ends where its tracklist says, and what follows
+	// begins there.
+	a.pl.CheckSliceEnd()
 	t := *c.Theme()
 	a.pal = paletteFor(&t)
 	p := a.pal
@@ -158,6 +161,8 @@ func (a *app) viewBody(c *ui.Context) {
 	a.biliDeleteDialog(c)
 	a.biliDraftDialog(c)
 	a.biliCollectDialog(c)
+	a.biliSliceDialog(c)
+	a.addToPlaylistDialog(c)
 	a.biliLoginDialog(c)
 	a.biliImportDialog(c)
 	a.deletePlaylistDialog(c)

@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/egoist/mygo/ui"
 
@@ -115,7 +116,7 @@ func TestCreateDraftKeepsTheVideoFirst(t *testing.T) {
 	hit := netease.Track{ID: 9, Name: "晴天", Artists: []netease.Artist{{Name: "周杰伦"}}, Duration: 269000}
 	a.biliDraft = biliDraft{open: true, video: &v, cands: []biliCand{
 		{Raw: "晴天 - 周杰伦", Track: &hit},
-		{Raw: "ICE - Dreams To Remember"},
+		{Raw: "ICE - Dreams To Remember", StartMs: -1},
 	}}
 	a.createBiliDraft()
 	pl := a.biliPlaylists[0]
@@ -214,5 +215,36 @@ func TestBiliPreviewIsKeptOnlyWhenCollected(t *testing.T) {
 	}
 	if a.biliPlaylists[0].Name != long {
 		t.Fatalf("name %q, want it whole", a.biliPlaylists[0].Name)
+	}
+}
+
+// A song the site has not, timed by the tracklist, is cut from the video:
+// its own row, named as the tracklist names it, playing from its start to
+// where the next one begins.
+func TestDraftCutsTimedSongsFromTheVideo(t *testing.T) {
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "合集", Duration: 10 * time.Minute}
+	cands := []biliCand{
+		{Raw: "歌一 - 歌手", StartMs: 0},
+		{Raw: "歌二 - 歌手", StartMs: 60000},
+		{Raw: "歌三", StartMs: 180000},
+	}
+	pl := a.makeBiliPlaylist(v, cands, false)
+	if pl.Mode != "slices" || len(pl.Items) != 3 {
+		t.Fatalf("playlist %+v, want three slices", pl)
+	}
+	if it := pl.Items[0]; it.Start != 0 || it.End != 60000 || it.Track.Name != "歌一 - 歌手" {
+		t.Fatalf("first %+v, want it cut to 1:00", it)
+	}
+	if it := pl.Items[2]; it.Start != 180000 || it.End != 600000 {
+		t.Fatalf("last %+v, want it cut to the video's end", it)
+	}
+	if d := pl.Items[1].Track.Duration; d != 120000 {
+		t.Fatalf("second lasts %dms, want two minutes", d)
+	}
+	if _, ok := a.biliLocals[pl.Items[0].Track.ID]; ok {
+		t.Fatal("a slice was kept on disk before anything was downloaded")
 	}
 }

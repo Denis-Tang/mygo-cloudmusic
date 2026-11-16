@@ -2,8 +2,11 @@ package app
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"hash/fnv"
+	"io"
 	"regexp"
 	"strings"
 	"sync"
@@ -63,6 +66,56 @@ func (a *app) biliTrack(v bilibili.Video) netease.Track {
 		Album:    netease.Album{PicURL: v.Cover},
 		Duration: v.Duration.Milliseconds(),
 		// Nothing of NetEase's is asked of it, and it stays able to play.
+		Privilege: &netease.Privilege{Pl: 999000},
+	}
+}
+
+// biliSliceBase is where the IDs of a video's stretches begin: below the
+// videos', and below the files of this machine, so none of them meet.
+const biliSliceBase = 1 << 49
+
+// biliSliceID is the ID of the stretch of a video that starts at startMs,
+// the same on every load.
+func biliSliceID(bvid string, startMs int64) int64 {
+	h := fnv.New64a()
+	io.WriteString(h, bvid)
+	var b [8]byte
+	binary.LittleEndian.PutUint64(b[:], uint64(startMs))
+	h.Write(b[:])
+	return -int64(biliSliceBase) - int64(h.Sum64()&(biliSliceBase/2-1))
+}
+
+// biliSliceTrack maps a stretch of a video, named by its tracklist, to the
+// track the pages list: it plays from start to end, of the video's own
+// sound.
+func (a *app) biliSliceTrack(v bilibili.Video, name string, start, end int64) netease.Track {
+	id := biliSliceID(v.Bvid, start)
+	if a.biliVideos == nil {
+		a.biliVideos, a.biliRemotes = map[int64]bilibili.Video{}, map[int64]player.Remote{}
+	}
+	a.biliVideos[id] = v
+	a.biliRemotes[id] = player.Remote{
+		Start: time.Duration(start) * time.Millisecond,
+		End:   time.Duration(end) * time.Millisecond,
+		Resolve: func() (player.Remote, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			audio, err := biliPlayURL(ctx, v)
+			if err != nil {
+				return player.Remote{}, err
+			}
+			return player.Remote{URL: audio.URL, Headers: audio.Headers}, nil
+		},
+	}
+	if strings.TrimSpace(name) == "" {
+		name = v.Title
+	}
+	return netease.Track{
+		ID:        id,
+		Name:      name,
+		Artists:   []netease.Artist{{ID: v.UpMid, Name: v.Up}},
+		Album:     netease.Album{Name: v.Title, PicURL: v.Cover},
+		Duration:  end - start,
 		Privilege: &netease.Privilege{Pl: 999000},
 	}
 }

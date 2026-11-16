@@ -34,6 +34,11 @@ func coverPath(u string) (string, bool) {
 // it found once read.
 func (a *app) loadLibrary() {
 	folders := append([]string(nil), a.settings.LocalFolders...)
+	// The stretches cut out of videos are music of this machine too, beside
+	// the folders the listener added.
+	if dir, err := biliSlicesDir(); err == nil {
+		folders = append(folders, dir)
+	}
 	cacheDir, _ := mygo.App.Path(mygo.PathCache)
 	a.localScanning = true
 	go func() {
@@ -56,21 +61,26 @@ func localTracks(lib *local.Library) []netease.Track {
 	found := lib.Tracks()
 	out := make([]netease.Track, len(found))
 	for i, t := range found {
-		pic := ""
-		if t.Cover != "" {
-			pic = fileURL(t.Cover)
-		}
-		out[i] = netease.Track{
-			ID:       t.ID,
-			Name:     t.Title,
-			Artists:  []netease.Artist{{Name: t.Artist}},
-			Album:    netease.Album{Name: t.Album, PicURL: pic},
-			Duration: t.Duration.Milliseconds(),
-			// Nothing of NetEase's is asked of it, and it stays able to play.
-			Privilege: &netease.Privilege{Pl: 999000},
-		}
+		out[i] = localTrack(t)
 	}
 	return out
+}
+
+// localTrack is one file of the library, as the pages list it.
+func localTrack(t local.Track) netease.Track {
+	pic := ""
+	if t.Cover != "" {
+		pic = fileURL(t.Cover)
+	}
+	return netease.Track{
+		ID:       t.ID,
+		Name:     t.Title,
+		Artists:  []netease.Artist{{Name: t.Artist}},
+		Album:    netease.Album{Name: t.Album, PicURL: pic},
+		Duration: t.Duration.Milliseconds(),
+		// Nothing of NetEase's is asked of it, and it stays able to play.
+		Privilege: &netease.Privilege{Pl: 999000},
+	}
 }
 
 // localPage lists the tracks of the listener's folders, which play as any
