@@ -263,19 +263,34 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 					}
 					a.pl.PlayQueue(tracks, firstPlayable(tracks))
 				}
-				// Only a playlist a video made is made again; one imported
-				// from a collection of videos is that collection.
-				if v := biliPlaylistVideo(pl); v != nil && pl.Origin != "" {
-					if pillButton(c.Key("bili-rebuild"), iconReload, "重新生成", p.hover.Over(p.bg), p.text).Clicked() {
-						a.rebuildBiliPlaylist(pl, *v)
+				// The rest of what may be done is under the pointer's three
+				// dots, rather than a row of buttons beside the play ones.
+				more := iconButton(c.Key("bili-more"), iconMore, 18, p.text, "更多操作")
+				open := ui.Local(more, "bili-more-open", func() bool { return false })
+				if more.Clicked() {
+					*open = !*open
+				}
+				more.Expanded(*open)
+				a.actionPopover(c.Key("bili-playlist-actions"), more, open, func() {
+					close := func() { *open = false }
+					// Only a playlist a video made is made again; one
+					// imported from a collection is that collection.
+					if v := biliPlaylistVideo(pl); v != nil && pl.Origin != "" {
+						a.menuItem(c, iconReload, "重新生成", "").AutoFocus().OnClick(func() {
+							close()
+							a.rebuildBiliPlaylist(pl, *v)
+						})
 					}
-				}
-				if pillButton(c.Key("bili-rename"), iconPencil, "重命名", p.hover.Over(p.bg), p.text).Clicked() {
-					a.openBiliRename(pl.ID, pl.Name)
-				}
-				if pillButton(c.Key("bili-delete"), iconTrash, "删除", p.hover.Over(p.bg), p.text).Clicked() {
-					a.biliDeleting = biliDeleting{open: true, playlist: pl.ID, name: pl.Name}
-				}
+					a.menuItem(c, iconPencil, "重命名…", "").OnClick(func() {
+						close()
+						a.openBiliRename(pl.ID, pl.Name)
+					})
+					ui.Box(c).Height(1).Margin(4, 8).Background(p.hairline)
+					a.menuItem(c, iconTrash, "删除歌单…", "").OnClick(func() {
+						close()
+						a.biliDeleting = biliDeleting{open: true, playlist: pl.ID, name: pl.Name}
+					})
+				})
 			})
 		})
 	})

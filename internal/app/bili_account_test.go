@@ -118,8 +118,43 @@ func TestImportedCollectionHasNoRebuild(t *testing.T) {
 	if _, ok := tt.Find("播放"); !ok {
 		t.Fatal("the imported collection has no play button")
 	}
+	if _, ok := tt.Find("随机播放"); !ok {
+		t.Fatal("the imported collection has no shuffle button")
+	}
+	if _, ok := tt.Find("重命名"); ok {
+		t.Fatal("the head is a row of buttons, not one menu")
+	}
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatalf("no menu of the rest: %v", err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("重命名…"); !ok {
+		t.Fatal("the menu has no rename")
+	}
 	if _, ok := tt.Find("重新生成"); ok {
 		t.Fatal("an imported collection offers to be made again from one video")
+	}
+}
+
+// A playlist a video made offers to be made again from it, under the same
+// menu.
+func TestVideoPlaylistOffersToBeMadeAgain(t *testing.T) {
+	playlistFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	v := bilibili.Video{Bvid: "BV1xx411c7mD", Aid: 42, Title: "一首歌", Duration: 180000}
+	pl := a.makeBiliPlaylist(v, nil, false)
+	pl.Collected = true
+	a.biliPlaylists = []biliPlaylist{pl}
+	a.show(route{page: pageBiliPlaylist, id: pl.ID})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("更多操作"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if _, ok := tt.Find("重新生成"); !ok {
+		t.Fatal("a video's playlist offers no way to be made again")
 	}
 }
 
