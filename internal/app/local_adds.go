@@ -1,8 +1,8 @@
 package app
 
 // Songs of this machine put into the site's playlists: they show and play
-// here, after the playlist's own, and the site never hears of them, so its
-// own apps do not show them.
+// here, first, as the site lists the songs added to a playlist, and the
+// site never hears of them, so its own apps do not show them.
 
 import (
 	"encoding/json"
@@ -80,9 +80,9 @@ func (a *app) saveLocalAdds() {
 	}
 }
 
-// mergeLocalAdds puts the songs added here after a playlist's own, as it
-// shows: the playlist reloaded from the site loses them, and takes them
-// again here.
+// mergeLocalAdds puts the songs added here where the site puts the songs
+// added to a playlist, first and the newest first, as it shows: the
+// playlist reloaded from the site loses them, and takes them again here.
 func (a *app) mergeLocalAdds(pl *netease.Playlist) {
 	if pl == nil {
 		return
@@ -96,13 +96,13 @@ func (a *app) mergeLocalAdds(pl *netease.Playlist) {
 		mine[it.Track.ID] = true
 	}
 	out := make([]netease.Track, 0, len(pl.Tracks)+len(added))
+	for i := len(added) - 1; i >= 0; i-- {
+		out = append(out, added[i].Track)
+	}
 	for _, t := range pl.Tracks {
 		if !mine[t.ID] {
 			out = append(out, t)
 		}
-	}
-	for _, it := range added {
-		out = append(out, it.Track)
 	}
 	pl.Tracks = out
 }

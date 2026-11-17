@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -424,4 +425,14 @@ func (a *app) introduction(c *ui.Context, text string) {
 			*expanded = !*expanded
 		}
 	})
+}
+
+// writeFailed is what the app says when a change to the listener's account
+// failed. While NetEase has refused such changes, it says that instead: the
+// listener knows to wait rather than to ask again at once.
+func writeFailed(err error, fallback string) string {
+	if errors.Is(err, netease.ErrPaused) {
+		return err.Error()
+	}
+	return fallback
 }

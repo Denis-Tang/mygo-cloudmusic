@@ -6,9 +6,11 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/netease"
@@ -230,5 +232,83 @@ func TestAccountMenuFrames(t *testing.T) {
 		f, _ := os.Create(filepath.Join(dir, name))
 		png.Encode(f, out)
 		f.Close()
+	}
+}
+
+// With NM_FRAMES set, saves the avatar hinting at a newer version, mid-wave
+// and still, light and dark.
+func TestUpdateGlowFrames(t *testing.T) {
+	dir := os.Getenv("NM_FRAMES")
+	if dir == "" {
+		t.Skip()
+	}
+	for _, dark := range []bool{false, true} {
+		for _, still := range []bool{false, true} {
+			a := newTestApp()
+			a.settings = defaultSettings()
+			a.profile = &netease.Profile{UserID: 1, Nickname: "小明"}
+			a.update = &mygo.Update{Version: "9.9.9"}
+			tt := ui.NewTester(a.view, 1000, 700)
+			tt.SetDark(dark)
+			if still {
+				tt.SetPreferences(ui.Preferences{ReduceMotion: true})
+			}
+			// Land 400ms into a wave, where the ring has left the avatar.
+			now := time.Now()
+			tt.Advance(glowPeriod - time.Duration(now.UnixNano()%int64(glowPeriod)) + 150*time.Millisecond)
+			tt.Frame()
+			at, ok := tt.Find("小明")
+			if !ok {
+				t.Fatal("no avatar")
+			}
+			img := tt.Image()
+			s := float32(img.Bounds().Dx()) / 1000
+			mid := image.Pt(int((at.X+at.W/2)*s), int((at.Y+at.H/2)*s))
+			crop := image.Rect(mid.X-90, mid.Y-90, mid.X+90, mid.Y+90)
+			out := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
+			draw.Draw(out, out.Bounds(), img, crop.Min, draw.Src)
+			name := "glow-light.png"
+			if dark {
+				name = "glow-dark.png"
+			}
+			if still {
+				name = strings.TrimSuffix(name, ".png") + "-still.png"
+			}
+			f, err := os.Create(filepath.Join(dir, name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			png.Encode(f, out)
+			f.Close()
+		}
+	}
+}
+
+// The hint asks for frames while its ring moves, and none while it rests
+// between waves: a window left alone draws nothing for the update.
+func TestUpdateGlowFrameBudget(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.profile = &netease.Profile{UserID: 1, Nickname: "小明"}
+	a.update = &mygo.Update{Version: "9.9.9"}
+	tt := ui.NewTester(a.view, 1000, 700)
+	now := time.Now()
+	// 100ms into a wave.
+	tt.Advance(glowPeriod-time.Duration(now.UnixNano()%int64(glowPeriod)) + 100*time.Millisecond)
+	tt.Frame()
+	if !tt.FramePending() {
+		t.Fatal("a ring moving asked for no frame")
+	}
+	// The rest after the wave.
+	tt.Advance(glowWave)
+	tt.Frame()
+	tt.Advance(300 * time.Millisecond)
+	if tt.FramePending() {
+		t.Fatal("the hint asked for frames as it rested")
+	}
+	// The rest's end asks for the next wave.
+	tt.Advance(glowPeriod - glowWave - 300*time.Millisecond)
+	if !tt.FramePending() {
+		t.Fatal("the next wave asked for no frame")
 	}
 }

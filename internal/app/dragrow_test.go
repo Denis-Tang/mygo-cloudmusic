@@ -62,8 +62,8 @@ func TestMoveSitePlaylistKeepsOrderHere(t *testing.T) {
 	}
 }
 
-// A hold and a drag in the sidebar moves a playlist below the one after
-// it, and opens nothing.
+// A press that moves a playlist row drags it, with a copy above the rest,
+// and letting it below the next row puts it there, without opening it.
 func TestBiliPlaylistDragsToReorder(t *testing.T) {
 	playlistFile(t)
 	a := newTestApp()
@@ -75,21 +75,21 @@ func TestBiliPlaylistDragsToReorder(t *testing.T) {
 		pl.Name, pl.Collected = name, true
 		a.biliPlaylists = append(a.biliPlaylists, pl)
 	}
-	old := dragHold
-	dragHold = 0
-	t.Cleanup(func() { dragHold = old })
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
 	r, ok := tt.Find("甲歌单")
 	if !ok {
 		t.Fatal("the playlist row is not listed")
 	}
-	tt.Press(r.X+r.W/2, r.Y+r.H/2)
+	x, y := r.X+r.W/2, r.Y+r.H/2
+	tt.Press(x, y)
 	tt.Frame()
-	tt.Frame() // held long enough: the row may be dragged
-	tt.Move(r.X+r.W/2, r.Y+r.H/2+rowPitch+6)
+	tt.Move(x, y+rowPitch+6)
 	tt.Frame()
-	tt.Release(r.X+r.W/2, r.Y+r.H/2+rowPitch+6)
+	if a.drag == nil {
+		t.Fatal("no copy of the row shows while it is dragged")
+	}
+	tt.Release(x, y+rowPitch+6)
 	tt.Frame()
 	if a.biliPlaylists[0].Name != "乙歌单" || a.biliPlaylists[1].Name != "甲歌单" {
 		t.Fatalf("order %q, %q, want them swapped", a.biliPlaylists[0].Name, a.biliPlaylists[1].Name)
@@ -97,30 +97,88 @@ func TestBiliPlaylistDragsToReorder(t *testing.T) {
 	if a.route.page == pageBiliPlaylist {
 		t.Fatal("dragging the row opened it")
 	}
+	if a.drag != nil {
+		t.Fatal("the copy of the row stayed after it was let go")
+	}
 }
 
-// A hold and a drag in the sidebar moves one of the site's playlists too,
-// and the order is kept here.
+// A press that moves one of the site's playlists drags it too, and the
+// order is kept here.
 func TestSitePlaylistDragsToReorder(t *testing.T) {
 	a := editTestApp()
 	a.mine = []netease.Playlist{{ID: 11, Name: "甲歌单"}, {ID: 12, Name: "乙歌单"}}
-	old := dragHold
-	dragHold = 0
-	t.Cleanup(func() { dragHold = old })
 	tt := ui.NewTester(a.view, 1200, 800)
 	tt.Frame()
 	r, ok := tt.Find("甲歌单")
 	if !ok {
 		t.Fatal("the playlist row is not listed")
 	}
-	tt.Press(r.X+r.W/2, r.Y+r.H/2)
+	x, y := r.X+r.W/2, r.Y+r.H/2
+	tt.Press(x, y)
 	tt.Frame()
+	tt.Move(x, y+rowPitch+6)
 	tt.Frame()
-	tt.Move(r.X+r.W/2, r.Y+r.H/2+rowPitch+6)
-	tt.Frame()
-	tt.Release(r.X+r.W/2, r.Y+r.H/2+rowPitch+6)
+	tt.Release(x, y+rowPitch+6)
 	tt.Frame()
 	if a.mine[0].Name != "乙歌单" || a.mine[1].Name != "甲歌单" {
 		t.Fatalf("order %q, %q, want them swapped", a.mine[0].Name, a.mine[1].Name)
+	}
+}
+
+// A press that moves a row up puts it above the one it passed.
+func TestPlaylistRowDragsUp(t *testing.T) {
+	a := editTestApp()
+	a.mine = []netease.Playlist{{ID: 11, Name: "甲歌单"}, {ID: 12, Name: "乙歌单"}}
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	r, ok := tt.Find("乙歌单")
+	if !ok {
+		t.Fatal("the playlist row is not listed")
+	}
+	x, y := r.X+r.W/2, r.Y+r.H/2
+	tt.Press(x, y)
+	tt.Frame()
+	tt.Move(x, y-rowPitch-6)
+	tt.Frame()
+	tt.Release(x, y-rowPitch-6)
+	tt.Frame()
+	if a.mine[0].Name != "乙歌单" || a.mine[1].Name != "甲歌单" {
+		t.Fatalf("order %q, %q, want it moved up", a.mine[0].Name, a.mine[1].Name)
+	}
+}
+
+// A press that does not move a playlist row clicks it, and opens it.
+func TestPlaylistRowClicksWhenStill(t *testing.T) {
+	a := editTestApp()
+	a.mine = []netease.Playlist{{ID: 11, Name: "甲歌单"}, {ID: 12, Name: "乙歌单"}}
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	if err := tt.Click("甲歌单"); err != nil {
+		t.Fatal(err)
+	}
+	if a.route.page != pagePlaylist || a.route.id != 11 {
+		t.Fatalf("route %+v, want the playlist row opened", a.route)
+	}
+}
+
+// The rows between a dragged row's place and where it would land move one
+// way, and it, the other, so that the list shows where it goes before it is
+// let go. Another group keeps still.
+func TestDragShiftMakesRoom(t *testing.T) {
+	a := newTestApp()
+	a.dragMove = &dragMove{group: "mine", from: 2, to: 4, count: 5}
+	for i, want := range []float32{0, 0, 0, -rowPitch, -rowPitch} {
+		if got := a.dragShift("mine", i); got != want {
+			t.Errorf("down, row %d: shift %v, want %v", i, got, want)
+		}
+	}
+	a.dragMove = &dragMove{group: "mine", from: 3, to: 1, count: 5}
+	for i, want := range []float32{0, rowPitch, rowPitch, 0, 0} {
+		if got := a.dragShift("mine", i); got != want {
+			t.Errorf("up, row %d: shift %v, want %v", i, got, want)
+		}
+	}
+	if got := a.dragShift("saved", 1); got != 0 {
+		t.Errorf("another group moved by %v", got)
 	}
 }

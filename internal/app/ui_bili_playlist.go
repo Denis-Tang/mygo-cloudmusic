@@ -407,37 +407,52 @@ func (a *app) biliPlaylistRows(c *ui.Context, kept []*biliPlaylist) {
 	a.biliPlaylistGroup(c, collected, false)
 }
 
-// biliPlaylistGroup lists one group of them, each a row that may be held
-// and dragged among the group.
+// biliPlaylistGroup lists one group of them, each a row that may be dragged
+// among the group.
 func (a *app) biliPlaylistGroup(c *ui.Context, lists []*biliPlaylist, imported bool) {
-	p := a.pal
+	group := "bili-kept"
+	if imported {
+		group = "bili-imported"
+	}
+	a.dragGroupStart()
 	for i, pl := range lists {
-		selected := a.route.page == pageBiliPlaylist && a.route.id == pl.ID && !a.nowPlaying
-		b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
-		pb := ui.Transparent
-		switch {
-		case selected:
-			pb = p.press
-		case b.Hovered():
-			pb = p.hover
-		}
-		b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
-		cover := pl.Cover
-		if cover == "" && len(pl.Items) > 0 {
-			cover = pl.Items[0].Track.Album.PicURL
-		}
-		b.Children(func() {
-			a.cover(c, cover, 80, 28, radiusTile-1)
-			ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+		pl := pl
+		a.biliPlaylistRow(c, pl, i, len(lists), group, func(steps int) {
+			a.moveBiliPlaylist(pl.ID, steps, imported)
 		})
+	}
+	a.dragDropsRun()
+}
+
+// biliPlaylistRow is one of them, dragging within its group when the group
+// has more than one.
+func (a *app) biliPlaylistRow(c *ui.Context, pl *biliPlaylist, i, count int, group string, move func(steps int)) {
+	p := a.pal
+	selected := a.route.page == pageBiliPlaylist && a.route.id == pl.ID && !a.nowPlaying
+	b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+	pb := ui.Transparent
+	switch {
+	case selected:
+		pb = p.press
+	case b.Hovered():
+		pb = p.hover
+	}
+	b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
+	cover := pl.Cover
+	if cover == "" && len(pl.Items) > 0 {
+		cover = pl.Items[0].Track.Album.PicURL
+	}
+	b.Children(func() {
+		a.cover(c, cover, 80, 28, radiusTile-1)
+		ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+	})
+	if count > 1 {
 		st := ui.Local(b, "drag", func() dragRow { return dragRow{} })
-		if st.off.Y != 0 {
-			b.Shadow(0, 10, 24, -6, p.cardShade)
-		}
-		a.dragRowOf(b, i, len(lists), st, func(steps int) { a.moveBiliPlaylist(pl.ID, steps, imported) })
-		if b.Clicked() {
-			a.open(route{page: pageBiliPlaylist, id: pl.ID})
-		}
+		a.dragRowOf(b, group, i, count, st, cover, pl.Name, move)
+		a.dragShiftRow(b, group, i, st)
+	}
+	if b.Clicked() {
+		a.open(route{page: pageBiliPlaylist, id: pl.ID})
 	}
 }
 

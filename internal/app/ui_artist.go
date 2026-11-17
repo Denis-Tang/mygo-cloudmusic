@@ -246,7 +246,7 @@ func (a *app) toggleFollow(id int64) {
 			switch {
 			case err != nil:
 				ar.Followed = !follow
-				a.toast = "操作失败，请稍后再试"
+				a.toast = writeFailed(err, "操作失败，请稍后再试")
 			case follow:
 				a.toast = "已关注"
 			default:

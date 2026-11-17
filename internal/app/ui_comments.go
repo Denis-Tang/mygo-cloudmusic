@@ -320,7 +320,7 @@ func (a *app) toggleCommentLike(id int64) {
 		a.post(func() {
 			if err != nil && cs.thread == thread {
 				cs.setLiked(id, !like)
-				a.toast = "操作失败，请稍后再试"
+				a.toast = writeFailed(err, "操作失败，请稍后再试")
 			}
 		})
 	}()

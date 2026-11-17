@@ -142,7 +142,7 @@ func (a *app) toggleAlbumCollection(al *netease.AlbumProfile) {
 			}
 			if err != nil {
 				a.setAlbumCollected(al, !collect)
-				a.toast = "操作失败，请稍后再试"
+				a.toast = writeFailed(err, "操作失败，请稍后再试")
 			} else if collect {
 				a.toast = "已收藏专辑"
 			} else {

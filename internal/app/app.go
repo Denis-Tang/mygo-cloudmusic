@@ -64,12 +64,12 @@ type app struct {
 
 	// biliTracks are the videos searched for or ranked, as tracks, and
 	// biliRemotes what plays each: see ui_bili.go.
-	biliTracks  []netease.Track
-	biliHits    []bilibili.Video
-	biliFilter  int64 // the uploader whose playlists the page lists
+	biliTracks   []netease.Track
+	biliHits     []bilibili.Video
+	biliFilter   int64 // the uploader whose playlists the page lists
 	biliBuilding map[string]bool
-	biliVideos  map[int64]bilibili.Video
-	biliRemotes map[int64]player.Remote
+	biliVideos   map[int64]bilibili.Video
+	biliRemotes  map[int64]player.Remote
 	// biliLocals are the video's stretches kept on this machine, which play
 	// from their file.
 	biliLocals map[int64]player.Local
@@ -79,43 +79,43 @@ type app struct {
 	biliNewPL    biliNewPlaylist
 	// localAdds are songs of this machine in the site's playlists, kept
 	// here alone: see local_adds.go.
-	localAdds map[int64][]biliItem
+	localAdds   map[int64][]biliItem
 	biliQuery   string
 	biliBox     ui.Handle // the search field of the page, for its focus look
-	biliShown   string // the query whose results the page lists
+	biliShown   string    // the query whose results the page lists
 	biliSources map[int64]biliSource
 	biliLoading bool
 	biliErr     string
 
 	// The uploaders the listener follows, kept on this machine, and what
 	// they posted: see bili_follows.go.
-	follows     []biliFollow
-	biliUsers   []bilibili.User
-	biliFeed    []bilibili.Video
-	biliFeedTr  []netease.Track
-	biliNew     map[string]bool
-	biliNewNum  int
-	biliFeedErr string
+	follows         []biliFollow
+	biliUsers       []bilibili.User
+	biliFeed        []bilibili.Video
+	biliFeedTr      []netease.Track
+	biliNew         map[string]bool
+	biliNewNum      int
+	biliFeedErr     string
 	biliLoadingFeed bool
-	biliPoll    *time.Timer
-	biliPulled  time.Time
+	biliPoll        *time.Timer
+	biliPulled      time.Time
 
 	// control serves the API tests drive the app with, when MYGO_CONTROL
 	// is set: see control.go.
-	control *control.Server
-	biliPlaylists  []biliPlaylist
+	control       *control.Server
+	biliPlaylists []biliPlaylist
 	// biliPreview is the playlist the video last opened made: it stays in
 	// memory, out of the sidebar and what the listener keeps, until it is
 	// collected. A new search drops it.
-	biliPreview    *biliPlaylist
-	biliNaming     biliNaming
-	biliDeleting   biliDeleting
+	biliPreview     *biliPlaylist
+	biliNaming      biliNaming
+	biliDeleting    biliDeleting
 	biliPLCollapsed bool
-	biliDraft      biliDraft
+	biliDraft       biliDraft
 	// crashed is what panicked the view, shown in place of it until the
 	// app starts again.
 	crashed string
-	pal   palette
+	pal     palette
 
 	frameDark bool // the appearance the window's frame was drawn in
 
@@ -226,6 +226,13 @@ type app struct {
 	mutedFrom  float64
 
 	rowBars barState
+	// drag, dragMove and dragGen are the sidebar row a group drags, where it
+	// would land, and the drops so far: see ui_dragrow.go.
+	drag        *dragCard
+	dragMove    *dragMove
+	dragGen     int
+	dragDrops   []func()
+	dragSettled bool
 	// underTop says whether content has scrolled under the top bar.
 	underTop      bool
 	barScrub      scrubState
@@ -245,9 +252,10 @@ type app struct {
 	// click asks for, and the lyrics' scroll, glide and line. See
 	// ui_immersive.go.
 	coverScrub scrubState
-	npActiveAt time.Time // when the listener last acted on the playing page
-	cacheUsed  int64     // the bytes the song cache takes, -1 until measured
-	updates    bool      // the update plugin is used (useUpdater)
+	npActiveAt time.Time    // when the listener last acted on the playing page
+	cacheUsed  int64        // the bytes the song cache takes, -1 until measured
+	updates    bool         // the update plugin is used (useUpdater)
+	update     *mygo.Update // the newer version the feed offers, or nil
 
 	restored     bool   // playback picked up where it was left
 	savedSession string // the session as last kept
@@ -299,22 +307,22 @@ func Run() error {
 		return nil
 	}
 	a := &app{
-		playlists:  map[int64]*netease.Playlist{},
-		loadingPl:  map[int64]bool{},
-		plErr:      map[int64]string{},
-		artists:    map[int64]*artistData{},
-		albums:     map[int64]*albumData{},
-		users:      map[int64]*userData{},
-		podcasts:   map[int64]*podcastData{},
-		podcastTab: &podcastTab{},
-		searches:   map[route]*searchData{},
-		lyricAt:    -1,
-		queueAt:    -1,
-		cacheUsed:  -1,
+		playlists:   map[int64]*netease.Playlist{},
+		loadingPl:   map[int64]bool{},
+		plErr:       map[int64]string{},
+		artists:     map[int64]*artistData{},
+		albums:      map[int64]*albumData{},
+		users:       map[int64]*userData{},
+		podcasts:    map[int64]*podcastData{},
+		podcastTab:  &podcastTab{},
+		searches:    map[route]*searchData{},
+		lyricAt:     -1,
+		queueAt:     -1,
+		cacheUsed:   -1,
 		biliVideos:  map[int64]bilibili.Video{},
 		biliRemotes: map[int64]player.Remote{},
 		biliLocals:  map[int64]player.Local{},
-		pubAsked:   map[int64]bool{},
+		pubAsked:    map[int64]bool{},
 	}
 	moveOldData()
 	if dir, err := mygo.App.Path(mygo.PathUserData); err == nil {
@@ -441,6 +449,7 @@ func Run() error {
 		a.settings.Volume = a.volume
 		a.settings.save()
 		a.saveSession()
+		netease.KeepSession()
 		if write := a.transcriptWrite(); write != nil {
 			write()
 		}

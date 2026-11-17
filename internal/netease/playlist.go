@@ -33,7 +33,7 @@ func CreatePlaylist(name string) (*Playlist, error) {
 		Playlist Playlist `json:"playlist"`
 	}
 	data := map[string]any{"name": name, "privacy": "0", "type": "NORMAL"}
-	if err := eapiPost("/api/playlist/create", data, &res); err != nil {
+	if err := eapiWrite("/api/playlist/create", data, &res); err != nil {
 		return nil, err
 	}
 	if res.Code != 200 {
@@ -56,7 +56,7 @@ func RenamePlaylist(id int64, name string) error {
 		Message string `json:"message"`
 	}
 	data := map[string]any{"id": strconv.FormatInt(id, 10), "name": name}
-	if err := eapiPost("/api/playlist/update/name", data, &res); err != nil {
+	if err := eapiWrite("/api/playlist/update/name", data, &res); err != nil {
 		return err
 	}
 	if res.Code != 200 {
@@ -79,7 +79,7 @@ func manipulate(op string, pid int64, songs []int64) error {
 	send := func(ids []int64) error {
 		b, _ := json.Marshal(ids)
 		data := map[string]any{"op": op, "pid": strconv.FormatInt(pid, 10), "trackIds": string(b), "imme": "true"}
-		return eapiPost("/api/playlist/manipulate/tracks", data, &res)
+		return eapiWrite("/api/playlist/manipulate/tracks", data, &res)
 	}
 	if err := send(songs); err != nil {
 		return err
@@ -106,7 +106,7 @@ func DeletePlaylist(id int64) error {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	}
-	if err := eapiPost("/api/playlist/remove", map[string]any{"ids": fmt.Sprintf("[%d]", id)}, &res); err != nil {
+	if err := eapiWrite("/api/playlist/remove", map[string]any{"ids": fmt.Sprintf("[%d]", id)}, &res); err != nil {
 		return err
 	}
 	if res.Code != 200 {

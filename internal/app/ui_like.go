@@ -59,7 +59,7 @@ func (a *app) toggleLike(tr *netease.Track) {
 		a.post(func() {
 			if err != nil {
 				a.setLiked(id, !like)
-				a.toast = "操作失败，请稍后再试"
+				a.toast = writeFailed(err, "操作失败，请稍后再试")
 				return
 			}
 			// The liked songs' playlist changed: load it anew when shown.
@@ -83,7 +83,7 @@ func (a *app) toggleProgramLike(id int64) {
 		a.post(func() {
 			if err != nil {
 				a.setProgramLiked(id, !like)
-				a.toast = "操作失败，请稍后再试"
+				a.toast = writeFailed(err, "操作失败，请稍后再试")
 			}
 		})
 	}()

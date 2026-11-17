@@ -12,7 +12,7 @@ func CollectAlbum(id int64, collect bool) error {
 	if collect {
 		path = "/api/album/sub"
 	}
-	return post(path, url.Values{"id": {strconv.FormatInt(id, 10)}}, &struct{}{})
+	return postWrite(path, url.Values{"id": {strconv.FormatInt(id, 10)}}, &struct{}{})
 }
 
 // SubscribePodcast subscribes the listener to a podcast, or unsubscribes
@@ -30,7 +30,7 @@ func FollowArtist(id int64, follow bool) error {
 		path = "/api/artist/sub"
 	}
 	form := url.Values{"artistId": {strconv.FormatInt(id, 10)}, "artistIds": {fmt.Sprintf("[%d]", id)}}
-	return post(path, form, &struct{}{})
+	return postWrite(path, form, &struct{}{})
 }
 
 func subscription(kind string, sub bool, data map[string]any) error {
@@ -42,7 +42,7 @@ func subscription(kind string, sub bool, data map[string]any) error {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	}
-	if err := eapiPost(path, data, &res); err != nil {
+	if err := eapiWrite(path, data, &res); err != nil {
 		return err
 	}
 	if res.Code != 200 {

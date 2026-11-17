@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 
 	"netease-music-mygo/internal/netease"
@@ -127,6 +128,54 @@ func TestCheckForUpdatesFromSettings(t *testing.T) {
 	}
 	if checked != 1 {
 		t.Fatalf("checked %d times", checked)
+	}
+}
+
+// A newer version shows in the account menu, which opens the update window
+// for it, and the avatar stops hinting once the listener has seen it.
+func TestUpdateHint(t *testing.T) {
+	checks, downloads, checked := true, false, 0
+	defer fakeUpdater(&checks, &downloads, &checked)()
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.profile = &netease.Profile{UserID: 1, Nickname: "小明"}
+	a.update = &mygo.Update{Version: "9.9.9"}
+	if a.updateHint() != "9.9.9" {
+		t.Fatalf("hint = %q, want the version", a.updateHint())
+	}
+	tt := ui.NewTester(a.view, 1000, 700)
+	tt.Frame()
+	if err := tt.Click("小明"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("版本 9.9.9 可用"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if checked != 1 {
+		t.Fatalf("checked for updates %d times", checked)
+	}
+	if a.accountOpen {
+		t.Fatal("the menu stayed open")
+	}
+	if a.settings.UpdateSeen != "9.9.9" || a.updateHint() != "" {
+		t.Fatalf("seen = %q, hint = %q after the window", a.settings.UpdateSeen, a.updateHint())
+	}
+}
+
+// A build with nothing newer has no hint, and neither does one whose feed
+// could not be read.
+func TestNoUpdateHint(t *testing.T) {
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.profile = &netease.Profile{UserID: 1, Nickname: "小明"}
+	if a.updateHint() != "" {
+		t.Fatalf("hint = %q without an update", a.updateHint())
+	}
+	a.update = &mygo.Update{}
+	if a.updateHint() != "" {
+		t.Fatalf("hint = %q for a version with no number", a.updateHint())
 	}
 }
 

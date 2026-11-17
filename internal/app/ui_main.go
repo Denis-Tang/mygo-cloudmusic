@@ -153,6 +153,7 @@ func (a *app) viewBody(c *ui.Context) {
 			a.sidebarToggle(c)
 		}
 		a.nowPlayingLayer(c, npOpen, npSettled)
+		a.dragCardLayer(c)
 	})
 	a.loginDialog(c)
 	a.collectDialogBody(c)

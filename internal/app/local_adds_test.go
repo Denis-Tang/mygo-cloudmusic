@@ -19,9 +19,9 @@ func localAddsFileAt(t *testing.T) {
 	t.Cleanup(func() { localAddsFile = old })
 }
 
-// A song of this machine put into a site playlist shows after its own, and
-// goes away from this machine alone.
-func TestLocalAddShowsAfterThePlaylistsOwn(t *testing.T) {
+// A song of this machine put into a site playlist shows first, as the
+// songs added to it do, and goes away from this machine alone.
+func TestLocalAddShowsFirst(t *testing.T) {
 	localAddsFileAt(t)
 	a := newTestApp()
 	a.settings = defaultSettings()
@@ -29,12 +29,21 @@ func TestLocalAddShowsAfterThePlaylistsOwn(t *testing.T) {
 	a.playlists[7] = pl
 	local := netease.Track{ID: -9, Name: "切片歌"}
 	a.addLocalToPlaylist(7, local)
-	if len(pl.Tracks) != 3 || pl.Tracks[2].Name != "切片歌" {
-		t.Fatalf("tracks %+v, want the local song after the site's", pl.Tracks)
+	if len(pl.Tracks) != 3 || pl.Tracks[0].Name != "切片歌" {
+		t.Fatalf("tracks %+v, want the local song first", pl.Tracks)
 	}
 	a.addLocalToPlaylist(7, local)
 	if len(pl.Tracks) != 3 {
 		t.Fatalf("tracks %+v, want it added once", pl.Tracks)
+	}
+	// The one added last comes first, as at the site.
+	second := netease.Track{ID: -10, Name: "切片歌二"}
+	a.addLocalToPlaylist(7, second)
+	if len(pl.Tracks) != 4 || pl.Tracks[0].ID != -10 || pl.Tracks[1].ID != -9 {
+		t.Fatalf("tracks %+v, want the last added first", pl.Tracks)
+	}
+	if !a.removeLocalFromPlaylist(7, -10) {
+		t.Fatal("the second song added here is not the one there")
 	}
 	// Kept for the next start.
 	b := newTestApp()
@@ -45,8 +54,8 @@ func TestLocalAddShowsAfterThePlaylistsOwn(t *testing.T) {
 	}
 	reloaded := &netease.Playlist{ID: 7, Tracks: []netease.Track{{ID: 1}, {ID: 2}}}
 	b.mergeLocalAdds(reloaded)
-	if len(reloaded.Tracks) != 3 || reloaded.Tracks[2].ID != -9 {
-		t.Fatalf("reloaded %+v, want the local song back after a refresh", reloaded.Tracks)
+	if len(reloaded.Tracks) != 3 || reloaded.Tracks[0].ID != -9 || reloaded.Tracks[1].ID != 1 {
+		t.Fatalf("reloaded %+v, want the local song back first after a refresh", reloaded.Tracks)
 	}
 	if !b.removeLocalFromPlaylist(7, -9) || len(b.localAdds[7]) != 0 {
 		t.Fatalf("removed %v, adds %+v", false, b.localAdds)
@@ -122,7 +131,7 @@ func TestRemovingAnAddedSongLeavesTheSiteAlone(t *testing.T) {
 }
 
 // A video's row in a Bilibili playlist offers itself to a playlist, and a
-// site playlist takes it after its own songs.
+// site playlist takes it where it takes the songs added to it: first.
 func TestVideoRowGoesIntoASitePlaylist(t *testing.T) {
 	playlistFile(t)
 	localAddsFileAt(t)
@@ -154,8 +163,8 @@ func TestVideoRowGoesIntoASitePlaylist(t *testing.T) {
 	}
 	tt.Frame()
 	got := a.playlists[7].Tracks
-	if len(got) != 2 || got[1].Name != "一首歌" {
-		t.Fatalf("tracks %+v, want the video after the site's song", got)
+	if len(got) != 2 || got[0].Name != "一首歌" {
+		t.Fatalf("tracks %+v, want the video before the site's song", got)
 	}
 	if len(a.localAdds[7]) != 1 || a.localAdds[7][0].Video == nil {
 		t.Fatalf("adds %+v, want the video kept with what plays it", a.localAdds[7])

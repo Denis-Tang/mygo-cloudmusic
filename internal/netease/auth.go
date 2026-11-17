@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -68,6 +70,41 @@ func deleteSession() {
 
 var siteURL, _ = url.Parse(apiBase)
 
+// kept is the session as the keychain last had it, to write it only when
+// NetEase changed it. The login, the boot and the quit may read it from
+// different goroutines.
+var (
+	keptMu sync.Mutex
+	kept   string
+)
+
+func keptSession() string {
+	keptMu.Lock()
+	defer keptMu.Unlock()
+	return kept
+}
+
+func setKept(set string) {
+	keptMu.Lock()
+	kept = set
+	keptMu.Unlock()
+}
+
+// sessionCookies is the session as the keychain keeps it: the login cookie,
+// the site's request token, and the visitor ID that names the device, which
+// changing would make the account look like one on a new device.
+func sessionCookies() string {
+	var parts []string
+	for _, c := range httpClient.Jar.Cookies(siteURL) {
+		switch c.Name {
+		case "MUSIC_U", "__csrf", "NMTID":
+			parts = append(parts, c.Name+"="+c.Value)
+		}
+	}
+	slices.Sort(parts)
+	return strings.Join(parts, "; ")
+}
+
 func init() {
 	httpClient.Jar, _ = cookiejar.New(nil)
 }
@@ -87,21 +124,34 @@ func RestoreSession() bool {
 		}
 	}
 	httpClient.Jar.SetCookies(siteURL, cookies)
+	setKept(string(b))
 	return true
 }
 
 // SaveSession keeps the login cookies of the jar in the keychain.
 func SaveSession() error {
-	var parts []string
-	for _, c := range httpClient.Jar.Cookies(siteURL) {
-		if c.Name == "MUSIC_U" || c.Name == "__csrf" {
-			parts = append(parts, c.Name+"="+c.Value)
-		}
-	}
-	if len(parts) == 0 {
+	set := sessionCookies()
+	if !strings.Contains(set, "MUSIC_U=") {
 		return errors.New("no session cookie")
 	}
-	return writeSession([]byte(strings.Join(parts, "; ")))
+	if err := writeSession([]byte(set)); err != nil {
+		return err
+	}
+	setKept(set)
+	return nil
+}
+
+// KeepSession keeps the session if NetEase changed it since it was kept, as
+// it may as the account is used: a session kept only from the login could
+// end, and the listener log in again, which risk control counts.
+func KeepSession() {
+	set := sessionCookies()
+	if !strings.Contains(set, "MUSIC_U=") || set == keptSession() {
+		return
+	}
+	if writeSession([]byte(set)) == nil {
+		setKept(set)
+	}
 }
 
 // ClearSession forgets the session, here and in the keychain.
@@ -110,6 +160,7 @@ func ClearSession() {
 		{Name: "MUSIC_U", Path: "/", MaxAge: -1},
 		{Name: "__csrf", Path: "/", MaxAge: -1},
 	})
+	setKept("")
 	deleteSession()
 }
 
@@ -170,7 +221,7 @@ func QRCheck(key string) (code int, msg, nickname, avatar string, err error) {
 
 // Logout ends the session with NetEase too.
 func Logout() {
-	post("/api/logout", url.Values{}, &struct{}{})
+	postWrite("/api/logout", url.Values{}, &struct{}{})
 	ClearSession()
 }
 
@@ -279,7 +330,7 @@ func Like(id int64, like bool) error {
 		Msg  string `json:"msg"`
 	}
 	data := map[string]any{"alg": "itembased", "trackId": strconv.FormatInt(id, 10), "like": strconv.FormatBool(like), "time": "3"}
-	if err := eapiPost("/api/radio/like", data, &res); err != nil {
+	if err := eapiWrite("/api/radio/like", data, &res); err != nil {
 		return err
 	}
 	if res.Code != 200 {

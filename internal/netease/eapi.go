@@ -78,6 +78,21 @@ func device() string {
 // data, and decodes the JSON it answers into out. The cookies it sets, the
 // session's among them, go in the jar.
 func eapiPost(path string, data map[string]any, out any) error {
+	return eapi(path, data, read, out)
+}
+
+// eapiWrite calls path through the eapi with data that changes the
+// listener's account, which the gate spaces out.
+func eapiWrite(path string, data map[string]any, out any) error {
+	return eapi(path, data, write, out)
+}
+
+func eapi(path string, data map[string]any, o op, out any) error {
+	release, err := calls.begin(o)
+	if err != nil {
+		return err
+	}
+	defer release()
 	header := map[string]string{
 		"osver":       eapiClient["osver"],
 		"deviceId":    device(),
@@ -138,21 +153,29 @@ func eapiPost(path string, data map[string]any, out any) error {
 	if res.StatusCode != http.StatusOK {
 		var status apiError
 		if json.Unmarshal(body, &status) == nil && status.Code != 0 && status.Code != 200 {
+			calls.refuse(status.Code)
 			return &status
 		}
+		calls.refuse(res.StatusCode)
 		return fmt.Errorf("网易云请求失败（HTTP %d）", res.StatusCode)
 	}
 	if err := json.Unmarshal(body, out); err != nil {
 		return fmt.Errorf("网易云返回的数据格式异常：%w", err)
 	}
+	// It answers a refusal as a code, as -460 for a network its risk
+	// control finds risky, with HTTP 200.
+	var status apiError
+	if json.Unmarshal(body, &status) == nil && status.Code != 0 {
+		calls.refuse(status.Code)
+	}
 	return nil
 }
 
-// eapiOK calls path through the eapi with data, and fails unless NetEase
-// answers code 200.
+// eapiOK calls path through the eapi with data that changes the account,
+// and fails unless NetEase answers code 200.
 func eapiOK(path string, data map[string]any) error {
 	var res apiError
-	if err := eapiPost(path, data, &res); err != nil {
+	if err := eapiWrite(path, data, &res); err != nil {
 		return err
 	}
 	if res.Code != 200 {

@@ -191,25 +191,43 @@ func get(path string, query url.Values, out any) error {
 	if err != nil {
 		return err
 	}
-	return do(req, out)
+	return do(req, read, out)
 }
 
+// post calls the web API with a form that reads.
 func post(path string, form url.Values, out any) error {
 	req, err := http.NewRequest("POST", apiBase+path, strings.NewReader(form.Encode()))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	return do(req, out)
+	return do(req, read, out)
 }
 
-func do(req *http.Request, out any) error {
+// postWrite calls the web API with a form that changes the listener's
+// account, which the gate spaces out.
+func postWrite(path string, form url.Values, out any) error {
+	req, err := http.NewRequest("POST", apiBase+path, strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return do(req, write, out)
+}
+
+func do(req *http.Request, o op, out any) error {
+	release, err := calls.begin(o)
+	if err != nil {
+		return err
+	}
+	defer release()
 	req.Header.Set("User-Agent", UserAgent)
 	req.Header.Set("Referer", apiBase+"/")
 	res, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
+	calls.refuse(res.StatusCode)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -220,6 +238,7 @@ func do(req *http.Request, out any) error {
 		return fmt.Errorf("netease: %s: %w", req.URL.Path, err)
 	}
 	if status.Code != 200 {
+		calls.refuse(status.Code)
 		msg := status.Message
 		if msg == "" {
 			msg = status.Msg

@@ -45,7 +45,7 @@ func FMTrash(id int64) error {
 		Code int `json:"code"`
 	}
 	data := map[string]any{"songId": strconv.FormatInt(id, 10), "alg": "RT", "time": "25"}
-	if err := eapiPost("/api/radio/trash/add", data, &res); err != nil {
+	if err := eapiWrite("/api/radio/trash/add", data, &res); err != nil {
 		return err
 	}
 	if res.Code != 200 {

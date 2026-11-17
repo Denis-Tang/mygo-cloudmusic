@@ -23,6 +23,13 @@ type loginState struct {
 	finished bool
 }
 
+// A QR code is good for about five minutes: pollLogin asks every
+// qrPollEvery, qrPolls times.
+const (
+	qrPollEvery = 3 * time.Second
+	qrPolls     = 100
+)
+
 // boot signs in with the session in the keychain, if any, then loads the
 // home page for whoever is listening.
 func (a *app) boot() {
@@ -53,6 +60,7 @@ func (a *app) boot() {
 			a.signedIn(prof)
 		})
 	}()
+	a.checkUpdates()
 }
 
 // signedIn shows what is personal to prof, or to nobody.
@@ -103,12 +111,13 @@ func (a *app) openLogin() {
 	}()
 }
 
-// pollLogin asks every two seconds whether the code was scanned, until the
-// login ends or the dialog closes.
+// pollLogin asks every qrPollEvery whether the code was scanned, until the
+// login ends, the dialog closes, or the code is too old to scan: NetEase
+// takes a scan for a while, and asking after that is asking for nothing.
 func (a *app) pollLogin(gen int, key string) {
 	go func() {
-		for {
-			time.Sleep(2 * time.Second)
+		for i := 0; i < qrPolls; i++ {
+			time.Sleep(qrPollEvery)
 			code, msg, name, avatar, err := netease.QRCheck(key)
 			var prof *netease.Profile
 			if code == netease.QRConfirmed {
@@ -142,6 +151,9 @@ func (a *app) pollLogin(gen int, key string) {
 					if l.err == "" {
 						l.err = "登录失败，请稍后再试"
 					}
+				}
+				if i == qrPolls-1 && !l.finished && l.err == "" {
+					l.status = netease.QRExpired
 				}
 				done <- l.status == netease.QRExpired || l.finished || l.err != ""
 			})
@@ -277,12 +289,60 @@ func (a *app) accountRow(c *ui.Context) {
 	}
 	prof := a.profile
 	b.Label(prof.Nickname).Expanded(a.accountOpen).Children(func() {
+		if v := a.updateHint(); v != "" {
+			a.updateGlow(c)
+		}
 		a.avatar(c, prof.AvatarURL, 32, p.press)
 	})
 	if b.Clicked() {
 		a.accountOpen = !a.accountOpen
 	}
 	a.accountMenu(c, b)
+}
+
+// updateGlow tells that a newer version is out: rings of the app's gold,
+// leaving the avatar of the account row.
+func (a *app) updateGlow(c *ui.Context) {
+	gold := ui.Hex("#C08A1E")
+	if a.pal.dark {
+		gold = ui.Hex("#F3D99B")
+	}
+	ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).PassThrough().
+		Draw(func(p *ui.Painter, r ui.Rect) {
+			drawUpdateGlow(p, r, gold, c.Preferences().ReduceMotion)
+		})
+}
+
+// The glow breathes: a ring leaves the avatar and fades over glowWave, then
+// it rests until glowPeriod, so that a window left alone asks for no frames
+// between the waves.
+const (
+	glowPeriod = 3600 * time.Millisecond
+	glowWave   = 1100 * time.Millisecond
+)
+
+func drawUpdateGlow(p *ui.Painter, r ui.Rect, gold ui.Color, still bool) {
+	base := min(r.W, r.H) / 2
+	if base <= 0 {
+		return
+	}
+	cx, cy := r.X+r.W/2, r.Y+r.H/2
+	ring := func(radius, alpha float32) {
+		p.Stroke(ui.Rect{X: cx - radius, Y: cy - radius, W: 2 * radius, H: 2 * radius}, gold.Alpha(alpha), radius, 1.5)
+	}
+	// A ring on the avatar's edge stays when the wave rests.
+	ring(base-2.5, 0.5)
+	if still {
+		return
+	}
+	at := time.Duration(p.Now().UnixNano() % int64(glowPeriod))
+	if at >= glowWave {
+		p.After(glowPeriod - at)
+		return
+	}
+	t := ui.EaseOut(float32(at) / float32(glowWave))
+	ring(base-2.5+4*t, 0.6*(1-t))
+	p.AnimationFrameRate(30)
 }
 
 // accountMenu opens below the avatar, towards the center of the window.
@@ -300,6 +360,15 @@ func (a *app) accountMenu(c *ui.Context, row ui.Element) {
 		if a.menuItem(c, iconUser, "我的主页", "").AutoFocus().Clicked() {
 			a.accountOpen = false
 			a.open(route{page: pageUser, id: a.profile.UserID})
+		}
+		if a.update != nil {
+			label := "版本 " + a.update.Version + " 可用"
+			if a.menuItem(c, iconDownload, label, "").Clicked() {
+				a.accountOpen = false
+				a.settings.UpdateSeen = a.update.Version
+				a.settings.save()
+				checkForUpdates()
+			}
 		}
 		if a.menuItem(c, iconSettings, "设置…", shortcut).Clicked() {
 			a.accountOpen = false
@@ -338,8 +407,9 @@ func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.E
 
 // playlistRows lists a listener's playlists, with the menu of the ones
 // they made. The ones the site keeps apart, as the liked songs, stay at
-// the head of the group; the rest may be held and dragged among them.
+// the head of the group; the rest may be dragged among them.
 func (a *app) playlistRows(c *ui.Context, lists []netease.Playlist, mine bool) {
+	a.dragGroupStart()
 	var fixed, movable []int
 	for i := range lists {
 		if lists[i].SpecialType != 0 {
@@ -354,6 +424,7 @@ func (a *app) playlistRows(c *ui.Context, lists []netease.Playlist, mine bool) {
 	for k, i := range movable {
 		a.playlistRow(c, &lists[i], mine, k, len(movable))
 	}
+	a.dragDropsRun()
 }
 
 // playlistRow is one of them, draggable within its group when index and
@@ -377,11 +448,17 @@ func (a *app) playlistRow(c *ui.Context, pl *netease.Playlist, mine bool, index,
 	if mine && pl.SpecialType != 5 {
 		a.playlistMenu(c.Key(pl.ID), b, pl, false)
 	}
-	st := ui.Local(b, "drag", func() dragRow { return dragRow{} })
-	if st.off.Y != 0 {
-		b.Shadow(0, 10, 24, -6, p.cardShade)
+	if index >= 0 && count > 1 {
+		group := "saved"
+		if mine {
+			group = "mine"
+		}
+		st := ui.Local(b, "drag", func() dragRow { return dragRow{} })
+		a.dragRowOf(b, group, index, count, st, pl.Cover(), pl.Name, func(steps int) {
+			a.moveSitePlaylist(mine, pl.ID, steps)
+		})
+		a.dragShiftRow(b, group, index, st)
 	}
-	a.dragRowOf(b, index, count, st, func(steps int) { a.moveSitePlaylist(mine, pl.ID, steps) })
 	if b.Clicked() {
 		a.open(route{page: pagePlaylist, id: pl.ID})
 	}

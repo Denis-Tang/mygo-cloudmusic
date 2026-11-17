@@ -156,7 +156,7 @@ func (a *app) togglePlaylistSubscription(pl *netease.Playlist) {
 			}
 			if err != nil {
 				a.setPlaylistSubscription(pl, !sub)
-				a.toast = "操作失败，请稍后再试"
+				a.toast = writeFailed(err, "操作失败，请稍后再试")
 			} else if sub {
 				a.toast = "已收藏歌单"
 			} else {
@@ -224,7 +224,7 @@ func (a *app) submitName() {
 			a.post(func() {
 				if err != nil {
 					a.setPlaylistName(id, old)
-					a.toast = "重命名失败，请稍后再试"
+					a.toast = writeFailed(err, "重命名失败，请稍后再试")
 				}
 			})
 		}()
@@ -237,7 +237,7 @@ func (a *app) submitName() {
 		a.post(func() {
 			a.naming.busy = false
 			if err != nil {
-				a.toast = "创建歌单失败，请稍后再试"
+				a.toast = writeFailed(err, "创建歌单失败，请稍后再试")
 				return
 			}
 			a.naming.open = false
@@ -290,7 +290,7 @@ func (a *app) deleteChosen() {
 		a.post(func() {
 			if err != nil {
 				a.mine = slices.Insert(a.mine, min(i, len(a.mine)), pl)
-				a.toast = "删除失败，请稍后再试"
+				a.toast = writeFailed(err, "删除失败，请稍后再试")
 				return
 			}
 			delete(a.playlists, id)
@@ -318,7 +318,7 @@ func (a *app) addTo(pid int64, tr *netease.Track) {
 			case errors.Is(err, netease.ErrInPlaylist):
 				a.toast = "歌曲已在歌单中"
 			case err != nil:
-				a.toast = "添加失败，请稍后再试"
+				a.toast = writeFailed(err, "添加失败，请稍后再试")
 			default:
 				a.toast = "已添加到歌单"
 				a.playlistChanged(pid)
@@ -351,7 +351,7 @@ func (a *app) removeFrom(pid int64, tr *netease.Track) {
 				if pl != nil && a.playlists[pid] == pl {
 					pl.Tracks = before
 				}
-				a.toast = "移除失败，请稍后再试"
+				a.toast = writeFailed(err, "移除失败，请稍后再试")
 				return
 			}
 			// The songs listed are right: only the sidebar's covers may

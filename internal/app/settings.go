@@ -63,6 +63,9 @@ type settings struct {
 	// CollectTo is where a Bilibili playlist is collected: here, on this
 	// machine (collectHere), or on the site (collectCloud).
 	CollectTo string `json:"collectTo"`
+	// UpdateSeen is the newer version the listener opened the update window
+	// for, which the account row no longer hints at.
+	UpdateSeen string `json:"updateSeen,omitempty"`
 	// MineOrder and SavedOrder are the order the sidebar lists the site's
 	// playlists in: only this machine keeps it, the site never hears of it.
 	MineOrder  []int64 `json:"mineOrder,omitempty"`

@@ -159,7 +159,7 @@ func (a *app) toggleSubscribe(d *podcastData) {
 				} else {
 					pod.SubCount++
 				}
-				a.toast = "操作失败，请稍后再试"
+				a.toast = writeFailed(err, "操作失败，请稍后再试")
 			case sub:
 				tab.subscribed(pod)
 				a.toast = "已订阅"

@@ -56,6 +56,7 @@ var (
 	iconMin     = strokeIcon(`<path d="M5 12h14"/>`)
 	iconMax     = strokeIcon(`<rect x="5" y="5" width="14" height="14" rx="1.5"/>`)
 	iconRestore = strokeIcon(`<rect x="8" y="8" width="11" height="11" rx="1.5"/><path d="M5 15V5h10"/>`)
+	iconDownload = strokeIcon(`<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 20h14"/>`)
 	iconMore    = fillIcon(`<circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/>`)
 	// Lucide's copy, link and pencil icons, matching the existing stroke icons.
 	iconCopy     = strokeIcon(`<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>`)
