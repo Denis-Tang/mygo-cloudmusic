@@ -76,7 +76,8 @@ func TestLivePlayURL(t *testing.T) {
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
 		t.Fatal(err)
 	}
-	if res.StatusCode != http.StatusOK {
+	// The request asks from the start, so the CDN sends a 206 of it.
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusPartialContent {
 		t.Fatalf("status %d", res.StatusCode)
 	}
 	t.Logf("first %d bytes stream: %s", n, res.Status)

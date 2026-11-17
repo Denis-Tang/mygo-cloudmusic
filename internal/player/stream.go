@@ -117,7 +117,9 @@ func (d *download) run(ctx context.Context, url string) {
 		return
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
+	// A source asked to send from the start may answer with a 206 of the
+	// whole song, as Bilibili's CDN does.
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusPartialContent {
 		finish(fmt.Errorf("音频下载失败（HTTP %d）", res.StatusCode))
 		return
 	}

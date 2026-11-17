@@ -381,3 +381,24 @@ func TestStreamSizeIsNotTrusted(t *testing.T) {
 		t.Errorf("set aside %d bytes", n)
 	}
 }
+
+// A download asked to send from the start takes a 206 of the whole song,
+// which Bilibili's CDN sends: it was a download failure before, and songs
+// of Bilibili's did not play.
+func TestDownloadTakesPartialContent(t *testing.T) {
+	b := []byte("a partial song")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Range", "bytes 0-"+strconv.Itoa(len(b)-1)+"/"+strconv.Itoa(len(b)))
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write(b)
+	}))
+	defer srv.Close()
+	dl := startDownloadWith(srv.URL, 0, nil, nil, map[string]string{"Range": "bytes=0-"})
+	defer dl.Close()
+	dl.waitFor(int64(len(b)))
+	dl.mu.Lock()
+	defer dl.mu.Unlock()
+	if dl.err != nil || dl.n != int64(len(b)) {
+		t.Fatalf("%d bytes, %v", dl.n, dl.err)
+	}
+}

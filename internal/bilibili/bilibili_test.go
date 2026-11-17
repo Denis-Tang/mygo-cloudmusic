@@ -290,6 +290,10 @@ func TestPlayURL(t *testing.T) {
 	if audio.Headers["Referer"] != "https://www.bilibili.com/" || audio.Headers["User-Agent"] != UserAgent {
 		t.Fatalf("headers %v", audio.Headers)
 	}
+	// The CDN refuses the whole file without a range, with a 403 or a 567.
+	if audio.Headers["Range"] != "bytes=0-" {
+		t.Fatalf("headers %v", audio.Headers)
+	}
 	q := rec.query("/x/player/wbi/playurl")
 	if q.Get("fnval") != "4048" || q.Get("cid") != "137649199" {
 		t.Fatalf("query %v", q)

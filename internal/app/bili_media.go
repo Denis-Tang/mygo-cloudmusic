@@ -323,7 +323,9 @@ func biliAudioFile(ctx context.Context, dir string, v bilibili.Video) (string, e
 		return "", err
 	}
 	defer res.Body.Close()
-	if res.StatusCode != http.StatusOK {
+	// The request asks from the start of the sound, so the CDN may answer
+	// with a 206 of all of it.
+	if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusPartialContent {
 		return "", fmt.Errorf("音频下载失败（HTTP %d）", res.StatusCode)
 	}
 	tmp := path + ".part"

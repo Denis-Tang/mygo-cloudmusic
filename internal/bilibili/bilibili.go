@@ -792,6 +792,9 @@ func PlayURL(ctx context.Context, v Video) (Audio, error) {
 	headers := map[string]string{
 		"Referer":    wwwBase + "/",
 		"User-Agent": UserAgent,
+		// The CDN turns a request for the whole file without a range
+		// down, with a 403 or a 567 of its own.
+		"Range": "bytes=0-",
 	}
 	if len(res.Data.Dash.Audio) > 0 {
 		best, bestAAC := 0, -1

@@ -856,7 +856,13 @@ func (p *Player) open(t netease.Track, level string, loc Local, onDisk bool, rem
 		st := &netease.Stream{Level: level, Type: remoteType(got.URL)}
 		s, err := openStream(dl, t.Duration)
 		if err != nil {
+			dl.mu.Lock()
+			downloadErr := dl.err
+			dl.mu.Unlock()
 			dl.Close()
+			if downloadErr != nil {
+				return nil, nil, downloadErr
+			}
 			return nil, nil, fmt.Errorf("音频解码失败：%w", err)
 		}
 		return st, s, nil
