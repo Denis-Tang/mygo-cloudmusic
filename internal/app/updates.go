@@ -29,12 +29,18 @@ var (
 	}
 )
 
-// updateEvery is how often the app looks for a newer version, for the hint
-// the account row shows.
-const updateEvery = 12 * time.Hour
+const (
+	// updateEvery is how often the app looks for a newer version while it
+	// stays open, for the hint the account row shows.
+	updateEvery = time.Hour
+	// updateLeast is the least time between the looks the window asks for
+	// as it shows again, so that coming back to it asks the feed at most
+	// once in it.
+	updateLeast = 10 * time.Minute
+)
 
 // useUpdater checks GitHub's releases for a new version soon after launch
-// and then once a day, and offers it in an update window of native UI, in
+// and then every hour, and offers it in an update window of native UI, in
 // Chinese. It must run before App.Run.
 func (a *app) useUpdater() {
 	mygo.Use(native.New(updater.Options{Language: "zh-Hans"}))
@@ -46,20 +52,43 @@ func (a *app) useUpdater() {
 	})
 }
 
-// checkUpdates looks for a newer version at launch, and then every
-// updateEvery, for the hint the account row shows while there is one.
+// checkUpdates looks for a newer version now, and again every updateEvery,
+// for the hint the account row shows while there is one.
 func (a *app) checkUpdates() {
+	a.checkedAt = time.Now()
+	a.fetchUpdate()
+	time.AfterFunc(updateEvery, func() {
+		mygo.RunOnMain(func() {
+			if a.win != nil {
+				a.checkUpdates()
+			}
+		})
+	})
+}
+
+// checkUpdatesSoon looks again as the window shows, unless an update is
+// already known, or the feed was asked within updateLeast: an app left open
+// hears of a version sooner than the next updateEvery.
+func (a *app) checkUpdatesSoon() {
+	if !updateDue(a.checkedAt, a.update != nil, time.Now()) {
+		return
+	}
+	a.checkedAt = time.Now()
+	a.fetchUpdate()
+}
+
+// updateDue reports whether a look the window asks for should ask the feed:
+// when none is known, and not more often than updateLeast.
+func updateDue(checkedAt time.Time, known bool, now time.Time) bool {
+	return !known && (checkedAt.IsZero() || now.Sub(checkedAt) >= updateLeast)
+}
+
+// fetchUpdate asks the feed in the background, and keeps what it offers.
+func (a *app) fetchUpdate() {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		up, err := checkUpdate(ctx)
-		time.AfterFunc(updateEvery, func() {
-			mygo.RunOnMain(func() {
-				if a.win != nil {
-					a.checkUpdates()
-				}
-			})
-		})
 		if err != nil {
 			return
 		}

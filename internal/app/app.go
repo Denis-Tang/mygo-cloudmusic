@@ -256,6 +256,7 @@ type app struct {
 	cacheUsed  int64        // the bytes the song cache takes, -1 until measured
 	updates    bool         // the update plugin is used (useUpdater)
 	update     *mygo.Update // the newer version the feed offers, or nil
+	checkedAt  time.Time    // when the feed was last asked, for checkUpdatesSoon
 
 	restored     bool   // playback picked up where it was left
 	savedSession string // the session as last kept
@@ -421,10 +422,14 @@ func Run() error {
 			a.win.SetOpacity(0.01)
 			a.win.Invalidate()
 			time.AfterFunc(150*time.Millisecond, func() { a.win.SetOpacity(1) })
+			a.checkUpdatesSoon()
 		})
 		a.win.OnHide(a.syncDock)
 		// Shown or switched to the morning after, it shows the new day's.
-		a.win.OnFocus(a.freshenHome)
+		a.win.OnFocus(func() {
+			a.freshenHome()
+			a.checkUpdatesSoon()
+		})
 		a.applyTray()
 		if shotHook != nil {
 			shotHook(a)

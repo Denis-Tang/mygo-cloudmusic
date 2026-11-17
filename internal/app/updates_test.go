@@ -199,3 +199,22 @@ func TestMoveOldData(t *testing.T) {
 		t.Fatalf("settings %q, moved over what was there", b)
 	}
 }
+
+// The window's showing asks the feed again after updateLeast, but not while
+// an update is known, nor right after a look: a version released while the
+// app stayed open used to wait twelve hours for its hint.
+func TestUpdateDue(t *testing.T) {
+	now := time.Now()
+	if !updateDue(time.Time{}, false, now) {
+		t.Fatal("asked for the first look's feed")
+	}
+	if updateDue(now.Add(-time.Minute), false, now) {
+		t.Fatal("asked again within the least time")
+	}
+	if !updateDue(now.Add(-updateLeast), false, now) {
+		t.Fatal("did not ask after the least time")
+	}
+	if updateDue(now.Add(-time.Hour), true, now) {
+		t.Fatal("asked with an update already known")
+	}
+}
