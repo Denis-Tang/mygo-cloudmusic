@@ -382,15 +382,17 @@ func segmentedIn(c *ui.Context, selected *int, height, fontSize float32, labels,
 		w, _ := c.MeasureText(0, ui.Span{Text: l, Size: fontSize})
 		width = max(width, w+24)
 	}
-	track, capsule, pressed := ui.RGBA(0, 0, 0, 0.06), ui.RGB(255, 255, 255), ui.RGBA(0, 0, 0, 0.13)
+	// A quiet outline with a tinted capsule: neither the white of a card
+	// nor the page's ink, so a switch set beside other words does not
+	// pull the eye first.
+	edge, capsule, pressed, ink := ui.RGBA(0, 0, 0, 0.055), ui.RGBA(40, 50, 72, 0.075), ui.RGBA(0, 0, 0, 0.1), ui.Hex("#3c4250")
 	if t.Dark {
-		track, capsule, pressed = ui.RGBA(255, 255, 255, 0.08), ui.RGBA(255, 255, 255, 0.24), ui.RGBA(255, 255, 255, 0.13)
+		edge, capsule, pressed, ink = ui.RGBA(255, 255, 255, 0.1), ui.RGBA(255, 255, 255, 0.1), ui.RGBA(255, 255, 255, 0.13), ui.RGB(255, 255, 255)
 	}
 	before := *selected
 	parts := ui.SegmentedBase(c, selected, len(labels))
 	at := parts.Track.AnimateTo("at", float32(*selected), ui.Animation{Spring: ui.SpringOptions{Duration: 280 * time.Millisecond, Bounce: 0.08}})
-	dark := t.Dark
-	parts.Track.Height(height).Shrink(0).Padding(inset).Radius(radius).Background(track)
+	parts.Track.Height(height).Shrink(0).Padding(inset).Radius(radius).Border(1, edge)
 	if !fill {
 		parts.Track.Width(width*float32(len(labels)) + 2*inset)
 	}
@@ -401,10 +403,6 @@ func segmentedIn(c *ui.Context, selected *int, height, fontSize float32, labels,
 			one = (r.W - 2*inset) / float32(len(labels))
 		}
 		pill := ui.Rect{X: r.X + inset + at*one, Y: r.Y + inset, W: one, H: r.H - 2*inset}
-		if !dark {
-			p.Shadow(pill, radius-1, 0, 0.5, 1, 0, ui.RGBA(0, 0, 0, 0.2))
-			p.Shadow(pill, radius-1, 0, 1, 3, 0, ui.RGBA(0, 0, 0, 0.06))
-		}
 		p.Fill(pill, capsule, radius-1)
 	}).Children(func() {
 		for i, l := range labels {
@@ -421,12 +419,12 @@ func segmentedIn(c *ui.Context, selected *int, height, fontSize float32, labels,
 				seg.Background(pressed)
 			}
 			seg.Children(func() {
-				ink := t.TextMuted
+				color := t.TextMuted
 				if i == *selected {
-					ink = t.Text
+					color = ink
 				}
-				txt := ui.Text(c, l).FontSize(fontSize).FontWeight(600).SingleLine()
-				txt.TextColor(txt.AnimateColor("ink", ink, ui.Animation{Duration: 160 * time.Millisecond}))
+				txt := ui.Text(c, l).FontSize(fontSize).FontWeight(500).SingleLine()
+				txt.TextColor(txt.AnimateColor("ink", color, ui.Animation{Duration: 160 * time.Millisecond}))
 			})
 		}
 	})

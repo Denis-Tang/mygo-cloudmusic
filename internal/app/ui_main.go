@@ -687,9 +687,7 @@ func firstPlayable(tracks []netease.Track) int {
 // mineSidebar is 我的歌单: the playlists of the site, made and collected,
 // or the ones made here from videos, the switch between them at its head.
 func (a *app) mineSidebar(c *ui.Context) {
-	p := a.pal
-	ui.Row(c.Key("我的歌单")).Width(fullSidebar - 38).Height(32).PaddingX(12).AlignItems(ui.Center).Margin(20, 0, 4, 0).Children(func() {
-		ui.Text(c, "我的歌单").FontSize(sideFont(11.5)).FontWeight(400).TextColor(p.faint).Grow(1)
+	ui.Row(c.Key("我的歌单")).Width(fullSidebar - 38).Height(28).PaddingX(12).AlignItems(ui.Center).Margin(18, 0, 8, 0).Children(func() {
 		segmentedStyled(c.Key("mine-src"), &a.mineSrc, 28, sideFont(10.5), []string{"网易云", "哔哩哔哩"}, []string{"看网易云歌单", "看哔哩哔哩歌单"})
 	})
 	if a.mineSrc == mineBili {

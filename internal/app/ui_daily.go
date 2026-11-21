@@ -88,7 +88,16 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 	case hovered:
 		turn = 0.12
 	}
-	showStack, showPicks, showDay := inner >= 620, inner >= 1040, inner >= 900
+	showStack, showPicks, showDay := inner >= 560, inner >= 1040, inner >= 900
+	// Narrow, the words give up a little room so that the covers stay
+	// whole beside them: the date, the title and the play button each
+	// step down, and the gap between the two halves closes.
+	compact := inner < 700
+	gap, letterSpacing := float32(28), float32(-0.8)
+	dateSize, titleSize, buttonMargin := float32(14), float32(headTitle), float32(12)
+	if compact {
+		gap, letterSpacing, dateSize, titleSize, buttonMargin = 20, -0.5, 12, 24, 10
+	}
 	backdrop := backdrop(art)
 
 	card.Children(func() {
@@ -110,12 +119,12 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 				p.Clip(r, dailyRadius, func() { p.RichText(r.X+dailyPadX+300, r.Y+r.H*0.22, 0, day) })
 			}
 		})
-		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Padding(0, dailyPadX).Gap(28).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Padding(0, dailyPadX).Gap(gap).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
-				ui.Textf(c, "%d月%d日 %s · %s", now.Month(), now.Day(), weekday(now), a.dailyNote()).FontSize(14).FontWeight(600).LetterSpacing(0.3).TextColor(white.Alpha(0.82)).MaxLines(1)
-				ui.Text(c, "每日推荐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.8).LineHeight(1.15)
-				ui.Row(c).Gap(10).Margin(12, 0, 0, 0).Children(func() {
-					a.dailyPlayButton(c.Key("play"), songs, ours, playing)
+				ui.Textf(c, "%d月%d日 %s · %s", now.Month(), now.Day(), weekday(now), a.dailyNote()).FontSize(dateSize).FontWeight(600).LetterSpacing(0.3).TextColor(white.Alpha(0.82)).MaxLines(1)
+				ui.Text(c, "每日推荐").FontSize(titleSize).FontWeight(800).LetterSpacing(letterSpacing).LineHeight(1.15)
+				ui.Row(c).Gap(10).Margin(buttonMargin, 0, 0, 0).Children(func() {
+					a.dailyPlayButton(c.Key("play"), songs, ours, playing, compact)
 					if a.profile == nil && pillButton(c.Key("login"), iconUser, "登录", white.Alpha(0.16), white).Clicked() {
 						a.openLogin()
 					}
@@ -276,9 +285,13 @@ func (s *spinState) step(now time.Time, to float64) bool {
 
 // dailyPlayButton plays the day's songs; while they play it says so, its
 // bars dancing, and pauses them; paused, it goes on.
-func (a *app) dailyPlayButton(c *ui.Context, songs []netease.Track, ours, playing bool) {
+func (a *app) dailyPlayButton(c *ui.Context, songs []netease.Track, ours, playing, compact bool) {
 	ink := ui.Hex("#1d1d1f")
-	b := ui.ButtonBase(c).Height(38).PaddingX(20).Gap(8).Radius(radiusPill).AlignItems(ui.Center).TextColor(ink).
+	height, padX, gap, iconSize, fontSize := float32(38), float32(20), float32(8), float32(18), float32(17)
+	if compact {
+		height, padX, gap, iconSize, fontSize = 34, 16, 7, 16, 15
+	}
+	b := ui.ButtonBase(c).Height(height).PaddingX(padX).Gap(gap).Radius(radiusPill).AlignItems(ui.Center).TextColor(ink).
 		Shadow(0, 6, 16, -6, ui.RGBA(0, 0, 0, 0.35))
 	fill := white
 	if b.Hovered() {
@@ -318,9 +331,9 @@ func (a *app) dailyPlayButton(c *ui.Context, songs []netease.Track, ours, playin
 			if playing {
 				icon = iconPause
 			}
-			ui.Icon(c, icon).Size(18, 18)
+			ui.Icon(c, icon).Size(iconSize, iconSize)
 		}
-		ui.Text(c, label).FontSize(17).FontWeight(650).SingleLine()
+		ui.Text(c, label).FontSize(fontSize).FontWeight(650).SingleLine()
 	})
 	if b.Clicked() {
 		if ours {
