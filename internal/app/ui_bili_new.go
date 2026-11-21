@@ -73,18 +73,16 @@ func (a *app) biliNewDialog(c *ui.Context) {
 	d := &a.biliNewPL
 	ui.DialogBase(c.Key("bili-new"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(400).Padding(24).Radius(radiusPanel).Gap(14).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(14).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		ui.Text(c, "新建哔哩哔哩歌单").FontSize(17).FontWeight(700)
-		ui.Text(c, "输入一个视频的 BV 号或链接，读出视频里的歌，建成歌单。").
-			FontSize(13).TextColor(p.muted).LineHeight(1.45)
-		in := ui.TextInput(c.Key("bili-new-input"), &d.input).Placeholder("BV 号或视频链接").Label("BV 号或视频链接").FontSize(16).Radius(radiusField).AutoFocus()
+		ui.Text(c, "新建哔哩哔哩歌单").FontSize(20).FontWeight(700)
+		in := ui.TextInput(c.Key("bili-new-input"), &d.input).Placeholder("BV 号或视频链接").Label("BV 号或视频链接").FontSize(14).Radius(radiusField).AutoFocus()
 		if in.Submitted() {
 			a.submitBiliNew()
 		}
 		if d.err != "" {
-			ui.Text(c, d.err).FontSize(13).TextColor(p.muted)
+			ui.Text(c, d.err).FontSize(14).TextColor(p.muted)
 		}
 		ui.Row(c).Gap(10).Justify(ui.End).Children(func() {
 			if pillButton(c.Key("cancel"), nil, "取消", p.hover.Over(p.bg), p.text).Clicked() {

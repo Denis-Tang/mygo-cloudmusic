@@ -155,7 +155,7 @@ func (a *app) searchField(c *ui.Context) {
 				// The query first, which Enter searches as typed.
 				option("query", "搜索 "+q).Children(func() {
 					ui.Icon(c, iconSearch).Size(15, 15).TextColor(p.muted)
-					ui.Text(c, "搜索 "+q).FontSize(sideFont(13)).FontWeight(500).SingleLine().Shrink(1).MinWidth(0)
+					ui.Text(c, "搜索 "+q).FontSize(sideFont(13)).SingleLine().Shrink(1).MinWidth(0)
 				})
 				if s.query == q {
 					for _, sg := range s.items {

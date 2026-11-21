@@ -48,27 +48,29 @@ func (a *app) collectedPage(c *ui.Context) {
 	sub := []string{"收藏的专辑", "收藏的歌单", "收藏的哔哩哔哩歌单"}[a.collectedTab]
 	a.scrollPage(c, func() {
 		a.heading(c, "我的收藏", sub)
-		segmented(c.Key("collected-kind"), &a.collectedTab, "专辑", "歌单", "哔哩哔哩歌单")
+		segmentedWide(c.Key("collected-kind"), &a.collectedTab, "专辑", "歌单", "哔哩哔哩歌单")
 		ui.Box(c).Height(24)
-		switch a.collectedTab {
-		case 1:
-			a.collectedPlaylists(c)
-		case 2:
-			a.collectedBiliPlaylists(c)
-		default:
-			switch {
-			case a.collectedErr != "":
-				a.centered(c, a.collectedErr, a.loadCollected)
-			case a.collectedLoaded && len(a.collected) == 0:
-				a.empty(c, "还没有收藏的专辑")
-			case len(a.collected) > 0:
-				a.albumGrid(c, a.collected)
+		pane(c, a.collectedTab, func() {
+			switch a.collectedTab {
+			case 1:
+				a.collectedPlaylists(c)
+			case 2:
+				a.collectedBiliPlaylists(c)
 			default:
-				s := a.pageShimmer(c)
-				cards := a.columns(c, 168)
-				a.playlistCardsSkeleton(c.Key("collected"), s, cards*2, 168, false)
+				switch {
+				case a.collectedErr != "":
+					a.centered(c, a.collectedErr, a.loadCollected)
+				case a.collectedLoaded && len(a.collected) == 0:
+					a.empty(c, "还没有收藏的专辑")
+				case len(a.collected) > 0:
+					a.albumGrid(c, a.collected)
+				default:
+					s := a.pageShimmer(c)
+					cards := a.columns(c, 168)
+					a.playlistCardsSkeleton(c.Key("collected"), s, cards*2, 168, false)
+				}
 			}
-		}
+		})
 	})
 }
 
@@ -78,7 +80,7 @@ func (a *app) collectedPlaylists(c *ui.Context) {
 		a.empty(c, "还没有收藏的歌单")
 		return
 	}
-	ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
+	ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(24).Children(func() {
 		for i := range a.saved {
 			a.playlistCard(c.Key(a.saved[i].ID), &a.saved[i])
 		}
@@ -94,7 +96,7 @@ func (a *app) collectedBiliPlaylists(c *ui.Context) {
 		a.empty(c, "还没有收藏的哔哩哔哩歌单")
 		return
 	}
-	ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
+	ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(24).Children(func() {
 		for _, pl := range kept {
 			pl := pl
 			cover := pl.Cover

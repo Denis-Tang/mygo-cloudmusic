@@ -31,7 +31,7 @@ func (a *app) settingsDialog(c *ui.Context) {
 		}
 		panel.Children(func() {
 			ui.Row(c).Height(56).PaddingX(24).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "设置").FontSize(20).FontWeight(600).Grow(1)
+				ui.Text(c, "设置").FontSize(20).FontWeight(700).Grow(1)
 				if iconButton(c, iconX, 16, p.muted, "关闭设置").Clicked() {
 					a.settingsOpen = false
 				}
@@ -63,14 +63,14 @@ func (a *app) settingsView(c *ui.Context) {
 	ui.Scroll(c).Fill().Background(p.sidebar).Padding(24, 24, 32, 24).Gap(24).Children(func() {
 		group := func(title string, rows func()) {
 			ui.Column(c.Key(title)).Gap(10).Children(func() {
-				ui.Text(c, title).FontSize(18).FontWeight(600).MarginX(4)
+				ui.Text(c, title).FontSize(14).FontWeight(600).TextColor(p.muted).MarginX(4)
 				ui.Column(c).Radius(radiusCard).Background(p.bg).Border(1, p.hairline).Dividers(1, p.hairline).Children(rows)
 			})
 		}
 		row := func(label, desc string, control func()) {
 			ui.Column(c.Key(label)).Padding(16, 20).Gap(6).Children(func() {
 				ui.Row(c).Gap(16).AlignItems(ui.Center).MinHeight(36).Children(func() {
-					ui.Text(c, label).Grow(1).Shrink(1).MinWidth(0).FontSize(18).FontWeight(500)
+					ui.Text(c, label).Grow(1).Shrink(1).MinWidth(0).FontSize(15)
 					control()
 				})
 				if desc != "" {
@@ -281,7 +281,7 @@ func (a *app) settingsView(c *ui.Context) {
 			ui.Row(c).Padding(16, 20).Gap(12).AlignItems(ui.Center).Children(func() {
 				a.avatar(c, prof.AvatarURL, 44, p.press)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
-					ui.Text(c, prof.Nickname).FontSize(18).FontWeight(600).SingleLine()
+					ui.Text(c, prof.Nickname).FontSize(15).FontWeight(600).SingleLine()
 					ui.Text(c, "已登录网易云音乐").FontSize(16).TextColor(p.muted)
 				})
 				if ui.Button(c.Key("logout"), "退出登录").Clicked() {

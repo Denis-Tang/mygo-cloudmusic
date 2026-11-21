@@ -263,10 +263,10 @@ func (a *app) biliDraftDialog(c *ui.Context) {
 	d := &a.biliDraft
 	ui.DialogBase(c.Key("bili-draft"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(520).MaxHeight(560).Padding(24).Radius(radiusPanel).Gap(12).
+		panel.Width(400).MaxHeight(560).Padding(24).Radius(radiusPanel).Gap(12).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		ui.Text(c, "收藏为歌单").FontSize(17).FontWeight(700)
+		ui.Text(c, "收藏为歌单").FontSize(20).FontWeight(700)
 		if d.video != nil {
 			ui.Text(c, d.video.Title).FontSize(14).TextColor(p.muted).MaxLines(2)
 		}
@@ -288,7 +288,7 @@ func (a *app) biliDraftDialog(c *ui.Context) {
 			ui.Scroll(c).MaxHeight(300).Children(func() {
 				for i, cd := range d.cands {
 					if i >= 40 {
-						ui.Text(c, "…还有 "+strconv.Itoa(len(d.cands)-40)+" 首").FontSize(13).TextColor(p.faint)
+						ui.Text(c, "…还有 "+strconv.Itoa(len(d.cands)-40)+" 首").FontSize(14).TextColor(p.faint)
 						break
 					}
 					ui.Row(c).Height(30).Gap(8).AlignItems(ui.Center).Children(func() {

@@ -265,7 +265,7 @@ func (a *app) nowPlayingBody(c *ui.Context, tr *netease.Track, accent ui.Color, 
 // back to the page under it.
 func leaveButton(c *ui.Context, label string) ui.Element {
 	b := ui.ButtonBase(c.Key("leave")).Size(40, 40).Radius(radiusPill).FocusRing(false).
-		Center().Label(label).Margin(0, 0, 0, 14)
+		Center().Label(label).Margin(0, 0, 0, 28)
 	bg := ui.RGBA(0, 0, 0, 0.28)
 	if b.Hovered() {
 		bg = ui.RGBA(0, 0, 0, 0.42)
@@ -281,66 +281,53 @@ func leaveButton(c *ui.Context, label string) ui.Element {
 // paneButton is one of the buttons over the top of Now Playing, which open
 // a pane of it, or, paneCover, return to the cover: lit where shown, gone
 // in a pane's own view. Songs and episodes the icons differ of, and an
-// episode's buttons the labels of, show when ok is set for: captions only
-// once the model is there, and its comments by its tab. A bar too narrow
-// to name them shows their icons alone.
-func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok, named bool) {
+// episode's buttons show when ok is set for: captions only once the model
+// is there, and its comments by its tab. The bar names one, over the
+// picture, as its icon alone, its name kept for the reader.
+func (a *app) paneButton(c *ui.Context, pane int, icon *ui.SVG, label string, ok bool) {
 	if !ok {
 		return
 	}
 	at := a.npPane == pane
 	// The button's name names where it goes: the panes' names are other
 	// elements' too, as the song's menu's items are.
-	b, fg := barButton(c, label, named, at, label+"面板")
+	b := barButton(c, label, at, label+"面板")
 	b.Children(func() {
 		ui.Icon(c, icon).Size(18, 18)
-		if named {
-			ui.Text(c, label).FontSize(16).FontWeight(600).TextColor(fg)
-		}
 	})
 	if b.Clicked() {
 		a.choosePane(pane)
 	}
 }
 
-// barButton is a button of the playing page's bar: round, as tall as the
-// others there, its name's letters when the bar has room for them, and a
-// soft disc under the pointer, lit while it stands for the pane showing.
-// The bar's entries are all of it, whatever they say, so that they sit on
-// one line and keep one height.
-func barButton(c *ui.Context, key any, named, lit bool, label string) (ui.Element, ui.Color) {
-	b := ui.ButtonBase(c).Key(key).Height(32).Center().Radius(radiusPill).FocusRing(false).Label(label)
-	if named {
-		b.PaddingX(12).Gap(6)
-	} else {
-		b.Width(36)
-	}
-	bg, fg := white.Alpha(0), white.Alpha(0.6)
+// barButton is a button of the playing page's bar: a round icon button, as
+// tall as the others there, and a soft disc under the pointer, lit while it
+// stands for the pane showing. The bar's entries are all of it, that they
+// sit on one line and keep one height.
+func barButton(c *ui.Context, key any, lit bool, label string) ui.Element {
+	b := ui.ButtonBase(c).Key(key).Size(36, 32).Center().Radius(radiusPill).FocusRing(false).Label(label)
+	bg, fg := white.Alpha(0), white.Alpha(0.82)
 	if lit {
 		bg, fg = white.Alpha(0.14), white
 	} else if b.Hovered() {
 		bg, fg = white.Alpha(0.08), white
 	}
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
-	return b, fg
+	return b
 }
 
 // drawerButton is the [...] of the bar, which opens what aids the playing
 // page: the queue and the comments, at once, in a panel over the middle of
 // the page, which a click on it again closes. The panel is built with the
 // rest of the page, that its box is placed against the window.
-func (a *app) drawerButton(c *ui.Context, tr *netease.Track, named bool) {
+func (a *app) drawerButton(c *ui.Context) {
 	open := a.npPane == paneQueue || a.npPane == paneComments
-	label := "更多"
-	if open {
-		label = "收起待播清单与评论"
-	}
-	b, fg := barButton(c, "more", named, open, label)
+	// Its name stays what it opens, that a click on it closes it again as
+	// the same entry: whether the panel is open is its own state.
+	b := barButton(c, "more", open, "更多")
+	b.Expanded(open)
 	b.Children(func() {
 		ui.Icon(c, iconMore).Size(18, 18)
-		if named {
-			ui.Text(c, "更多").FontSize(16).FontWeight(600).TextColor(fg)
-		}
 	})
 	if b.Clicked() {
 		if open {
@@ -398,11 +385,11 @@ func (a *app) radioChip(c *ui.Context, name string) {
 	if name == heartRadio {
 		icon, exit = iconHeartFill, "退出心动模式"
 	}
-	chip := ui.ButtonBase(c.Key("radio-chip")).Gap(5).Padding(3, 6, 3, 8).Margin(0, 0, 4, -8).Radius(radiusPill).
+	chip := ui.ButtonBase(c.Key("radio-chip")).Gap(5).Padding(3, 6, 3, 8).Margin(0, 0, 4, 0).Radius(radiusPill).
 		AlignItems(ui.Center).AlignSelf(ui.Start).FocusRing(false).Label(exit).Tooltip(exit)
-	bg, fg, cross := ui.Transparent, white.Alpha(0.6), float32(0.5)
+	bg, fg, cross := ui.Transparent, white.Alpha(0.82), float32(0.5)
 	if chip.Hovered() {
-		bg, fg, cross = white.Alpha(0.12), white.Alpha(0.85), 1
+		bg, fg, cross = white.Alpha(0.12), white, 1
 	}
 	chip.Background(chip.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond})).TextColor(fg)
 	chip.Children(func() {
@@ -427,8 +414,9 @@ func qualityBadge(c *ui.Context, st *netease.Stream) {
 	case "jymaster":
 		label = "母带"
 	}
-	ui.Text(c, label).FontSize(9.5).FontWeight(800).LetterSpacing(0.6).TextColor(ui.Hex("#f5d58a")).
-		Padding(1, 6).Radius(radiusTile-2).Border(1, ui.Hex("#f5d58a").Alpha(0.55))
+	gold := ui.Hex("#F3D99B")
+	ui.Text(c, label).FontSize(12).FontWeight(600).LetterSpacing(0.6).TextColor(gold).
+		Padding(1, 6).Radius(radiusTile-2).Border(1, gold.Alpha(0.55))
 }
 
 // stageBar is gone with the stage: Now Playing's controls live under the
@@ -449,7 +437,7 @@ func (a *app) lyricsPane(c *ui.Context, tr *netease.Track, h float32) {
 				lyricsSkeleton(c, npShimmer(c))
 				return
 			}
-			ui.Text(c, "纯音乐，请欣赏").FontSize(24).FontWeight(700).TextColor(white.Alpha(0.4))
+			ui.Text(c, "纯音乐，请欣赏").FontSize(20).FontWeight(700).TextColor(white.Alpha(0.64))
 		})
 		a.quietCard(c, dim, h*0.18)
 		return
@@ -538,7 +526,7 @@ func (a *app) timedLines(c *ui.Context, scroll ui.Element, lines []lyrics.Line, 
 							ui.Text(c, l.Text).FontSize(st.size).FontWeight(st.weight).LineHeight(st.lineHeight).LetterSpacing(-0.4).TextColor(white)
 						}
 						if l.Translation != "" {
-							ui.Text(c, l.Translation).FontSize(17).FontWeight(600).TextColor(white.Alpha(0.7))
+							ui.Text(c, l.Translation).FontSize(17).FontWeight(600).TextColor(white.Alpha(0.82))
 						}
 					})
 				})
@@ -670,10 +658,10 @@ func (a *app) queuePane(c *ui.Context) {
 				a.cover(c, tr.Album.PicURL, 96, 34, radiusTile)
 				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 					ui.Text(c, tr.Name).FontSize(17).FontWeight(600).SingleLine()
-					a.artistLinks(c, tr, white.Alpha(0.55), white).FontSize(14).SingleLine()
+					a.artistLinks(c, tr, white.Alpha(0.82), white).FontSize(14).SingleLine()
 				})
-				ui.Text(c, clock(tr.Length())).FontSize(14).FontFeatures("tnum").TextColor(white.Alpha(0.4))
-				a.songMenu(c, row, tr, 0, white.Alpha(0.6))
+				ui.Text(c, clock(tr.Length())).FontSize(14).FontFeatures("tnum").TextColor(white.Alpha(0.64))
+				a.songMenu(c, row, tr, 0, white.Alpha(0.82))
 			})
 			if row.Clicked() && tr.Playable() && !playing {
 				pl.Jump(i)

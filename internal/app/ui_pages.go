@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -22,28 +23,67 @@ const pagePad = 40
 // weight, and the sections under them read as one smaller size.
 const (
 	headTitle = 30
-	headSub   = 15
-	sectionAt = 21
+	headSub   = 14
+	sectionAt = 20
 )
 
 // columns returns how many cards of at least min DIPs fit across the page.
 func (a *app) columns(c *ui.Context, min float32) int {
-	w, _ := c.Size()
-	inner := w - a.sidebarWidth() - 2*pagePad
-	return max(2, int((inner+20)/(min+20)))
+	return columnsOf(a.pageWidth(c), min)
 }
+
+// columnsOf returns how many cards of at least min DIPs fit in width.
+func columnsOf(width, min float32) int {
+	return max(2, int((width+20)/(min+20)))
+}
+
+// pageMaxWidth is how wide a page's column of content grows before it
+// stops: on a window much wider than it is tall, a column as wide as the
+// page would stretch every banner on it out of shape, a card five times as
+// wide as it is tall.
+const pageMaxWidth = 1680
+
+// pageRoom is the height a page has to show what it lists: the window less
+// the bar over it, the player's under it, and the page's own gaps.
+func (a *app) pageRoom(c *ui.Context) float32 {
+	_, h := c.Size()
+	top, bottom := a.insets(c)
+	return max(160, h-top-bottom-2*pageGap)
+}
+
+// pageWidth is how wide a page's content column is: the page's own width
+// where the window has it, and there, where the window is much wider than
+// it is tall, about twice its height: as wide as what it shows stays in
+// shape. Between 1000 and pageMaxWidth, as wide pages with room for it.
+func (a *app) pageWidth(c *ui.Context) float32 {
+	w, _ := c.Size()
+	room := w - a.sidebarWidth() - 2*pagePad
+	// Whole DIPs: a column of half a pixel draws its letters blurry.
+	return floor32(min(room, min(max(1.85*a.pageRoom(c), 1000), pageMaxWidth)))
+}
+
+// pagePadX is the room a page leaves at either side: pagePad, and more
+// where the window is wide enough that the page's column stops growing,
+// which centers the column in the page.
+func (a *app) pagePadX(c *ui.Context) float32 {
+	w, _ := c.Size()
+	return max(pagePad, floor32((w-a.sidebarWidth()-a.pageWidth(c))/2))
+}
+
+// floor32 returns v rounded down to a whole DIP.
+func floor32(v float32) float32 { return float32(math.Floor(float64(v))) }
 
 func (a *app) heading(c *ui.Context, title, sub string) {
 	ui.Column(c).Gap(4).Margin(0, 0, 18, 0).Children(func() {
-		if sub != "" {
-			ui.Text(c, sub).FontSize(headSub).FontWeight(600).TextColor(a.pal.muted).LetterSpacing(0.4)
-		}
 		ui.Text(c, title).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).LineHeight(1.2)
+		if sub != "" {
+			ui.Text(c, sub).FontSize(headSub).FontWeight(600).TextColor(a.pal.faint).LetterSpacing(0.4)
+		}
 	})
 }
 
 func (a *app) section(c *ui.Context, title string) ui.Element {
-	return ui.Text(c, title).FontSize(sectionAt).FontWeight(700).LetterSpacing(-0.3).Margin(34, 0, 14, 0)
+	return ui.Text(c, title).FontSize(sectionAt).FontWeight(700).LetterSpacing(-0.3).Margin(32, 0, 12, 0)
 }
 
 func (a *app) homePage(c *ui.Context) {
@@ -54,13 +94,14 @@ func (a *app) homePage(c *ui.Context) {
 	}
 	now := c.Now()
 	top, bottom := a.insets(c)
-	ui.Scroll(c.Key("home")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
+	pad, width := a.pagePadX(c), a.pageWidth(c)
+	ui.Scroll(c.Key("home")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pad, bottom+48, pad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
 		hello := greeting(now)
 		if a.profile != nil {
 			hello += "，" + a.profile.Nickname
 		}
-		a.heading(c, hello, fmt.Sprintf("%d月%d日 %s", now.Month(), now.Day(), weekday(now)))
+		a.heading(c, hello, "")
 		if loading && len(a.daily) == 0 {
 			a.pageShimmer(c).bone(c.Key("daily"), dailyRadius).Height(a.dailyCardHeight(c))
 		} else {
@@ -69,14 +110,14 @@ func (a *app) homePage(c *ui.Context) {
 
 		if len(a.recPlaylists) > 0 {
 			a.section(c, "推荐歌单")
-			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
+			ui.Grid(c).Columns(columnsOf(width, 168)).GapX(20).GapY(24).Children(func() {
 				for i := range a.recPlaylists {
 					a.playlistCard(c.Key(a.recPlaylists[i].ID), &a.recPlaylists[i])
 				}
 			})
 		} else if loading && a.profile != nil {
 			a.section(c, "推荐歌单")
-			a.playlistCardsSkeleton(c.Key("rec"), a.pageShimmer(c), a.columns(c, 168), 168, false)
+			a.playlistCardsSkeleton(c.Key("rec"), a.pageShimmer(c), columnsOf(width, 168), 168, false)
 		}
 	})
 }
@@ -92,14 +133,14 @@ func (a *app) chartsPage(c *ui.Context) {
 		return
 	}
 	top, bottom := a.insets(c)
-	ui.Scroll(c.Key("charts")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
+	ui.Scroll(c.Key("charts")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, a.pagePadX(c), bottom+48, a.pagePadX(c)).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
 		a.heading(c, "排行榜", "每日更新")
 		if loading {
 			s := a.pageShimmer(c)
 			a.chartCardsSkeleton(c, s)
 			a.section(c, "全部榜单")
-			a.playlistCardsSkeleton(c, s, a.columns(c, 150)*2, 150, true)
+			a.playlistCardsSkeleton(c, s, a.columns(c, 168)*2, 168, true)
 			return
 		}
 		official := a.charts[:min(4, len(a.charts))]
@@ -112,7 +153,7 @@ func (a *app) chartsPage(c *ui.Context) {
 		if len(a.charts) > 4 {
 			a.section(c, "全部榜单")
 			rest := a.charts[4:]
-			ui.Grid(c).Columns(a.columns(c, 150)).GapX(20).GapY(28).Children(func() {
+			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(24).Children(func() {
 				for i := range rest {
 					a.playlistCard(c.Key(rest[i].ID), &rest[i])
 				}
@@ -133,13 +174,26 @@ func (a *app) playlistCard(c *ui.Context, pl *netease.Playlist) {
 // times it was played on it, over its name and a line under that. The
 // button on the cover calls play; it reports whether the rest was clicked.
 func (a *app) coverCard(c *ui.Context, name, cover string, playCount float64, sub string, play func()) bool {
+	return a.mediaCard(c, name, cover, playCount, sub, 1, 16, 600, play)
+}
+
+// videoCard is a video's card: a wide cover over its title and the line
+// under that, as the page of Bilibili lists what uploaders posted.
+func (a *app) videoCard(c *ui.Context, name, cover, sub string, play func()) bool {
+	return a.mediaCard(c, name, cover, 0, sub, 16.0/9.0, 17, 600, play)
+}
+
+// mediaCard lays out the cards of a cover above its name: the cover in the
+// shape aspect takes, lifting under the pointer where its play button
+// shows, then the name at titleSize and titleWeight and the line under it.
+func (a *app) mediaCard(c *ui.Context, name, cover string, playCount float64, sub string, aspect float32, titleSize float32, titleWeight int, play func()) bool {
 	p := a.pal
 	// From the top: a grid stretches the cards of a row as tall as the
 	// tallest, whose name or line under it takes two lines.
 	card := ui.ButtonBase(c).Column().Gap(10).AlignItems(ui.Stretch).Justify(ui.Start).FocusRing(false).Label(name)
 	hovered := card.Hovered()
 	card.Children(func() {
-		art := ui.Box(c).AspectRatio(1).Radius(radiusCover)
+		art := ui.Box(c).AspectRatio(aspect).Radius(radiusCover)
 		lift := ui.Pose{}
 		if hovered {
 			lift = ui.Pose{Y: -3}
@@ -159,10 +213,12 @@ func (a *app) coverCard(c *ui.Context, name, cover string, playCount float64, su
 			}
 			a.coverPlayButton(c, hovered, play)
 		})
-		ui.Text(c, name).FontSize(16).FontWeight(500).MaxLines(2).LineHeight(1.35)
-		if sub != "" {
-			ui.Text(c, sub).FontSize(14).TextColor(p.muted).SingleLine().Margin(-6, 0, 0, 0)
-		}
+		ui.Column(c).Gap(4).Children(func() {
+			ui.Text(c, name).FontSize(titleSize).FontWeight(titleWeight).MaxLines(2).LineHeight(1.35)
+			if sub != "" {
+				ui.Text(c, sub).FontSize(14).TextColor(p.faint).SingleLine()
+			}
+		})
 	})
 	return card.Clicked()
 }
@@ -217,13 +273,13 @@ func (a *app) chartCard(c *ui.Context, pl *netease.Playlist) {
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(5).Children(func() {
 			ui.Row(c).Gap(6).AlignItems(ui.Baseline).Children(func() {
 				ui.Text(c, pl.Name).FontSize(17).FontWeight(700).SingleLine()
-				ui.Text(c, pl.UpdateFreq).FontSize(13).TextColor(p.faint).SingleLine()
+				ui.Text(c, pl.UpdateFreq).FontSize(12).TextColor(p.faint).SingleLine()
 			})
 			for i, line := range pl.Preview {
 				ui.Row(c).Gap(7).Children(func() {
-					ui.Textf(c, "%d", i+1).FontSize(14).FontWeight(700).Width(10).FontFeatures("tnum").TextColor(p.muted)
+					ui.Textf(c, "%d", i+1).FontSize(14).FontWeight(700).Width(10).FontFeatures("tnum").TextColor(p.faint)
 					ui.RichText(c,
-						ui.Span{Text: line.First, Weight: 500},
+						ui.Span{Text: line.First},
 						ui.Span{Text: "  " + line.Second, Color: p.muted},
 					).FontSize(14).SingleLine().Shrink(1).MinWidth(0)
 				})
@@ -252,7 +308,7 @@ func (a *app) playlistPage(c *ui.Context) {
 
 func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 	p := a.pal
-	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
+	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 24, 0).Children(func() {
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 			a.coverFill(c, pl.Cover(), 600, radiusCard)
 		})
@@ -271,7 +327,7 @@ func (a *app) playlistHeader(c *ui.Context, pl *netease.Playlist) {
 			if pl.PlayCount > 0 {
 				meta = append(meta, plays(pl.PlayCount)+" 次播放")
 			}
-			ui.Text(c, strings.Join(meta, " · ")).FontSize(16).TextColor(p.muted)
+			ui.Text(c, strings.Join(meta, " · ")).FontSize(16).TextColor(p.faint)
 			if d := strings.TrimSpace(pl.Description); d != "" {
 				a.introduction(c, d)
 			}
@@ -341,7 +397,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 	// scrolled away from its start or end has content under the bars.
 	a.underTop = true
 	rows := len(tracks) + 1 + len(footer)
-	ui.List(c.Key(a.route), &a.trackList, rows, func(i int) {
+	ui.List(c.Key(keyOf(a.route)), &a.trackList, rows, func(i int) {
 		if i == 0 {
 			ui.Column(c).PaddingX(12).Children(func() {
 				a.startMark(c)
@@ -356,7 +412,7 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 		i--
 		tr := &tracks[i]
 		playing := cur != nil && cur.ID == tr.ID
-		row := ui.ButtonBase(c.Key(tr.ID)).Height(66).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
+		row := ui.ButtonBase(c.Key(tr.ID)).Height(64).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
 		hovered := row.Hovered()
 		bg := ui.Transparent
 		switch {
@@ -388,21 +444,21 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				if playing {
 					name = p.accent
 				}
-				spans := []ui.Span{{Text: tr.Name, Weight: 500, Color: name}}
+				spans := []ui.Span{{Text: tr.Name, Weight: 600, Color: name}}
 				if len(tr.Alias) > 0 {
 					spans = append(spans, ui.Span{Text: "（" + tr.Alias[0] + "）", Color: p.faint})
 				}
 				ui.RichText(c, spans...).FontSize(17).SingleLine()
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
 					if !tr.Playable() {
-						ui.Text(c, "VIP").FontSize(11).FontWeight(800).TextColor(p.accent).Padding(0, 4).Radius(radiusTile/2).Border(1, p.accent.Alpha(0.6))
+						ui.Text(c, "VIP").FontSize(12).FontWeight(800).TextColor(p.accent).Padding(0, 4).Radius(radiusTile/2).Border(1, p.accent.Alpha(0.6))
 					}
-					a.artistLinks(c, tr, p.muted, p.text).FontSize(15).SingleLine().Shrink(1).MinWidth(0)
+					a.artistLinks(c, tr, p.faint, p.text).FontSize(15).SingleLine().Shrink(1).MinWidth(0)
 					if tr.ID < 0 {
 						// A video of Bilibili's: the site was asked what it
 						// has for the song, and the page says what it said.
 						if src := a.biliSourceOf(tr.ID); src.done {
-							label, ink := "网易云无音源", p.faint
+							label, ink := "网易云无音源", p.muted
 							if src.track != nil {
 								label, ink = "网易云有音源", p.muted
 							}
@@ -415,12 +471,12 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 				})
 			})
 			if wide {
-				album := ui.RichText(c).Grow(2).Basis(0).MinWidth(0).FontSize(15).TextColor(p.muted).SingleLine()
+				album := ui.RichText(c).Grow(2).Basis(0).MinWidth(0).FontSize(15).TextColor(p.faint).SingleLine()
 				album.Children(func() {
 					if tr.Album.ID == 0 {
 						ui.Text(c, tr.Album.Name)
 					} else {
-						a.link(c.Key("album"), tr.Album.Name, p.muted, p.text, route{page: pageAlbum, id: tr.Album.ID})
+						a.link(c.Key("album"), tr.Album.Name, p.faint, p.text, route{page: pageAlbum, id: tr.Album.ID})
 					}
 				})
 			}
@@ -428,17 +484,17 @@ func (a *app) trackRows(c *ui.Context, tracks []netease.Track, covers bool, head
 			if tr.ID > 0 {
 				ui.Box(c).Size(32, 32).Center().Children(func() {
 					if a.liked[tr.ID] || hovered {
-						a.likeButton(c.Key("like"), tr, 18, p.muted)
+						a.likeButton(c.Key("like"), tr, 18, p.faint)
 					}
 				})
 			}
 			ui.Text(c, clock(tr.Length())).FontSize(15).FontFeatures("tnum").TextColor(p.faint).Width(44).TextAlign(ui.End)
-			a.songMenu(c, row, tr, pid, p.muted)
+			a.songMenu(c, row, tr, pid, p.faint)
 		})
 		if row.Clicked() && tr.Playable() {
 			a.pl.PlayQueue(tracks, i)
 		}
-	}).Grow(1).Padding(top+pageGap, pagePad-12, bottom+32, pagePad-12).ScrollbarInsets(top, 0, bottom, 0)
+	}).Grow(1).Padding(top+pageGap, a.pagePadX(c)-12, bottom+32, a.pagePadX(c)-12).ScrollbarInsets(top, 0, bottom, 0)
 }
 
 // nowPlayingBars dance in the row of the track playing.

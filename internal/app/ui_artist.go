@@ -275,17 +275,19 @@ func (a *app) artistPage(c *ui.Context) {
 	case artistAlbums:
 		a.scrollPage(c, func() {
 			header(c)
-			a.albumGrid(c, d.albums)
-			a.pageFoot(c, &d.albumsPage, func() { a.loadAlbums(id) })
-			if d.albumsPage.loaded && len(d.albums) == 0 {
-				a.empty(c, "暂无专辑")
-			}
+			pane(c, a.artistTab, func() {
+				a.albumGrid(c, d.albums)
+				a.pageFoot(c, &d.albumsPage, func() { a.loadAlbums(id) })
+				if d.albumsPage.loaded && len(d.albums) == 0 {
+					a.empty(c, "暂无专辑")
+				}
+			})
 		})
 		return
 	case artistEvents:
 		a.scrollPage(c, func() {
 			header(c)
-			a.artistEvents(c, d)
+			pane(c, a.artistTab, func() { a.artistEvents(c, d) })
 		})
 		return
 	}
@@ -318,7 +320,7 @@ func (a *app) artistPage(c *ui.Context) {
 // opens from has its own, whatever it shows.
 func (a *app) scrollPage(c *ui.Context, content func()) {
 	top, bottom := a.insets(c)
-	ui.Scroll(c.Key(a.route)).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
+	ui.Scroll(c.Key(keyOf(a.route))).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, a.pagePadX(c), bottom+48, a.pagePadX(c)).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
 		content()
 	})
@@ -340,7 +342,7 @@ func (a *app) artistHeader(c *ui.Context, d *artistData) {
 	if a.artistTab == artistLatest && d.latest != nil {
 		songs = d.latest
 	}
-	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 8, 0).Children(func() {
+	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 24, 0).Children(func() {
 		photo := ar.Avatar
 		if photo == "" {
 			photo = ar.PicURL
@@ -361,7 +363,7 @@ func (a *app) artistHeader(c *ui.Context, d *artistData) {
 			if ar.AlbumSize > 0 {
 				meta = append(meta, fmt.Sprintf("%d 张专辑", ar.AlbumSize))
 			}
-			ui.Text(c, strings.Join(meta, " · ")).FontSize(16).TextColor(p.muted)
+			ui.Text(c, strings.Join(meta, " · ")).FontSize(16).TextColor(p.faint)
 			if d := strings.TrimSpace(ar.BriefDesc); d != "" {
 				a.introduction(c, d)
 			}
@@ -388,8 +390,8 @@ func (a *app) artistHeader(c *ui.Context, d *artistData) {
 			})
 		})
 	})
-	ui.Row(c).AlignItems(ui.Center).Margin(34, 0, 14, 0).Children(func() {
-		ui.Text(c, artistTabTitles[a.artistTab]).FontSize(19).FontWeight(700).LetterSpacing(-0.3)
+	ui.Row(c).AlignItems(ui.Center).Margin(32, 0, 12, 0).Children(func() {
+		ui.Text(c, artistTabTitles[a.artistTab]).FontSize(sectionAt).FontWeight(700).LetterSpacing(-0.3)
 		ui.Spacer(c)
 		if segmented(c.Key("tab"), &a.artistTab, "热门", "最新", "专辑", "动态") {
 			a.loadArtist(ar.ID)
@@ -400,7 +402,7 @@ func (a *app) artistHeader(c *ui.Context, d *artistData) {
 var artistTabTitles = [...]string{"歌曲", "歌曲", "专辑", "动态"}
 
 func (a *app) artistHeaderSkeleton(c *ui.Context, s shimmer) {
-	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 8, 0).Children(func() {
+	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 24, 0).Children(func() {
 		s.bone(c, artistPhotoSize/2).Size(artistPhotoSize, artistPhotoSize)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(8).Children(func() {
 			s.text(c, 12, 1.3).Width(24)

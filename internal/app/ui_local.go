@@ -95,12 +95,8 @@ func (a *app) localPage(c *ui.Context) {
 	}
 	if len(a.locals) == 0 {
 		top, bottom := a.insets(c)
-		ui.Column(c).Grow(1).Padding(top, 0, bottom, 0).Center().Gap(12).Children(func() {
-			ui.Text(c, "还没有本地音乐").FontSize(20).FontWeight(600)
-			ui.Text(c, "在设置里的「本地音乐」中添加存放音乐的文件夹").FontSize(15).TextColor(a.pal.muted)
-			if ui.Button(c, "打开设置").Clicked() {
-				a.openSettings()
-			}
+		ui.Column(c).Grow(1).Padding(top, 0, bottom, 0).Center().Children(func() {
+			a.emptyState(c, "还没有本地音乐", "在设置里的「本地音乐」中添加存放音乐的文件夹", "打开设置", a.openSettings)
 		})
 		return
 	}

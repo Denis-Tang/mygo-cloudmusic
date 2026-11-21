@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"math"
-	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -32,7 +31,7 @@ func (a *app) dailyArt(c *ui.Context, now time.Time, size float32) {
 			}})
 		ui.Column(c).Absolute().Left(size * 0.09).Bottom(size * 0.08).TextColor(white).Children(func() {
 			ui.Textf(c, "%d", now.Day()).FontSize(size * 0.44).FontWeight(300).LetterSpacing(-size * 0.02).FontFeatures("tnum").LineHeight(1)
-			ui.Textf(c, "%d月 · %s", now.Month(), weekday(now)).FontSize(max(11, size*0.075)).FontWeight(600).TextColor(white.Alpha(0.85))
+			ui.Textf(c, "%d月 · %s", now.Month(), weekday(now)).FontSize(max(11, size*0.075)).FontWeight(600).TextColor(white)
 		})
 	})
 }
@@ -113,9 +112,8 @@ func (a *app) dailyCard(c *ui.Context, now time.Time) {
 		})
 		ui.Row(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Padding(0, dailyPadX).Gap(28).AlignItems(ui.Center).Children(func() {
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
-				ui.Textf(c, "%d月%d日 %s · %s", now.Month(), now.Day(), weekday(now), a.dailyNote()).FontSize(14).FontWeight(600).LetterSpacing(0.3).TextColor(white.Alpha(0.66)).MaxLines(1)
+				ui.Textf(c, "%d月%d日 %s · %s", now.Month(), now.Day(), weekday(now), a.dailyNote()).FontSize(14).FontWeight(600).LetterSpacing(0.3).TextColor(white.Alpha(0.82)).MaxLines(1)
 				ui.Text(c, "每日推荐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.8).LineHeight(1.15)
-				ui.Text(c, dailyArtists(songs)).FontSize(16).TextColor(white.Alpha(0.8)).MaxLines(1)
 				ui.Row(c).Gap(10).Margin(12, 0, 0, 0).Children(func() {
 					a.dailyPlayButton(c.Key("play"), songs, ours, playing)
 					if a.profile == nil && pillButton(c.Key("login"), iconUser, "登录", white.Alpha(0.16), white).Clicked() {
@@ -185,14 +183,14 @@ func (a *app) dailyPlaying() (ours, playing bool) {
 // at depths that white reads over whatever the cover. A gray cover, or one
 // still loading, takes NetEase's red.
 func dailyColors(art *artwork) (deep, rich, glow ui.Color) {
-	h, s := 356.0, 0.74
+	h, s := 356.0, 0.46
 	if art != nil && !art.failed {
 		th, ts, _ := hsv(float64(art.tint.R)/255, float64(art.tint.G)/255, float64(art.tint.B)/255)
 		if ts > 0.15 {
-			h, s = th, min(max(ts*1.2, 0.5), 0.78)
+			h, s = th, min(max(ts*0.8, 0.34), 0.5)
 		}
 	}
-	return hsvColor(h, s, 0.24), hsvColor(math.Mod(h+16, 360), s*0.9, 0.5), hsvColor(math.Mod(h+32, 360), s*0.55, 1)
+	return hsvColor(h, s, 0.22), hsvColor(math.Mod(h+16, 360), s*0.85, 0.42), hsvColor(math.Mod(h+32, 360), s*0.4, 0.88)
 }
 
 // drawDailyBackdrop paints the daily card in r: a gradient of the cover's
@@ -276,30 +274,6 @@ func (s *spinState) step(now time.Time, to float64) bool {
 	return s.speed > 0
 }
 
-// dailyArtists names the first few singers of songs, and how many songs.
-func dailyArtists(songs []netease.Track) string {
-	var names []string
-	seen := map[string]bool{}
-	for i := range songs {
-		if len(songs[i].Artists) == 0 {
-			continue
-		}
-		n := songs[i].Artists[0].Name
-		if n == "" || seen[n] {
-			continue
-		}
-		seen[n] = true
-		names = append(names, n)
-		if len(names) == 3 {
-			break
-		}
-	}
-	if len(names) == 0 {
-		return fmt.Sprintf("今日 %d 首", len(songs))
-	}
-	return fmt.Sprintf("%s 等 %d 首", strings.Join(names, "、"), len(songs))
-}
-
 // dailyPlayButton plays the day's songs; while they play it says so, its
 // bars dancing, and pauses them; paused, it goes on.
 func (a *app) dailyPlayButton(c *ui.Context, songs []netease.Track, ours, playing bool) {
@@ -376,14 +350,14 @@ func (a *app) dailyPicks(c *ui.Context, songs []netease.Track, ours bool) {
 					if current {
 						ui.Icon(c, iconPlay).Size(11, 11).TextColor(white)
 					} else {
-						ui.Textf(c, "%02d", i+1).FontSize(14).FontWeight(700).FontFeatures("tnum").TextColor(white.Alpha(0.45))
+						ui.Textf(c, "%02d", i+1).FontSize(14).FontWeight(700).FontFeatures("tnum").TextColor(white.Alpha(0.64))
 					}
 				})
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(1).Children(func() {
 					ui.Text(c, tr.Name).FontSize(16).FontWeight(600).MaxLines(1)
-					a.artistLinks(c, tr, white.Alpha(0.6), white).FontSize(14).MaxLines(1)
+					a.artistLinks(c, tr, white.Alpha(0.82), white).FontSize(14).MaxLines(1)
 				})
-				a.songMenu(c, row, tr, 0, white.Alpha(0.6))
+				a.songMenu(c, row, tr, 0, white.Alpha(0.82))
 			})
 			if row.Clicked() {
 				a.pl.PlayQueue(songs, i)
@@ -507,7 +481,7 @@ func (a *app) dailyPage(c *ui.Context) {
 					})
 					return
 				}
-				ui.Text(c, fmt.Sprintf("%d 首 · %s", len(songs), a.dailyBlurb())).FontSize(16).TextColor(p.muted)
+				ui.Text(c, fmt.Sprintf("%d 首 · %s", len(songs), a.dailyBlurb())).FontSize(16).TextColor(p.faint)
 				ui.Row(c).Gap(10).Margin(8, 0, 0, 0).Children(func() {
 					if pillButton(c.Key("play"), iconPlay, "播放全部", p.accent, p.onAccent).Clicked() {
 						if a.pl.Shuffle() {

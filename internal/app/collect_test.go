@@ -2,6 +2,7 @@ package app
 
 import (
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -198,5 +199,33 @@ func TestCollectedTabs(t *testing.T) {
 	}
 	if _, ok := tt.Find("没收藏的"); ok {
 		t.Fatal("an uncollected Bilibili playlist is listed")
+	}
+}
+
+// The bar over 我的收藏 divides its width evenly: each of its three labels
+// sits in its own third, a third of the bar apart, rather than packed at
+// its left.
+func TestCollectedBarDividesItsWidthEvenly(t *testing.T) {
+	a := editTestApp()
+	a.show(route{page: pageCollected})
+	const w, h = 1440, 900
+	tt := ui.NewTester(a.view, w, h)
+	tt.Frame()
+	at := func(label string) float32 {
+		r, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("no %q in the collected bar", label)
+		}
+		return r.X + r.W/2
+	}
+	album, playlist, bili := at("专辑"), at("歌单"), at("哔哩哔哩歌单")
+	// The control's padding takes the odd few pixels.
+	third := float32(w-fullSidebar-2*pagePad) / 3
+	one, two := playlist-album, bili-playlist
+	if math.Abs(float64(one-two)) > 1 {
+		t.Fatalf("the labels are %v and %v apart, want an even spread", one, two)
+	}
+	if math.Abs(float64(one-third)) > 4 {
+		t.Fatalf("the labels are %v apart, want about a third of the bar, %v", one, third)
 	}
 }

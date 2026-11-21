@@ -34,6 +34,7 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 	}
 	a.actionPopover(c.Key("song-actions"), anchor, &st.open, func() {
 		first := true
+		edge := popoverColors(a.menuPalette().dark).edge
 		item := func(icon *ui.SVG, label string, action func()) {
 			b := a.menuItem(c, icon, label, "")
 			if first {
@@ -51,11 +52,11 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 			if v, ok := a.biliVideos[tr.ID]; ok {
 				item(iconCollect, "添加到歌单", func() { a.plAdding = playlistAdding{open: true, track: *tr} })
 				item(iconQueue, "收藏为歌单", func() { a.startBiliPlaylist(v) })
-				ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
+				ui.Box(c).Height(0.5).Margin(4, 8).Background(edge)
 				item(iconVideo, "打开视频页", func() {
 					mygo.Shell.OpenExternal("https://www.bilibili.com/video/" + v.Bvid)
 				})
-				ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
+				ui.Box(c).Height(0.5).Margin(4, 8).Background(edge)
 				item(iconCopy, "复制标题", func() { copyText(tr.Name) })
 				item(iconCopy, "复制链接", func() { copyText("https://www.bilibili.com/video/" + v.Bvid) })
 				removeHere()
@@ -63,7 +64,7 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 			}
 			item(iconCollect, "添加到歌单", func() { a.plAdding = playlistAdding{open: true, track: *tr} })
 			item(iconFolder, "在文件夹中显示", func() { a.showLocalFile(tr.ID) })
-			ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
+			ui.Box(c).Height(0.5).Margin(4, 8).Background(edge)
 			item(iconCopy, "复制歌名", func() { copyText(tr.Name) })
 			item(iconCopy, "复制歌名和歌手", func() { copyText(tr.Name + " - " + tr.ArtistNames()) })
 			removeHere()
@@ -84,12 +85,12 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 		if tr.Album.ID != 0 {
 			item(iconCover, "查看专辑："+tr.Album.Name, func() { a.openPage(route{page: pageAlbum, id: tr.Album.ID}) })
 		}
-		ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
+		ui.Box(c).Height(0.5).Margin(4, 8).Background(edge)
 		item(iconCopy, "复制歌名", func() { copyText(tr.Name) })
 		item(iconCopy, "复制歌名和歌手", func() { copyText(tr.Name + " - " + tr.ArtistNames()) })
 		item(iconLink, "复制链接", func() { copyText(tr.URL()) })
 		if a.editable(pid) != nil {
-			ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
+			ui.Box(c).Height(0.5).Margin(4, 8).Background(edge)
 			item(iconTrash, "从歌单中移除", func() { a.removeFrom(pid, tr) })
 		}
 	})
@@ -97,18 +98,24 @@ func (a *app) songMenu(c *ui.Context, row ui.Element, tr *netease.Track, pid int
 
 // actionPopover uses the account menu's material and keyboard navigation.
 func (a *app) actionPopover(c *ui.Context, anchor ui.Element, open *bool, items func()) {
-	p := a.pal
-	if a.npOpen {
-		p = paletteFor(&ui.Theme{Dark: true})
-	}
+	p := a.menuPalette()
 	pop := popoverColors(p.dark)
 	_, h := c.Size()
 	ui.PopoverBase(c, anchor, open, func(panel ui.Element) {
-		panel.Width(320).Padding(5).Radius(radiusCard).Background(pop.fill).Border(0.5, pop.edge).
+		panel.Width(280).Padding(5).Radius(radiusCard).Background(pop.fill).Border(0.5, pop.edge).
 			Shadow(0, 8, 24, -4, ui.RGBA(0, 0, 0, 0.2)).TextColor(p.text).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96, Y: -4}, Exit: &ui.Motion{Scale: 0.98}})
 		ui.Scroll(c).MaxHeight(min(520, h-48)).Role(ui.RoleMenu).Label("操作菜单").FocusGroup(ui.Vertical).Children(items)
 	})
+}
+
+// menuPalette is the colors a menu over the app shows in: the playing
+// page keeps them dark.
+func (a *app) menuPalette() palette {
+	if a.npOpen {
+		return paletteFor(&ui.Theme{Dark: true})
+	}
+	return a.pal
 }
 
 // playlistMenu shares the rounded action panel between a playlist and its header.
@@ -120,7 +127,7 @@ func (a *app) playlistMenu(c *ui.Context, anchor ui.Element, pl *netease.Playlis
 	anchor.OnShortcut(ui.Shift, ui.KeyF10, func() { *open = true })
 	a.actionPopover(c.Key("playlist-actions"), anchor, open, func() {
 		a.menuItem(c, iconPencil, "重命名…", "").AutoFocus().OnClick(func() { *open = false; a.startRename(pl) })
-		ui.Box(c).Height(1).Margin(4, 8).Background(a.pal.hairline)
+		ui.Box(c).Height(0.5).Margin(4, 8).Background(popoverColors(a.menuPalette().dark).edge)
 		a.menuItem(c, iconTrash, "删除歌单…", "").OnClick(func() { *open = false; a.confirmDelete(pl) })
 	})
 }

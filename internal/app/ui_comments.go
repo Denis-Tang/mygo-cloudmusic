@@ -187,13 +187,13 @@ func (a *app) commentsPane(c *ui.Context, tr *netease.Track) {
 		ui.Column(c).Grow(1).Center().Gap(14).Children(func() {
 			switch {
 			case cs.err != "":
-				ui.Text(c, cs.err).FontSize(18).TextColor(white.Alpha(0.5))
+				ui.Text(c, cs.err).FontSize(14).TextColor(white.Alpha(0.64))
 				if pillButton(c.Key("retry"), iconComment, "重试", white.Alpha(0.14), white).Clicked() {
 					a.loadComments()
 				}
 			default:
-				ui.Icon(c, iconComment).Size(40, 40).TextColor(white.Alpha(0.3))
-				ui.Text(c, "还没有评论").FontSize(17).FontWeight(600).TextColor(white.Alpha(0.45))
+				ui.Icon(c, iconComment).Size(40, 40).TextColor(white.Alpha(0.64))
+				ui.Text(c, "还没有评论").FontSize(17).FontWeight(600).TextColor(white.Alpha(0.64))
 			}
 		})
 		return
@@ -222,13 +222,13 @@ func (a *app) commentsPane(c *ui.Context, tr *netease.Track) {
 				case cs.err != "":
 					retry := ui.ButtonBase(c.Key("retry")).Padding(6, 14).Radius(radiusPill).Background(white.Alpha(0.1)).Label("重试")
 					retry.Children(func() {
-						ui.Text(c, "加载失败，点按重试").FontSize(15).TextColor(white.Alpha(0.7))
+						ui.Text(c, "加载失败，点按重试").FontSize(15).TextColor(white.Alpha(0.82))
 					})
 					if retry.Clicked() {
 						a.loadComments()
 					}
 				case !cs.more:
-					ui.Text(c, "没有更多评论了").FontSize(14).TextColor(white.Alpha(0.35))
+					ui.Text(c, "没有更多评论了").FontSize(14).TextColor(white.Alpha(0.64))
 				}
 			})
 			end = ui.Box(c.Key("end")).Height(0).Bounds()
@@ -241,7 +241,7 @@ func (a *app) commentsPane(c *ui.Context, tr *netease.Track) {
 }
 
 func commentHeading(c *ui.Context, title string) {
-	ui.Text(c, title).FontSize(16).FontWeight(700).TextColor(white.Alpha(0.55)).LetterSpacing(0.2).Padding(18, 12, 6, 12)
+	ui.Text(c, title).FontSize(16).FontWeight(700).TextColor(white.Alpha(0.82)).LetterSpacing(0.2).Padding(18, 12, 6, 12)
 }
 
 // commentRow is a comment: who wrote it, what, and what it replies to,
@@ -251,17 +251,17 @@ func (a *app) commentRow(c *ui.Context, cm *netease.Comment, now time.Time) {
 		a.avatar(c, cm.User.AvatarURL, 34, white.Alpha(0.1))
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
 			ui.Row(c).Gap(8).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, cm.User.Nickname).FontSize(16).FontWeight(600).TextColor(white.Alpha(0.6)).SingleLine().Shrink(1).MinWidth(0)
+				ui.Text(c, cm.User.Nickname).FontSize(16).FontWeight(600).TextColor(white.Alpha(0.82)).SingleLine().Shrink(1).MinWidth(0)
 				ui.Spacer(c)
 				a.commentLike(c.Key("like"), cm)
 			})
-			ui.Text(c, cm.Content).FontSize(18).LineHeight(1.55).TextColor(white.Alpha(0.92))
+			ui.Text(c, cm.Content).FontSize(14).LineHeight(1.55).TextColor(white)
 			if len(cm.BeReplied) > 0 {
 				r := cm.BeReplied[0]
 				ui.Box(c).Padding(8, 12).Radius(radiusTile).Background(white.Alpha(0.07)).Children(func() {
 					ui.RichText(c,
-						ui.Span{Text: "@" + r.User.Nickname + "：", Color: white.Alpha(0.75), Weight: 600},
-						ui.Span{Text: r.Content, Color: white.Alpha(0.6)},
+						ui.Span{Text: "@" + r.User.Nickname + "：", Color: white.Alpha(0.82), Weight: 600},
+						ui.Span{Text: r.Content, Color: white.Alpha(0.82)},
 					).FontSize(16).LineHeight(1.5).MaxLines(3)
 				})
 			}
@@ -269,7 +269,7 @@ func (a *app) commentRow(c *ui.Context, cm *netease.Comment, now time.Time) {
 			if loc := cm.IPLocation.Location; loc != "" {
 				meta += " · " + loc
 			}
-			ui.Text(c, meta).FontSize(14).TextColor(white.Alpha(0.38))
+			ui.Text(c, meta).FontSize(14).TextColor(white.Alpha(0.64))
 		})
 	})
 }
@@ -277,13 +277,13 @@ func (a *app) commentRow(c *ui.Context, cm *netease.Comment, now time.Time) {
 // commentLike is a comment's thumb, with how many liked it, which likes it
 // or unlikes it: in red once liked.
 func (a *app) commentLike(c *ui.Context, cm *netease.Comment) {
-	label, fg := "赞", white.Alpha(0.42)
+	label, fg := "赞", white.Alpha(0.64)
 	if cm.Liked {
 		label, fg = "取消赞", a.pal.accent
 	}
 	b := ui.ButtonBase(c).Gap(4).Padding(3, 6).Margin(-3, -6).Radius(radiusPill).AlignItems(ui.Center).FocusRing(false).Label(label)
 	if b.Hovered() && !cm.Liked {
-		fg = white.Alpha(0.75)
+		fg = white.Alpha(0.82)
 	}
 	b.TextColor(b.AnimateColor("fg", fg, ui.Animation{Duration: 120 * time.Millisecond}))
 	b.Children(func() {

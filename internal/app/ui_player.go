@@ -145,7 +145,7 @@ func (a *app) volumeButton(c *ui.Context, color ui.Color) {
 				QuadTo(cx, foot+arrow, cx+1.2, foot+arrow-1.2).LineTo(cx+arrow+1, foot)
 			p.StrokePath(edge, 0.5, pop.edge)
 		})
-		ui.Textf(c, "%d%%", int(a.volume*100+0.5)).FontSize(13).FontWeight(500).FontFeatures("tnum").TextColor(a.pal.muted)
+		ui.Textf(c, "%d%%", int(a.volume*100+0.5)).FontSize(12).FontWeight(600).FontFeatures("tnum").TextColor(a.pal.faint)
 		a.nativeVolumeSlider(c, pop)
 	})
 }
@@ -305,16 +305,16 @@ func (a *app) playerBar(c *ui.Context) {
 	// The controls keep the middle, between sides that share what is left:
 	// narrower, the middle shrinks, and what plays keeps room
 	// for its cover, some of its title and its heart.
-	const controls = 38 + 3*36 + 3*4 // collection, lyrics, queue and the speaker
+	const controls = 38 + 3*36 + 3*8 // collection, lyrics, queue and the speaker, and the gaps between
 	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).Padding(8, 28, 0, 28).Gap(20).AlignItems(ui.Center).Children(func() {
 		// What plays.
 		ui.Row(c).Grow(1).Basis(0).MinWidth(150).Children(func() {
 			if tr == nil {
 				ui.Row(c).Gap(12).AlignItems(ui.Center).Children(func() {
 					ui.Box(c).Size(48, 48).Radius(radiusTile).Background(p.hover).Center().Children(func() {
-						ui.Icon(c, iconNote).Size(18, 18).TextColor(p.faint)
+						ui.Icon(c, iconNote).Size(18, 18).TextColor(p.muted)
 					})
-					ui.Text(c, "未在播放").FontSize(16).TextColor(p.muted)
+					ui.Text(c, "未在播放").FontSize(16).TextColor(p.faint)
 				})
 				return
 			}
@@ -380,7 +380,7 @@ func (a *app) playerBar(c *ui.Context) {
 		a.transport(c, p.text, p.muted, p.accent, 24)
 
 		// Collection, lyrics and volume.
-		ui.Row(c).Grow(1).Basis(0).MinWidth(controls).Justify(ui.End).AlignItems(ui.Center).Gap(4).Children(func() {
+		ui.Row(c).Grow(1).Basis(0).MinWidth(controls).Justify(ui.End).AlignItems(ui.Center).Gap(8).Children(func() {
 			if tr != nil && tr.ProgramID == 0 && tr.ID > 0 {
 				a.collectButton(c, tr, p.muted)
 			}

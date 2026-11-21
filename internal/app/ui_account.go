@@ -188,7 +188,7 @@ func (a *app) loginDialog(c *ui.Context) {
 	l := &a.login
 	ui.DialogBase(c.Key("login"), &l.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(340).Padding(28, 28, 26, 28).Radius(radiusPanel).Gap(6).AlignItems(ui.Center).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(6).AlignItems(ui.Center).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		title, sub := "扫码登录", "打开网易云音乐 App，扫一扫登录"
@@ -203,7 +203,7 @@ func (a *app) loginDialog(c *ui.Context) {
 			sub = "二维码已失效"
 		}
 		ui.Text(c, title).FontSize(20).FontWeight(700)
-		ui.Text(c, sub).FontSize(13).TextColor(p.muted).TextAlign(ui.Center).Margin(0, 0, 14, 0)
+		ui.Text(c, sub).FontSize(14).TextColor(p.muted).TextAlign(ui.Center).Margin(0, 0, 14, 0)
 
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Background(ui.RGB(255, 255, 255)).Border(1, p.hairline).Clip().Children(func() {
 			if l.code != nil {
@@ -223,12 +223,12 @@ func (a *app) loginDialog(c *ui.Context) {
 				switch {
 				case l.finished || l.status == netease.QRScanned:
 					if bmp := bitmap(a.art.get(netease.Sized(l.avatar, 160), false)); bmp != nil {
-						pic := ui.Box(c).Size(72, 72).Radius(36).Shadow(0, 6, 16, -4, ui.RGBA(0, 0, 0, 0.3))
+						pic := ui.Box(c).Size(72, 72).Radius(radiusPill).Shadow(0, 6, 16, -4, ui.RGBA(0, 0, 0, 0.3))
 						in := artIn(pic, bmp)
-						pic.Children(func() { artImage(c, bmp, 36, in) })
+						pic.Children(func() { artImage(c, bmp, radiusPill, in) })
 					}
 					if l.scanner != "" {
-						ui.Text(c, l.scanner).FontSize(14).FontWeight(600).TextColor(ui.Hex("#1d1d1f"))
+						ui.Text(c, l.scanner).FontSize(14).FontWeight(600).TextColor(p.ink)
 					}
 				case l.status == netease.QRExpired || l.err != "":
 					if pillButton(c.Key("refresh"), iconRepeat, "刷新二维码", p.accent, p.onAccent).Clicked() {
@@ -237,7 +237,6 @@ func (a *app) loginDialog(c *ui.Context) {
 				}
 			})
 		})
-		ui.Text(c, "登录后，每日推荐与歌单将根据你的口味生成").FontSize(11.5).TextColor(p.faint).Margin(16, 0, 0, 0)
 	})
 }
 
@@ -278,7 +277,7 @@ func (a *app) accountRow(c *ui.Context) {
 	if a.profile == nil {
 		a.accountOpen = false
 		b.Label("登录").Children(func() {
-			ui.Box(c).Size(32, 32).Radius(16).Background(p.press).Center().Children(func() {
+			ui.Box(c).Size(32, 32).Radius(radiusPill).Background(p.press).Center().Children(func() {
 				ui.Icon(c, iconUser).Size(14, 14).TextColor(p.muted)
 			})
 		})
@@ -385,10 +384,7 @@ func (a *app) accountMenu(c *ui.Context, row ui.Element) {
 // menuItem is an item of a dropdown: an icon, its label, and the shortcut
 // that does the same, if any.
 func (a *app) menuItem(c *ui.Context, icon *ui.SVG, label, shortcut string) ui.Element {
-	p := a.pal
-	if a.npOpen {
-		p = paletteFor(&ui.Theme{Dark: true})
-	}
+	p := a.menuPalette()
 	b := ui.ButtonBase(c.Key(label)).Role(ui.RoleMenuItem).Label(label).Height(36).PaddingX(9).Gap(10).Radius(radiusRow - 2).
 		AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
 	bg := ui.Transparent
@@ -432,7 +428,7 @@ func (a *app) playlistRows(c *ui.Context, lists []netease.Playlist, mine bool) {
 func (a *app) playlistRow(c *ui.Context, pl *netease.Playlist, mine bool, index, count int) {
 	p := a.pal
 	selected := a.route.page == pagePlaylist && a.route.id == pl.ID && !a.nowPlaying
-	b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+	b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(12).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
 	pb := ui.Transparent
 	switch {
 	case selected:
@@ -443,7 +439,11 @@ func (a *app) playlistRow(c *ui.Context, pl *netease.Playlist, mine bool, index,
 	b.Background(b.AnimateColor("bg", pb, ui.Animation{Duration: 120 * time.Millisecond}))
 	b.Children(func() {
 		a.cover(c, pl.Cover(), 80, 28, radiusTile-1)
-		ui.Text(c, pl.Name).FontSize(sideFont(13)).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+		color := p.muted
+		if selected {
+			color = p.accent
+		}
+		ui.Text(c, pl.Name).FontSize(sideFont(13)).TextColor(color).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 	})
 	if mine && pl.SpecialType != 5 {
 		a.playlistMenu(c.Key(pl.ID), b, pl, false)

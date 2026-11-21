@@ -163,6 +163,35 @@ func TestBiliFollowStripUnfollows(t *testing.T) {
 	}
 }
 
+// Unfollowing the first of several uploaders does not mutate the slice
+// during the build pass and duplicate keys for the remaining faces.
+func TestBiliFollowStripUnfollowsFirstOfMany(t *testing.T) {
+	followsFile(t)
+	a := newTestApp()
+	a.settings = defaultSettings()
+	a.follows = []biliFollow{
+		{Mid: 7, Name: "甲UP"},
+		{Mid: 8, Name: "乙UP"},
+		{Mid: 9, Name: "丙UP"},
+	}
+	a.show(route{page: pageBili})
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	r, ok := tt.Find("甲UP")
+	if !ok {
+		t.Fatal("first uploader missing")
+	}
+	tt.Move(r.X+r.W/2, r.Y+r.H/2)
+	tt.Frame()
+	if err := tt.Click("取消关注 甲UP"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if len(a.follows) != 2 || a.follows[0].Mid != 8 || a.follows[1].Mid != 9 {
+		t.Fatalf("follows %+v, want [8, 9]", a.follows)
+	}
+}
+
 // A face of the strip lists that uploader's playlists alone, and another
 // click lists everybody's again.
 func TestBiliFilterByFace(t *testing.T) {

@@ -131,7 +131,7 @@ func (a *app) userPage(c *ui.Context) {
 	u := d.user
 	own := a.profile != nil && a.profile.UserID == id
 	a.scrollPage(c, func() {
-		ui.Row(c).Gap(28).AlignItems(ui.End).Children(func() {
+		ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 24, 0).Children(func() {
 			ui.Box(c).Size(artistPhotoSize, artistPhotoSize).Radius(artistPhotoSize/2).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 				a.coverFill(c, u.AvatarURL, 600, artistPhotoSize/2)
 			})
@@ -151,7 +151,7 @@ func (a *app) userPage(c *ui.Context) {
 		case len(d.playlists) == 0:
 			a.empty(c, "暂无公开歌单")
 		default:
-			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
+			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(24).Children(func() {
 				for i := range d.playlists {
 					a.playlistCard(c.Key(d.playlists[i].ID), &d.playlists[i])
 				}
@@ -162,7 +162,7 @@ func (a *app) userPage(c *ui.Context) {
 			if len(d.podcasts) == 0 {
 				a.empty(c, "还没有订阅播客")
 			}
-			ui.Grid(c).Columns(a.columns(c, 340)).GapX(8).GapY(4).Margin(0, -12).Children(func() {
+			ui.Grid(c).Columns(a.columns(c, 340)).GapX(8).GapY(4).Children(func() {
 				for i := range d.podcasts {
 					a.podcastRow(c.Key(d.podcasts[i].ID), &d.podcasts[i])
 				}
@@ -173,7 +173,7 @@ func (a *app) userPage(c *ui.Context) {
 			if len(d.artists) == 0 {
 				a.empty(c, "还没有关注歌手")
 			}
-			ui.Grid(c).Columns(a.columns(c, 132)).GapX(20).GapY(28).Children(func() {
+			ui.Grid(c).Columns(a.columns(c, 132)).GapX(20).GapY(24).Children(func() {
 				for i := range d.artists {
 					a.artistCard(c.Key(d.artists[i].ID), &d.artists[i])
 				}

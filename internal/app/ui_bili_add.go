@@ -40,21 +40,21 @@ func (a *app) addToPlaylistDialog(c *ui.Context) {
 	d := &a.plAdding
 	ui.DialogBase(c.Key("local-add"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(360).MaxHeight(520).Radius(radiusPanel).Clip().
+		panel.Width(400).MaxHeight(520).Radius(radiusPanel).Clip().
 			Background(p.bg).Border(1, p.hairline).Label("添加到歌单").
 			Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		panel.Children(func() {
-			ui.Row(c).Height(52).PaddingX(20).AlignItems(ui.Center).Children(func() {
-				ui.Text(c, "添加到歌单").FontSize(17).FontWeight(700).Grow(1)
+			ui.Row(c).Height(56).PaddingX(24).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "添加到歌单").FontSize(20).FontWeight(700).Grow(1)
 				if iconButton(c, iconX, 16, p.muted, "关闭添加到歌单").Clicked() {
 					d.open = false
 				}
 			})
-			ui.Text(c, d.track.Name).FontSize(13).TextColor(p.muted).Padding(0, 20, 8, 20).MaxLines(1)
-			ui.Scroll(c).Grow(1).MinHeight(0).Padding(4, 12, 16, 12).Gap(2).Children(func() {
+			ui.Text(c, d.track.Name).FontSize(14).TextColor(p.text).Padding(0, 24, 8, 24).MaxLines(1)
+			ui.Scroll(c).Grow(1).MinHeight(0).Padding(4, 16, 16, 16).Gap(2).Children(func() {
 				row := func(key any, cover, name string, add func()) {
-					b := ui.ButtonBase(c.Key(key)).Height(40).PaddingX(8).Gap(10).Radius(radiusRow).
+					b := ui.ButtonBase(c.Key(key)).Height(48).PaddingX(8).Gap(10).Radius(radiusRow).
 						AlignItems(ui.Center).Justify(ui.Start).Label("添加到 " + name)
 					if b.Hovered() {
 						b.Background(p.hover)
@@ -69,7 +69,7 @@ func (a *app) addToPlaylistDialog(c *ui.Context) {
 				}
 				site := append(append([]netease.Playlist(nil), a.mine...), a.saved...)
 				if len(site) > 0 {
-					ui.Text(c, "网易云歌单").FontSize(12).FontWeight(600).TextColor(p.faint).Padding(6, 8, 2, 8)
+					ui.Text(c, "网易云歌单").FontSize(12).FontWeight(600).TextColor(p.muted).Padding(6, 8, 2, 8)
 					for i := range site {
 						pl := site[i]
 						row(pl.ID, pl.Cover(), pl.Name, func() { a.addLocalToPlaylist(pl.ID, d.track) })
@@ -77,14 +77,14 @@ func (a *app) addToPlaylistDialog(c *ui.Context) {
 				}
 				kept := a.biliKept()
 				if len(kept) > 0 {
-					ui.Text(c, "本机歌单").FontSize(12).FontWeight(600).TextColor(p.faint).Padding(12, 8, 2, 8)
+					ui.Text(c, "本机歌单").FontSize(12).FontWeight(600).TextColor(p.muted).Padding(12, 8, 2, 8)
 					for _, pl := range kept {
 						pl := pl
 						row(pl.ID, pl.Cover, pl.Name, func() { a.addToBiliPlaylist(pl.ID, d.track) })
 					}
 				}
 				if len(site) == 0 && len(kept) == 0 {
-					ui.Text(c, "还没有歌单").FontSize(13).TextColor(p.muted).Padding(10, 8, 20, 8)
+					ui.Text(c, "还没有歌单").FontSize(14).TextColor(p.muted).Padding(10, 8, 24, 8)
 				}
 			})
 		})

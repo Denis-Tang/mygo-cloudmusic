@@ -352,14 +352,14 @@ func (a *app) biliSliceDialog(c *ui.Context) {
 	d := &a.biliSliceAsk
 	ui.DialogBase(c.Key("bili-slice"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(420).Padding(24).Radius(radiusPanel).Gap(12).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(12).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		ui.Text(c, "把音轨切成独立文件").FontSize(17).FontWeight(700)
+		ui.Text(c, "把音轨切成独立文件").FontSize(20).FontWeight(700)
 		ui.Text(c, fmt.Sprintf("这个歌单有 %d 段音轨。装好 FFmpeg 后，它们会切成独立音频文件，并出现在本地音乐里；不装则缓存整段音频，只在哔哩哔哩歌单里播放。", d.count)).
 			FontSize(14).TextColor(p.muted).LineHeight(1.5)
 		if d.err != "" {
-			ui.Text(c, d.err).FontSize(13).TextColor(p.muted)
+			ui.Text(c, d.err).FontSize(14).TextColor(p.muted)
 		}
 		ui.Row(c).Gap(10).Justify(ui.End).Children(func() {
 			if pillButton(c.Key("later"), nil, "先缓存播放", p.hover.Over(p.bg), p.text).Clicked() {

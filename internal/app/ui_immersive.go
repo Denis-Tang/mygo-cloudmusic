@@ -22,10 +22,6 @@ import (
 // listener rests. The page keeps the window as it is: "全屏封面" is the
 // page's, not the display's.
 
-// fcBarH is how tall the bar at the foot of the playing page is; what the
-// words over it keep from.
-const fcBarH = 100
-
 // npIdle is how long the playing page's tools wait for an act of the
 // listener before they soften away: resting over the window hides them,
 // as much as leaving it does.
@@ -142,7 +138,7 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, accent ui.Color, w, h 
 
 	// The bar at the foot, hiding once the listener rests, and the panel
 	// its [...] opens over the picture, which is placed against the window.
-	a.immBar(c, tr, accent, w)
+	a.immBar(c, tr, accent)
 	if a.npPane == paneQueue || a.npPane == paneComments {
 		a.npDrawerPanel(c, tr)
 	}
@@ -153,7 +149,7 @@ func (a *app) immersive(c *ui.Context, tr *netease.Track, accent ui.Color, w, h 
 // gone to sleep.
 func (a *app) npInfoBottom(c *ui.Context) float32 {
 	if a.npAwake(c) {
-		return fcBarH + 24
+		return playerBarHeight + 24
 	}
 	return 28
 }
@@ -182,49 +178,64 @@ var npVeilStops = func() []ui.GradientStop {
 	return stops
 }()
 
-// infoCol is how tall the information of the song is, name, singer and
-// line, so the bar may keep its room from it: its room above the bar, the
-// words a little nearer the foot of the picture than they once sat.
-func infoCol(compact bool) float32 {
-	if compact {
-		return 102
-	}
-	return 122
-}
-
 // lyricGap is the space above the line sung at, over the gap the column
 // keeps between every two of its rows.
 const lyricGap = 22
 
 // infoColumn sets the song's name, its singer and the line it sings at,
 // over the picture, above the bar: big to read, kept to a width, and
-// nearer the foot of a small window than of a large one.
+// nearer the foot of a small window than of a large one. A wide view keeps
+// the sharp left of the picture clear, and puts the words over its blur.
 func (a *app) infoColumn(c *ui.Context, tr *netease.Track, accent ui.Color, w, h float32) {
 	compact := h < 680
-	name := float32(34)
+	name := float32(32)
 	artist, line := float32(16), float32(20)
 	if compact {
 		name, artist, line = 26, 14, 18
 	}
+	wide := w >= 1120 && w/h >= 1.3
 	width, lineWidth := min(w*0.64, 720), min(w*0.64, 640)
+	align := ui.Center
 	bottom := a.npInfoBottom(c)
-	col := ui.Column(c.Key("np-info")).Absolute().Left(0).Right(0).Bottom(bottom).AlignItems(ui.Center).Gap(6).Height(infoCol(compact))
+	var col ui.Element
+	if wide && (a.npPane == paneProgram || a.npPane == paneCaptions) {
+		// Step aside to the left of the program/captions drawer so the
+		// episode's title and host link stay clear of it.
+		drawerW := min(420, max(360, w*0.3))
+		right := drawerW + 56
+		room := max(w-28-right, 240)
+		width, lineWidth = min(room, 720), min(room, 640)
+		align = ui.Start
+		col = ui.Column(c.Key("np-info")).Absolute().Left(28).Right(right).Bottom(bottom).
+			AlignItems(ui.Start).Gap(6)
+	} else if wide {
+		// Over the blur at the right, leaving the sharp cover at the left
+		// to itself: the words stand at the far side of the picture.
+		room := max(w*0.44-28, 240)
+		width, lineWidth = min(room, 720), min(room, 640)
+		align = ui.Start
+		col = ui.Column(c.Key("np-info")).Absolute().Left(w * 0.56).Right(28).Bottom(bottom).
+			AlignItems(ui.Start).Gap(6)
+	} else {
+		col = ui.Column(c.Key("np-info")).Absolute().Left(0).Right(0).Bottom(bottom).
+			AlignItems(ui.Center).Gap(6)
+	}
 	col.Transition(ui.ElementTransition{Animation: &npSink, Position: true})
 	col.Children(func() {
 		if r := a.pl.Radio(); r != "" {
 			a.radioChip(c, r)
 		}
-		ui.Text(c, tr.Name).FontSize(name).FontWeight(750).LetterSpacing(-0.4).MaxLines(2).LineHeight(1.2).
-			Width(width).TextAlign(ui.Center).TextColor(accent)
+		ui.Text(c, tr.Name).FontSize(name).FontWeight(700).LetterSpacing(-0.4).MaxLines(2).LineHeight(1.2).
+			Width(width).TextAlign(align).TextColor(accent)
 		a.artistLinks(c, tr, accent, accent.Mix(white, 0.15)).FontSize(artist).SingleLine()
-		a.nowLine(c, tr, line, lineWidth)
+		a.nowLine(c, tr, line, lineWidth, align)
 	})
 }
 
 // nowLine is the line of the lyrics the song sings at, under the song's
 // name, or what an instrumental shows instead. It draws only on the
 // cover's state, where the lyrics are not being read.
-func (a *app) nowLine(c *ui.Context, tr *netease.Track, size, width float32) {
+func (a *app) nowLine(c *ui.Context, tr *netease.Track, size, width float32, align ui.Align) {
 	if tr.ProgramID != 0 {
 		return
 	}
@@ -235,7 +246,8 @@ func (a *app) nowLine(c *ui.Context, tr *netease.Track, size, width float32) {
 		if !loaded {
 			return
 		}
-		ui.Text(c, "纯音乐，请欣赏").FontSize(size * 0.7).TextColor(white.Alpha(0.62)).SingleLine()
+		ui.Text(c, "纯音乐，请欣赏").FontSize(size * 0.7).TextColor(white.Alpha(0.82)).SingleLine().
+			TextAlign(align)
 		return
 	}
 	pos := pl.Position()
@@ -250,10 +262,10 @@ func (a *app) nowLine(c *ui.Context, tr *netease.Track, size, width float32) {
 		return
 	}
 	line := lines[cur]
-	ui.Column(c).Gap(2).Width(width).AlignItems(ui.Center).Margin(lyricGap, 0, 0, 0).Children(func() {
-		ui.Text(c, line.Text).Font(lyricLineFont()).FontSize(size).FontWeight(300).TextColor(white.Alpha(0.68)).MaxLines(2).LineHeight(1.35).TextAlign(ui.Center)
+	ui.Column(c).Gap(2).Width(width).AlignItems(align).Margin(lyricGap, 0, 0, 0).Children(func() {
+		ui.Text(c, line.Text).Font(lyricLineFont()).FontSize(size).FontWeight(600).TextColor(white).MaxLines(2).LineHeight(1.35).TextAlign(align)
 		if line.Translation != "" && a.settings.CoverTranslation {
-			ui.Text(c, line.Translation).Font(lyricLineFont()).FontSize(size * 0.62).FontWeight(300).TextColor(white.Alpha(0.5)).MaxLines(1).TextAlign(ui.Center)
+			ui.Text(c, line.Translation).Font(lyricLineFont()).FontSize(size * 0.62).FontWeight(400).TextColor(white.Alpha(0.82)).MaxLines(1).TextAlign(align)
 		}
 	})
 	// Again as the next line begins, and a little on, that the redraw of
@@ -282,11 +294,11 @@ func (a *app) reading(c *ui.Context, tr *netease.Track, w, h float32) {
 	wide := w >= 1120 && w/h >= 1.3
 	panel := ui.Box(c.Key("reading"))
 	if wide {
-		panel.Absolute().Top(topBar(c) + 6).Bottom(fcBarH + 12).Right(30).Grow(0).Width(min(max(w*0.3, 420), 620))
+		panel.Absolute().Top(topBar(c) + 6).Bottom(playerBarHeight + 24).Right(28).Grow(0).Width(min(max(w*0.3, 420), 620))
 	} else {
-		panel.Absolute().Top(topBar(c) + 6).Bottom(fcBarH + 12).Left(max(24, (w-640)/2)).Right(max(24, (w-640)/2))
-		panel.Radius(radiusPanel).Background(ui.RGBA(0, 0, 0, 0.34)).Border(1, white.Alpha(0.08)).
-			Shadow(0, 24, 60, -20, ui.RGBA(0, 0, 0, 0.5))
+		panel.Absolute().Top(topBar(c) + 6).Bottom(playerBarHeight + 24).Left(max(28, (w-640)/2)).Right(max(28, (w-640)/2))
+		panel.Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.88)).Border(1, white.Alpha(0.1)).
+			Shadow(0, 24, 60, -20, ui.RGBA(0, 0, 0, 0.5)).Padding(12, 16)
 	}
 	panel.AlignItems(ui.Stretch)
 	panel.Children(func() { a.lyricsPane(c, tr, h) })
@@ -300,24 +312,25 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 	wide := w >= 1000
 	panel := ui.Column(c.Key("drawer"))
 	if wide {
-		panel.Absolute().Top(topBar(c) + 6).Bottom(fcBarH + 12).Right(24).Grow(0).Width(min(420, max(360, w*0.3)))
+		panel.Absolute().Top(topBar(c) + 6).Bottom(playerBarHeight + 24).Right(28).Grow(0).Width(min(420, max(360, w*0.3)))
 	} else {
-		panel.Absolute().Top(topBar(c) + 6).Bottom(fcBarH + 12).Left(24).Right(24)
+		panel.Absolute().Top(topBar(c) + 6).Bottom(playerBarHeight + 24).Left(28).Right(28)
 	}
 	title := "节目简介"
 	if a.npPane == paneCaptions {
 		title = "字幕"
 	}
-	// Its corners are the panel's of the [...] the bar opens.
-	panel.Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.82)).Border(1, white.Alpha(0.1)).
+	// Its corners, its shade and its head are the panel's of the [...] the
+	// bar opens.
+	panel.Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.88)).Border(1, white.Alpha(0.1)).
 		Shadow(0, 30, 70, -20, ui.RGBA(0, 0, 0, 0.5)).
-		Padding(10, 14, 12, 14).AlignItems(ui.Stretch).TextColor(white)
+		Padding(12, 16).AlignItems(ui.Stretch).TextColor(white)
 	panel.Children(func() {
 		// The drawer's head: what it is, and the closing of it, which the
 		// same of its entry, and the escape key, do also.
 		ui.Row(c).Height(34).Padding(0, 4).Gap(10).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, title).FontSize(18).FontWeight(700).Grow(1).SingleLine()
-			if iconButton(c.Key("close-drawer"), iconX, 16, white.Alpha(0.6), "收起").Clicked() {
+			ui.Text(c, title).FontSize(20).FontWeight(700).Grow(1).SingleLine()
+			if iconButton(c.Key("close-drawer"), iconX, 16, white.Alpha(0.82), "收起").Clicked() {
 				a.npPane = paneCover
 			}
 		})
@@ -333,20 +346,14 @@ func (a *app) drawer(c *ui.Context, tr *netease.Track, w, h float32) {
 	})
 }
 
-// immBarWide is how wide the playing page is for the bar to name its
-// entries: narrower, their names would cost the volume and the rest their
-// room, and they show as their icons alone.
-const immBarWide = 1000
-
 // immBar is the bar at the foot of the playing page: the progress, with
-// the times it stands between, and the controls, the summary of what
-// plays at their left, the entries of the page, the quality, its volume
-// and the rest at their right. It shows while the listener is at it, and
-// softens away once they rest.
-func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float32) {
+// the times it stands between, and the controls, what acts on the song at
+// their left, the entries of the page, the quality, its volume and the
+// rest at their right. It shows while the listener is at it, and softens
+// away once they rest.
+func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color) {
 	pl := a.pl
 	awake := a.npAwake(c)
-	named := w >= immBarWide
 	if awake {
 		// Asleep again after the wait, a build turns the tools to their
 		// hiding pose.
@@ -354,47 +361,37 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 	}
 	reveal(c, ui.Column(c.Key("fc-bar")).Absolute().Left(0).Right(0).Bottom(0).Height(playerBarHeight).Background(ui.RGBA(20, 20, 22, 0.6)), awake).Children(func() {
 		ui.Row(c).Height(playerBarHeight).Padding(8, 28, 0, 28).AlignItems(ui.Center).Gap(14).Children(func() {
-			// The summary of what plays, at the left, and what one may
-			// think of it; the words it takes have room, and give it up.
-			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Gap(10).AlignItems(ui.Center).Children(func() {
-				summary := ui.ButtonBase(c.Key("np-info-toggle")).Column().Grow(1).Shrink(1).MinWidth(0).
-					Gap(2).AlignItems(ui.Start).FocusRing(false).Label("收起正在播放")
-				summary.Children(func() {
-					ui.Text(c, tr.Name).FontSize(17).FontWeight(700).SingleLine().TextColor(accent)
-					a.artistLinks(c, tr, accent.Alpha(0.85), accent).FontSize(14).SingleLine()
-				})
-				if summary.Clicked() {
-					// The names, and the space around them, put the page away; a
-					// singer's name opens their page, which does the same.
+			// What plays is named once, over the picture above: here are
+			// only what acts on it, at the left, and the page's entries at
+			// the right.
+			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Gap(8).AlignItems(ui.Center).Children(func() {
+				if iconButton(c.Key("np-info-toggle"), iconDown, 18, white.Alpha(0.82), "收起正在播放").Clicked() {
 					a.nowPlaying = false
 				}
-
-				a.likeButton(c.Key("like"), tr, 17, white.Alpha(0.7))
+				a.likeButton(c.Key("like"), tr, 20, white.Alpha(0.82))
+				if tr.ProgramID == 0 {
+					a.collectButton(c, tr, white.Alpha(0.82))
+				}
+				qualityBadge(c, pl.Stream())
 			})
 			// The playing and the going, in the middle, where they stay
 			// whatever the words beside them do.
-			a.transport(c, white, white.Alpha(0.45), white, 24)
-			// The playing page's entries, once each; the quality, the
-			// volume and the drawer at the right. The drawer's entries are
-			// its one button, which opens them towards the middle of the
-			// page, a click on it again closing them.
-			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Justify(ui.End).AlignItems(ui.Center).Gap(2).Children(func() {
-				// The quality of the stream, and the song put in a playlist
-				// from the page itself; an episode belongs to none.
-				qualityBadge(c, pl.Stream())
-				if tr.ProgramID == 0 {
-					a.collectButton(c, tr, white.Alpha(0.7))
-				}
+			a.transport(c, white, white.Alpha(0.64), white, 24)
+			// The playing page's entries at the right, as their icons
+			// alone: the volume, and the drawer, whose one button opens the
+			// queue and the comments towards the middle of the page, a
+			// click on it again closing them.
+			ui.Row(c).Grow(1).Basis(0).MinWidth(120).Justify(ui.End).AlignItems(ui.Center).Gap(8).Children(func() {
 				// An episode has its description and its captions for a
 				// song's drawer.
 				if tr.ProgramID != 0 {
-					a.paneButton(c, paneProgram, iconInfo, "简介", true, named)
+					a.paneButton(c, paneProgram, iconInfo, "简介", true)
 					if a.captionsShown() {
-						a.paneButton(c, paneCaptions, iconCaptions, "字幕", true, named)
+						a.paneButton(c, paneCaptions, iconCaptions, "字幕", true)
 					}
 				}
-				a.drawerButton(c, tr, named)
-				a.volumeButton(c.Key("volume"), white.Alpha(0.7))
+				a.drawerButton(c)
+				a.volumeButton(c.Key("volume"), white.Alpha(0.82))
 			})
 		})
 		a.scrubber(c.Key("fc-scrub"), &a.coverScrub, accent.Alpha(0.20), accent, 16).
@@ -410,8 +407,9 @@ func (a *app) immBar(c *ui.Context, tr *netease.Track, accent ui.Color, w float3
 const (
 	npDrawerW = 380
 	npDrawerH = 400
-	// drawerHead is how tall each of the panel's lists names itself.
-	drawerHead = 30
+	// drawerHead is how tall each of the panel's lists names itself, its
+	// name's type and the room it keeps.
+	drawerHead = 36
 )
 
 // npDrawer is the [...] of the bar's panel, as the popover it opens shows:
@@ -434,17 +432,19 @@ func (a *app) npDrawerPanel(c *ui.Context, tr *netease.Track) {
 	d := &a.npDrawer
 	w, h := c.Size()
 	boxW, boxH := float32(npDrawerW), min(npDrawerH, max(h*0.62, 260))
-	x, y := w/2-boxW/2, h-boxH-fcBarH-18
+	x, y := w/2-boxW/2, h-boxH-playerBarHeight-24
 	if d.collapsed[0] && d.collapsed[1] {
-		boxH = 2*drawerHead + 34
+		// Its two heads, the grip over them, the gap between, and its
+		// padding.
+		boxH = 12 + 2 + 2*drawerHead + 1 + 24
 	}
 	if d.share == 0 {
 		d.share = 60
 	}
 	box := ui.Column(c.Key("np-drawer")).Width(boxW).Height(boxH).
 		Absolute().Left(x).Top(y).
-		Padding(8, 10, 10, 10).Gap(2).
-		Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.92)).Border(1, white.Alpha(0.1)).
+		Padding(12, 16).Gap(2).
+		Radius(radiusPanel).Background(ui.RGBA(14, 14, 16, 0.88)).Border(1, white.Alpha(0.1)).
 		Shadow(0, 30, 70, -20, ui.RGBA(0, 0, 0, 0.55)).TextColor(white).
 		AlignItems(ui.Stretch).TransformOrigin(0.5, 1).Label("待播清单与评论")
 	box.Draggable(&d.position, ui.DraggableOptions{Rigid: true, Bounds: &ui.Rect{
@@ -487,7 +487,7 @@ func (a *app) drawerList(c *ui.Context, title string, icon *ui.SVG, collapsed *b
 	}
 	list.Children(func() {
 		head := ui.ButtonBase(c.Key("heading")).Height(drawerHead).Shrink(0).Padding(2, 8).Gap(7).
-			AlignItems(ui.Center).TextColor(white.Alpha(0.7)).Radius(radiusRow).
+			AlignItems(ui.Center).TextColor(white.Alpha(0.82)).Radius(radiusRow).
 			Role(ui.RoleDisclosure).Label(title).Expanded(!*collapsed)
 		if head.Clicked() {
 			*collapsed = !*collapsed
@@ -499,14 +499,14 @@ func (a *app) drawerList(c *ui.Context, title string, icon *ui.SVG, collapsed *b
 		head.Background(head.AnimateColor("bg", bg, hoverFade))
 		head.Children(func() {
 			ui.Icon(c, icon).Size(18, 18)
-			ui.Text(c, title).FontSize(17).FontWeight(700).Grow(1).SingleLine()
+			ui.Text(c, title).FontSize(20).FontWeight(700).Grow(1).SingleLine()
 			if roll != nil {
 				n := a.commentCount()
 				text := ""
 				if n > 0 {
 					text = " " + count(n)
 				}
-				rollCount(c, roll, n, text, white.Alpha(0.6))
+				rollCount(c, roll, n, text, white.Alpha(0.82))
 			}
 			arrow := iconDown
 			if *collapsed {
@@ -519,7 +519,7 @@ func (a *app) drawerList(c *ui.Context, title string, icon *ui.SVG, collapsed *b
 		}
 		// Its rows are laid out one under the other, and stretched across
 		// the list: a row of its own width would take only its words.
-		ui.Scroll(c).Grow(1).MinHeight(0).TrackScroll(scroll).Padding(0, 2, 6, 2).Width(npDrawerW - 2*10 - 6).
+		ui.Scroll(c).Grow(1).MinHeight(0).TrackScroll(scroll).Padding(0, 2, 6, 2).Width(npDrawerW - 2*16 - 6).
 			AlignItems(ui.Stretch).Children(func() {
 			ui.Column(c).AlignItems(ui.Stretch).Children(rows)
 		})

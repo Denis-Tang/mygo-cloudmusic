@@ -387,7 +387,7 @@ func (a *app) biliLoginDialog(c *ui.Context) {
 	l := &a.biliLogin
 	ui.DialogBase(c.Key("bili-login"), &l.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(340).Padding(28, 28, 26, 28).Radius(radiusPanel).Gap(6).AlignItems(ui.Center).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(6).AlignItems(ui.Center).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		title, sub := "扫码登录 B 站", "打开哔哩哔哩 App，扫一扫登录"
@@ -402,7 +402,7 @@ func (a *app) biliLoginDialog(c *ui.Context) {
 			sub = "二维码已失效"
 		}
 		ui.Text(c, title).FontSize(20).FontWeight(700)
-		ui.Text(c, sub).FontSize(13).TextColor(p.muted).TextAlign(ui.Center).Margin(0, 0, 14, 0)
+		ui.Text(c, sub).FontSize(14).TextColor(p.muted).TextAlign(ui.Center).Margin(0, 0, 14, 0)
 
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Background(ui.RGB(255, 255, 255)).Border(1, p.hairline).Clip().Children(func() {
 			if l.code != nil {
@@ -425,7 +425,6 @@ func (a *app) biliLoginDialog(c *ui.Context) {
 				})
 			}
 		})
-		ui.Text(c, "只读取收藏与关注的 UP 主，不会修改 B 站上的任何内容").FontSize(11.5).TextColor(p.faint).TextAlign(ui.Center).Margin(16, 0, 0, 0)
 	})
 }
 
@@ -435,18 +434,18 @@ func (a *app) biliImportDialog(c *ui.Context) {
 	d := &a.biliImport
 	ui.DialogBase(c.Key("bili-import"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(460).Height(560).Radius(radiusPanel).Clip().Background(p.bg).Border(1, p.hairline).Label("导入 B 站收藏").
+		panel.Width(400).Height(560).Radius(radiusPanel).Clip().Background(p.bg).Border(1, p.hairline).Label("导入 B 站收藏").
 			Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.96}, Exit: &ui.Motion{Scale: 0.98}})
 		panel.Children(func() {
 			ui.Row(c).Height(56).PaddingX(24).AlignItems(ui.Center).Gap(10).Children(func() {
 				if bmp := bitmap(a.art.get(netease.Sized(a.biliFace(), 80), false)); bmp != nil {
-					box := ui.Box(c).Size(28, 28).Radius(14)
+					box := ui.Box(c).Size(28, 28).Radius(radiusPill)
 					in := artIn(box, bmp)
-					box.Children(func() { artImage(c, bmp, 14, in) })
+					box.Children(func() { artImage(c, bmp, radiusPill, in) })
 				}
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Children(func() {
-					ui.Text(c, "导入 B 站收藏").FontSize(17).FontWeight(700).SingleLine()
+					ui.Text(c, "导入 B 站收藏").FontSize(20).FontWeight(700).SingleLine()
 					ui.Text(c, a.biliName()).FontSize(12).TextColor(p.muted).SingleLine()
 				})
 				if ui.Button(c.Key("bili-logout"), "退出账号").Clicked() {
@@ -459,10 +458,10 @@ func (a *app) biliImportDialog(c *ui.Context) {
 			ui.Box(c).Grow(1).MinHeight(0).Children(func() {
 				ui.Scroll(c).Fill().Padding(24, 24, 24, 24).Gap(10).Children(func() {
 					if d.err != "" {
-						ui.Text(c, d.err).FontSize(13).TextColor(p.muted)
+						ui.Text(c, d.err).FontSize(14).TextColor(p.muted)
 					}
 					if d.loading {
-						ui.Text(c, "正在读取收藏夹…").FontSize(13).TextColor(p.muted)
+						ui.Text(c, "正在读取收藏夹…").FontSize(14).TextColor(p.muted)
 					}
 					for _, f := range d.folders {
 						f := f
@@ -471,7 +470,7 @@ func (a *app) biliImportDialog(c *ui.Context) {
 							a.cover(c, f.Cover, 120, 48, radiusTile)
 							ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
 								ui.Text(c, f.Name).FontSize(14).FontWeight(600).SingleLine()
-								ui.Text(c, fmt.Sprintf("%d 个视频", f.Count)).FontSize(12).TextColor(p.muted).SingleLine()
+								ui.Text(c, fmt.Sprintf("%d 个视频", f.Count)).FontSize(12).TextColor(p.faint).SingleLine()
 							})
 							label := "导入"
 							if d.busy == f.Name {
@@ -487,7 +486,7 @@ func (a *app) biliImportDialog(c *ui.Context) {
 						})
 					}
 					if !d.loading && len(d.folders) == 0 && d.err == "" {
-						ui.Text(c, "这个账号还没有收藏夹").FontSize(13).TextColor(p.muted)
+						ui.Text(c, "这个账号还没有收藏夹").FontSize(14).TextColor(p.muted)
 					}
 					ui.Row(c).Margin(0, 8, 0, 0).Children(func() {
 						if ui.Button(c.Key("import-follows"), "导入关注的 UP 主").Disabled(d.busy != "").Clicked() {

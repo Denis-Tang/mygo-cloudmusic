@@ -225,7 +225,7 @@ func (a *app) startHeartMode() {
 func (a *app) fmPage(c *ui.Context) {
 	p := a.pal
 	top, bottom := a.insets(c)
-	ui.Scroll(c.Key("fm")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
+	ui.Scroll(c.Key("fm")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, a.pagePadX(c), bottom+48, a.pagePadX(c)).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
 		// The mode the FM plays in, if it plays.
 		for i, m := range fmModes {
@@ -234,7 +234,7 @@ func (a *app) fmPage(c *ui.Context) {
 			}
 		}
 		ui.Row(c).AlignItems(ui.End).Children(func() {
-			ui.Box(c).Grow(1).Children(func() { a.heading(c, "私人 FM", "无尽推荐") })
+			ui.Box(c).Grow(1).Children(func() { a.heading(c, "私人 FM", "") })
 			mode := a.fmMode
 			ui.Box(c).Margin(0, 0, 22, 0).Children(func() {
 				labels := make([]string, len(fmModes))
@@ -251,7 +251,6 @@ func (a *app) fmPage(c *ui.Context) {
 			})
 		})
 		a.fmCard(c)
-		a.section(c, "心动模式")
 		a.heartCard(c, p)
 	})
 }
@@ -268,16 +267,16 @@ func (a *app) fmCard(c *ui.Context) {
 	if tr != nil {
 		art = a.art.get(netease.Sized(tr.Album.PicURL, 600), true)
 	}
-	card := ui.Box(c.Key("fm-card")).Height(320).Radius(dailyRadius).Background(ui.Hex("#232328")).TextColor(white).
+	card := ui.Box(c.Key("fm-card")).Height(320).Radius(radiusPanel).Background(ui.Hex("#232328")).TextColor(white).
 		Shadow(0, 18, 44, -16, a.pal.cardShade)
 	in := artIn(card, backdrop(art))
 	card.Children(func() {
 		if in < 1 {
-			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(dailyRadius).
+			ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radiusPanel).
 				LinearGradient(ui.LinearGradient{Angle: 135, Oklab: true, From: ui.Oklch(0.42, 0.14, 20), To: ui.Oklch(0.3, 0.1, 300)})
 		}
-		artImage(c, backdrop(art), dailyRadius, in)
-		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(dailyRadius).
+		artImage(c, backdrop(art), radiusPanel, in)
+		ui.Box(c).Absolute().Top(0).Left(0).Right(0).Bottom(0).Radius(radiusPanel).
 			LinearGradient(ui.LinearGradient{Angle: 90, Stops: []ui.GradientStop{
 				{Color: ui.RGBA(0, 0, 0, 0.35), At: 0},
 				{Color: ui.RGBA(0, 0, 0, 0.1), At: 1},
@@ -290,17 +289,16 @@ func (a *app) fmCard(c *ui.Context) {
 					label = radioLabel(pl.Radio())
 				}
 				ui.Row(c).Gap(6).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, iconRadio).Size(14, 14).TextColor(white.Alpha(0.75))
-					ui.Text(c, label).FontSize(14).FontWeight(600).TextColor(white.Alpha(0.75))
+					ui.Icon(c, iconRadio).Size(14, 14).TextColor(white.Alpha(0.82))
+					ui.Text(c, label).FontSize(14).FontWeight(600).TextColor(white.Alpha(0.82))
 				})
 				if tr == nil {
-					ui.Text(c, "听见更多好音乐").FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6)
 					ui.Row(c).Margin(18, 0, 0, 0).Children(func() {
 						label := "开始收听"
 						if a.radioStarting != "" && strings.HasPrefix(a.radioStarting, "fm:") {
 							label = "正在调频…"
 						}
-						if pillButton(c.Key("start"), iconPlay, label, white, ui.Hex("#1d1d1f")).Clicked() {
+						if pillButton(c.Key("start"), iconPlay, label, white, a.pal.ink).Clicked() {
 							a.playFM()
 						}
 					})
@@ -309,20 +307,20 @@ func (a *app) fmCard(c *ui.Context) {
 				ui.Text(c, tr.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
 				switch {
 				case pl.Loading():
-					ui.Text(c, "正在缓冲…").FontSize(17).TextColor(white.Alpha(0.7)).SingleLine()
+					ui.Text(c, "正在缓冲…").FontSize(17).TextColor(white.Alpha(0.82)).SingleLine()
 				case pl.Err() != "":
 					ui.Text(c, pl.Err()).FontSize(17).TextColor(white).SingleLine()
 				default:
-					a.artistLinks(c, tr, white.Alpha(0.7), white, true).FontSize(17).SingleLine()
+					a.artistLinks(c, tr, white.Alpha(0.82), white, true).FontSize(17).SingleLine()
 				}
 				ui.Row(c).Gap(14).AlignItems(ui.Center).Margin(20, 0, 0, -8).Children(func() {
 					if a.profile != nil {
-						if iconButton(c.Key("trash"), iconTrash, 20, white.Alpha(0.8), "不喜欢").Clicked() {
+						if iconButton(c.Key("trash"), iconTrash, 20, white, "不喜欢").Clicked() {
 							a.trashFM()
 						}
 					}
-					a.likeButton(c.Key("like"), tr, 20, white.Alpha(0.8))
-					play := ui.ButtonBase(c.Key("play")).Size(56, 56).Center().Radius(radiusPill).Background(white).TextColor(ui.Hex("#1d1d1f")).Label("播放/暂停")
+					a.likeButton(c.Key("like"), tr, 20, white)
+					play := ui.ButtonBase(c.Key("play")).Size(56, 56).Center().Radius(radiusPill).Background(white).TextColor(a.pal.ink).Label("播放/暂停")
 					pose := ui.Pose{}
 					if play.Pressed() {
 						pose.Scale = 0.92
@@ -334,7 +332,7 @@ func (a *app) fmCard(c *ui.Context) {
 					if play.Clicked() {
 						pl.TogglePlay()
 					}
-					if iconButton(c.Key("next"), iconNext, 20, white.Alpha(0.8), "下一首").Clicked() {
+					if iconButton(c.Key("next"), iconNext, 20, white, "下一首").Clicked() {
 						pl.Next()
 					}
 				})
@@ -364,7 +362,7 @@ func (a *app) fmCovers(c *ui.Context, tr *netease.Track) {
 			Background(white.Alpha(0.12)).Shadow(0, 20, 44, -10, ui.RGBA(0, 0, 0, 0.55))
 		if tr == nil {
 			front.Center().Children(func() {
-				ui.Icon(c, iconRadio).Size(64, 64).TextColor(white.Alpha(0.85))
+				ui.Icon(c, iconRadio).Size(64, 64).TextColor(white)
 			})
 			return
 		}
@@ -388,8 +386,7 @@ func (a *app) heartCard(c *ui.Context, p palette) {
 			LinearGradient(ui.LinearGradient{Angle: 135, Oklab: true, From: ui.Oklch(0.72, 0.17, 10), To: ui.Oklch(0.58, 0.22, 350)}).
 			TextColor(white).Children(func() { ui.Icon(c, iconHeartFill).Size(26, 26) })
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, "从你喜欢的音乐出发").FontSize(18).FontWeight(700)
-			ui.Text(c, "根据你红心过的歌曲，智能推荐风格相似的音乐，与你的喜欢穿插播放").FontSize(15).TextColor(p.muted)
+			ui.Text(c, "心动模式").FontSize(15).FontWeight(700)
 		})
 		if on {
 			if pillButton(c.Key("exit-heart"), iconX, "退出心动模式", p.press.Over(p.bg), p.text).Clicked() {

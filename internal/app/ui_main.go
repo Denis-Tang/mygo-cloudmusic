@@ -47,7 +47,7 @@ func (a *app) view(c *ui.Context) {
 		ui.Column(c).Grow(1).Center().Padding(40, 0).Gap(10).Children(func() {
 			ui.Text(c, "界面出错").FontSize(20).FontWeight(700)
 			ui.Text(c, a.crashed).FontSize(14).TextColor(a.pal.muted)
-			ui.Text(c, "详细堆栈见日志："+diag.Path()).FontSize(12).TextColor(a.pal.faint)
+			ui.Text(c, "详细堆栈见日志："+diag.Path()).FontSize(12).TextColor(a.pal.muted)
 		})
 		return
 	}
@@ -79,6 +79,7 @@ func (a *app) viewBody(c *ui.Context) {
 	}
 	t.Accent, t.AccentText = p.accent, p.onAccent
 	t.Selection = p.accent.Alpha(0.3)
+	t.Text, t.TextMuted = p.text, p.faint
 	t.FontSize = 16
 	c.SetTheme(&t)
 
@@ -314,7 +315,7 @@ func (a *app) navItemBadge(c *ui.Context, icon *ui.SVG, label string, r route, c
 	// As wide as the sidebar gives it, its sides kept: a row that took only
 	// its words' width would cut the last of them where the display draws
 	// the letters a little wider than it measures them.
-	b := ui.ButtonBase(c.Key(label)).Width(fullSidebar - 38).Height(42).PaddingX(12).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
+	b := ui.ButtonBase(c.Key(label)).Label(label).Width(fullSidebar - 38).Height(42).PaddingX(12).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false)
 	bg := ui.Transparent
 	switch {
 	case selected:
@@ -323,7 +324,7 @@ func (a *app) navItemBadge(c *ui.Context, icon *ui.SVG, label string, r route, c
 		bg = p.hover
 	}
 	b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 120 * time.Millisecond}))
-	color := p.text
+	color := p.muted
 	if selected {
 		color = p.accent
 	}
@@ -332,10 +333,10 @@ func (a *app) navItemBadge(c *ui.Context, icon *ui.SVG, label string, r route, c
 		// The words take what the row has left, rather than just the width
 		// they measure: at some display scales the letters drawn are a
 		// little wider than measured, and the last would be cut.
-		ui.Text(c, label).FontSize(sideFont(13.5)).FontWeight(500).TextColor(p.text).Grow(1).Shrink(1).MinWidth(0).SingleLine()
+		ui.Text(c, label).FontSize(sideFont(13)).TextColor(color).Grow(1).Shrink(1).MinWidth(0).SingleLine()
 		if count > 0 {
-			ui.Box(c).Height(18).MinWidth(18).Padding(0, 5).Radius(9).Background(p.accent).Center().Children(func() {
-				ui.Text(c, fmt.Sprint(count)).FontSize(11.5).FontWeight(700).TextColor(p.onAccent).FontFeatures("tnum")
+			ui.Box(c).Height(18).MinWidth(18).Padding(0, 5).Radius(radiusPill).Background(p.accent).Center().Children(func() {
+				ui.Text(c, fmt.Sprint(count)).FontSize(sideFont(9.5)).FontWeight(600).TextColor(p.onAccent).FontFeatures("tnum")
 			})
 		}
 	})
@@ -407,7 +408,7 @@ func (a *app) windowControl(c *ui.Context, key string, icon *ui.SVG, label strin
 const playerBarHeight = 84
 
 // pageGap is the room between the bar over a page and its content.
-const pageGap = 12
+const pageGap = 7
 
 // insets returns the room the bars over a page take at its top and its
 // bottom: pages pad their content by it, and scroll under the bars.
@@ -488,7 +489,7 @@ func (a *app) pageTop(c *ui.Context) {
 		a.accountRow(c)
 	})
 	if len(a.history) > 0 || len(a.forward) > 0 {
-		left := float32(pagePad - 17) // center the 34-point back button on the content edge
+		left := a.pagePadX(c) - 17 // center the 34-point back button on the content edge
 		if !a.settings.Sidebar {
 			left = sidebarPad + 30 + 7 // the same gap after the logo as the search field
 		}
@@ -554,7 +555,7 @@ func (a *app) content(c *ui.Context) {
 func (a *app) centered(c *ui.Context, err string, retry func()) {
 	top, bottom := a.insets(c)
 	ui.Column(c).Grow(1).Padding(top, 0, bottom, 0).Center().Gap(12).Children(func() {
-		ui.Text(c, err).TextColor(a.pal.muted).FontSize(13)
+		ui.Text(c, err).TextColor(a.pal.muted).FontSize(14)
 		if retry != nil && ui.Button(c, "重试").Clicked() {
 			retry()
 		}
@@ -687,28 +688,9 @@ func firstPlayable(tracks []netease.Track) int {
 // or the ones made here from videos, the switch between them at its head.
 func (a *app) mineSidebar(c *ui.Context) {
 	p := a.pal
-	ui.Row(c.Key("我的歌单")).AlignItems(ui.Center).Margin(18, 0, 6, 2).Children(func() {
-		ui.Text(c, "我的歌单").FontSize(sideFont(11.5)).FontWeight(600).TextColor(p.faint).Grow(1)
-	})
-	ui.Row(c).Gap(4).PaddingX(6).Margin(0, 0, 6, 4).Children(func() {
-		for i, label := range []string{"网易云", "哔哩哔哩"} {
-			on := a.mineSrc == i
-			b := ui.ButtonBase(c.Key("bili-mine-" + label)).Height(26).PaddingX(9).Radius(radiusTile).FocusRing(false).Label("看" + label + "歌单")
-			bg := ui.Transparent
-			color := p.muted
-			if on {
-				bg, color = p.press, p.text
-			} else if b.Hovered() {
-				bg = p.hover
-			}
-			b.Background(b.AnimateColor("bg", bg, ui.Animation{Duration: 100 * time.Millisecond}))
-			b.Children(func() {
-				ui.Text(c, label).FontSize(sideFont(12)).FontWeight(600).TextColor(color).SingleLine()
-			})
-			if b.Clicked() && !on {
-				a.mineSrc = i
-			}
-		}
+	ui.Row(c.Key("我的歌单")).Width(fullSidebar - 38).Height(32).PaddingX(12).AlignItems(ui.Center).Margin(20, 0, 4, 0).Children(func() {
+		ui.Text(c, "我的歌单").FontSize(sideFont(11.5)).FontWeight(400).TextColor(p.faint).Grow(1)
+		segmentedStyled(c.Key("mine-src"), &a.mineSrc, 28, sideFont(10.5), []string{"网易云", "哔哩哔哩"}, []string{"看网易云歌单", "看哔哩哔哩歌单"})
 	})
 	if a.mineSrc == mineBili {
 		kept := a.biliKept()
@@ -732,8 +714,8 @@ func (a *app) mineSidebar(c *ui.Context) {
 // holds, and the arrow that folds it, with a way to make one beside it.
 func (a *app) sideGroup(c *ui.Context, title string, count int, collapsed *bool, plus func()) {
 	p := a.pal
-	ui.Row(c.Key(title)).AlignItems(ui.Center).Margin(16, 0, 6, 2).Children(func() {
-		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(32).PaddingX(4).Gap(6).Radius(radiusTile).
+	ui.Row(c.Key(title)).Width(fullSidebar - 38).AlignItems(ui.Center).Margin(8, 0, 2, 0).Gap(4).Children(func() {
+		b := ui.ButtonBase(c.Key("toggle")).Grow(1).Height(32).PaddingX(12).Gap(6).Radius(radiusRow).
 			AlignItems(ui.Center).Justify(ui.Start).Role(ui.RoleDisclosure).Label(title)
 		if b.Clicked() {
 			*collapsed = !*collapsed
@@ -752,7 +734,7 @@ func (a *app) sideGroup(c *ui.Context, title string, count int, collapsed *bool,
 			}
 			ui.Icon(c, arrow).Size(15, 15).TextColor(p.faint)
 		})
-		if plus != nil && iconButton(c.Key("new"), iconPlus, 15, p.faint, "新建歌单").Size(30, 30).Radius(radiusTile).Clicked() {
+		if plus != nil && iconButton(c.Key("new"), iconPlus, 15, p.faint, "新建歌单").Size(28, 28).Radius(radiusTile).Clicked() {
 			plus()
 		}
 	})

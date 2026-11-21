@@ -17,6 +17,13 @@ import (
 	"netease-music-mygo/internal/player"
 )
 
+// The least a window may be: small enough for a laptop, large enough that
+// the window is never a strip, for pages lead with banners that need height.
+const (
+	minWindowW = 1000
+	minWindowH = 660
+)
+
 type pageKind int
 
 const (
@@ -45,6 +52,18 @@ type route struct {
 	query string
 	kind  netease.SearchType
 }
+
+// pageKey names what a page shows apart from the tab chosen in it, so
+// that a tab of the page keeps the list or scroll beneath it: the capsule
+// of its tabs slides to the next segment on, instead of the page around it
+// rebuilding and the capsule jumping.
+type pageKey struct {
+	page  pageKind
+	id    int64
+	query string
+}
+
+func keyOf(r route) pageKey { return pageKey{r.page, r.id, r.query} }
 
 // app is the state both windows show. Everything in it is read and changed
 // on the main thread: by the views, and by goroutines through post.
@@ -372,8 +391,8 @@ func Run() error {
 			Title:         mygo.App.Name(),
 			Width:         1180,
 			Height:        780,
-			MinWidth:      880,
-			MinHeight:     580,
+			MinWidth:      minWindowW,
+			MinHeight:     minWindowH,
 			StateKey:      "main",
 			TitleBarStyle: mygo.TitleBarHidden,
 			// Windows' caption buttons are drawn in the app, as the official
@@ -391,6 +410,12 @@ func Run() error {
 			// window showed its background while the view laid out.
 			Opacity: 0.01,
 		})
+		// A window restored smaller than the app allows — by a state saved
+		// before its least size was raised — grows to it, that no page has
+		// less room than it was laid out for.
+		if w, h := a.win.Size(); w < minWindowW || h < minWindowH {
+			a.win.SetSize(max(w, minWindowW), max(h, minWindowH))
+		}
 		a.win.OnReadyToShow(func() {
 			a.win.SetOpacity(1)
 			a.win.Focus()

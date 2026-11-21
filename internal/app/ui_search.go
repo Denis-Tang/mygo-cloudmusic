@@ -141,33 +141,35 @@ func (a *app) searchPage(c *ui.Context) {
 	}
 	a.scrollPage(c, func() {
 		header(c)
-		res := &d.res
-		switch r.kind {
-		case netease.SearchArtists:
-			ui.Grid(c).Columns(a.columns(c, 132)).GapX(20).GapY(28).Children(func() {
-				for i := range res.Artists {
-					a.artistCard(c.Key(res.Artists[i].ID), &res.Artists[i])
+		pane(c, r.kind, func() {
+			res := &d.res
+			switch r.kind {
+			case netease.SearchArtists:
+				ui.Grid(c).Columns(a.columns(c, 132)).GapX(20).GapY(24).Children(func() {
+					for i := range res.Artists {
+						a.artistCard(c.Key(res.Artists[i].ID), &res.Artists[i])
+					}
+				})
+			case netease.SearchAlbums:
+				a.albumGrid(c, res.Albums)
+			case netease.SearchPlaylists:
+				ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(24).Children(func() {
+					for i := range res.Playlists {
+						a.playlistCard(c.Key(res.Playlists[i].ID), &res.Playlists[i])
+					}
+				})
+			case netease.SearchUsers:
+				for i := range res.Users {
+					a.userRow(c.Key(res.Users[i].UserID), &res.Users[i])
 				}
-			})
-		case netease.SearchAlbums:
-			a.albumGrid(c, res.Albums)
-		case netease.SearchPlaylists:
-			ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
-				for i := range res.Playlists {
-					a.playlistCard(c.Key(res.Playlists[i].ID), &res.Playlists[i])
-				}
-			})
-		case netease.SearchUsers:
-			for i := range res.Users {
-				a.userRow(c.Key(res.Users[i].UserID), &res.Users[i])
 			}
-		}
-		if !d.page.loaded && d.page.loading {
-			a.playlistCardsSkeleton(c, a.pageShimmer(c), a.columns(c, 156), 156, false)
-			return
-		}
-		a.pageFoot(c, &d.page, more)
-		a.searchEmpty(c, d)
+			if !d.page.loaded && d.page.loading {
+				a.playlistCardsSkeleton(c, a.pageShimmer(c), a.columns(c, 156), 156, false)
+				return
+			}
+			a.pageFoot(c, &d.page, more)
+			a.searchEmpty(c, d)
+		})
 	})
 }
 
@@ -216,7 +218,7 @@ func (a *app) artistCard(c *ui.Context, ar *netease.ArtistProfile) {
 			art.Shadow(0, 2, 8, -2, p.cardShade)
 		}
 		art.Children(func() { a.coverFill(c, photo, 400, radiusPill) })
-		ui.Text(c, ar.Name).FontSize(16).FontWeight(500).SingleLine().AlignSelf(ui.Center)
+		ui.Text(c, ar.Name).FontSize(16).FontWeight(600).SingleLine().AlignSelf(ui.Center)
 	})
 	if card.Clicked() {
 		a.open(route{page: pageArtist, id: ar.ID})
@@ -244,7 +246,7 @@ func (a *app) searchOverview(c *ui.Context) {
 				a.cover(c, al.PicURL, 180, 72, radiusTile)
 				ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
 					ui.Text(c, al.Name).FontSize(20).FontWeight(700).MaxLines(2)
-					ui.Text(c, al.ArtistNames()).FontSize(15).TextColor(a.pal.muted).SingleLine()
+					ui.Text(c, al.ArtistNames()).FontSize(15).TextColor(a.pal.faint).SingleLine()
 				})
 			})
 			if match.Clicked() {
@@ -269,7 +271,7 @@ func (a *app) searchOverview(c *ui.Context) {
 				if d.res.Len() == 0 {
 					return
 				}
-				more := ui.ButtonBase(c.Key("more")).AlignSelf(ui.Start).Justify(ui.Start).Margin(28, 0, 12, 0).Gap(6).AlignItems(ui.Center).Label("更多" + kind.label)
+				more := ui.ButtonBase(c.Key("more")).AlignSelf(ui.Start).Justify(ui.Start).Margin(32, 0, 12, 0).Gap(6).AlignItems(ui.Center).Label("更多" + kind.label)
 				more.Children(func() {
 					ui.Text(c, kind.label).FontSize(sectionAt).FontWeight(700)
 					ui.Icon(c, iconForward).Size(18, 18).TextColor(a.pal.muted)
@@ -288,7 +290,7 @@ func (a *app) searchOverview(c *ui.Context) {
 						}
 					})
 				case netease.SearchPlaylists:
-					ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(28).Children(func() {
+					ui.Grid(c).Columns(a.columns(c, 168)).GapX(20).GapY(24).Children(func() {
 						for i := range min(len(d.res.Playlists), a.columns(c, 168)) {
 							a.playlistCard(c.Key(d.res.Playlists[i].ID), &d.res.Playlists[i])
 						}
@@ -296,7 +298,7 @@ func (a *app) searchOverview(c *ui.Context) {
 				case netease.SearchAlbums:
 					a.albumGrid(c, d.res.Albums[:min(len(d.res.Albums), a.columns(c, 156))])
 				case netease.SearchArtists:
-					ui.Grid(c).Columns(a.columns(c, 132)).GapX(20).GapY(28).Children(func() {
+					ui.Grid(c).Columns(a.columns(c, 132)).GapX(20).GapY(24).Children(func() {
 						for i := range min(len(d.res.Artists), a.columns(c, 132)) {
 							a.artistCard(c.Key(d.res.Artists[i].ID), &d.res.Artists[i])
 						}
@@ -313,7 +315,7 @@ func (a *app) searchOverview(c *ui.Context) {
 // searchSong plays a related result and keeps its artist links and song menu.
 func (a *app) searchSong(c *ui.Context, songs []netease.Track, i int) {
 	tr := &songs[i]
-	row := ui.ButtonBase(c).Height(80).Padding(8).Gap(12).Radius(radiusRow).
+	row := ui.ButtonBase(c).Height(64).Padding(8).Gap(12).Radius(radiusRow).
 		AlignItems(ui.Center).FocusRing(false).Label(tr.Name)
 	if row.Hovered() {
 		row.Background(a.pal.hover)
@@ -324,7 +326,7 @@ func (a *app) searchSong(c *ui.Context, songs []netease.Track, i int) {
 	row.Children(func() {
 		a.cover(c, tr.Album.PicURL, 160, 60, radiusTile)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(6).Children(func() {
-			ui.Text(c, tr.Name).FontSize(17).FontWeight(500).SingleLine()
+			ui.Text(c, tr.Name).FontSize(17).FontWeight(600).SingleLine()
 			a.artistLinks(c, tr, a.pal.muted, a.pal.text).FontSize(15).SingleLine()
 		})
 		a.songMenu(c, row, tr, 0, a.pal.muted)

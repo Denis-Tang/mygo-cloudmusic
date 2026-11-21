@@ -228,7 +228,7 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 		cover = pl.Items[0].Track.Album.PicURL
 	}
 	tracks := biliPlayTracks(pl)
-	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
+	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 24, 0).Children(func() {
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 			a.coverFill(c, cover, 1200, radiusCard)
 		})
@@ -239,7 +239,7 @@ func (a *app) biliPlaylistHeader(c *ui.Context, pl *biliPlaylist) {
 			}
 			ui.Text(c, kind).FontSize(headSub).FontWeight(600).TextColor(p.accent)
 			ui.Text(c, pl.Name).FontSize(headTitle).FontWeight(800).LetterSpacing(-0.6).MaxLines(2).LineHeight(1.2)
-			ui.Text(c, fmt.Sprintf("%d 首", len(pl.Items))).FontSize(15).TextColor(p.muted)
+			ui.Text(c, fmt.Sprintf("%d 首", len(pl.Items))).FontSize(15).TextColor(p.faint)
 			ui.Row(c).Wrap().Gap(10).Margin(10, 0, 0, 0).Children(func() {
 				if pillButton(c.Key("bili-play"), iconPlay, "播放", p.accent, p.onAccent).Clicked() {
 					if a.pl.Shuffle() {
@@ -329,10 +329,10 @@ func (a *app) biliNameDialog(c *ui.Context) {
 	d := &a.biliNaming
 	ui.DialogBase(c.Key("bili-playlist-name"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(380).Padding(24).Radius(radiusPanel).Gap(16).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(16).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		ui.Text(c, "重命名歌单").FontSize(17).FontWeight(700)
+		ui.Text(c, "重命名歌单").FontSize(20).FontWeight(700)
 		in := ui.TextInput(c.Key("bili-name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(17).Radius(radiusField).AutoFocus()
 		if in.Submitted() {
 			a.submitBiliNaming()
@@ -363,7 +363,7 @@ func (a *app) biliDeleteDialog(c *ui.Context) {
 		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(8).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		ui.Text(c, "删除歌单").FontSize(17).FontWeight(700)
+		ui.Text(c, "删除歌单").FontSize(20).FontWeight(700)
 		ui.Text(c, "确定删除歌单“"+d.name+"”吗？删除后无法恢复。").FontSize(16).TextColor(p.muted).LineHeight(1.45)
 		ui.Row(c).Gap(10).Justify(ui.End).Margin(8, 0, 0, 0).Children(func() {
 			if pillButton(c.Key("cancel"), nil, "取消", p.hover.Over(p.bg), p.text).Clicked() {
@@ -429,7 +429,7 @@ func (a *app) biliPlaylistGroup(c *ui.Context, lists []*biliPlaylist, imported b
 func (a *app) biliPlaylistRow(c *ui.Context, pl *biliPlaylist, i, count int, group string, move func(steps int)) {
 	p := a.pal
 	selected := a.route.page == pageBiliPlaylist && a.route.id == pl.ID && !a.nowPlaying
-	b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(9).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
+	b := ui.ButtonBase(c.Key(pl.ID)).Width(fullSidebar - 38).Height(42).PaddingX(12).Gap(11).Radius(radiusRow).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(pl.Name)
 	pb := ui.Transparent
 	switch {
 	case selected:
@@ -564,12 +564,11 @@ func (a *app) biliCollectDialog(c *ui.Context) {
 	d := &a.biliCollect
 	ui.DialogBase(c.Key("bili-collect"), &d.open, func(backdrop, panel ui.Element) {
 		backdrop.Background(ui.RGBA(0, 0, 0, 0.35))
-		panel.Width(400).Padding(24).Radius(radiusPanel).Gap(14).
+		panel.Width(360).Padding(24).Radius(radiusPanel).Gap(14).
 			Background(p.bg).Border(1, p.hairline).Shadow(0, 24, 60, -12, ui.RGBA(0, 0, 0, 0.4)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
-		ui.Text(c, "收藏到网易云").FontSize(17).FontWeight(700)
-		ui.Text(c, "只收藏匹配到的歌曲；视频音轨留在这个程序里。").FontSize(13).TextColor(p.muted).LineHeight(1.45)
-		in := ui.TextInput(c.Key("bili-collect-name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(16).Radius(radiusField).AutoFocus()
+		ui.Text(c, "收藏到网易云").FontSize(20).FontWeight(700)
+		in := ui.TextInput(c.Key("bili-collect-name"), &d.name).Placeholder("歌单名称").Label("歌单名称").FontSize(14).Radius(radiusField).AutoFocus()
 		if in.Submitted() {
 			a.submitBiliCollect()
 		}

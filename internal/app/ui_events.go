@@ -37,7 +37,7 @@ func (a *app) event(c *ui.Context, e *netease.Event) {
 			a.cover(c, e.User.AvatarURL, 120, 40, 20)
 			ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
 				ui.Text(c, e.User.Nickname).FontSize(17).FontWeight(600).SingleLine()
-				ui.Text(c, time.UnixMilli(e.Time).Format("2006-01-02 15:04")).FontSize(14).TextColor(p.muted)
+				ui.Text(c, time.UnixMilli(e.Time).Format("2006-01-02 15:04")).FontSize(14).TextColor(p.faint)
 			})
 		})
 		ct := &e.Content

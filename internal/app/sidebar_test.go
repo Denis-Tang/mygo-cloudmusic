@@ -158,3 +158,24 @@ func TestNewPlaylistInCollapsedSidebar(t *testing.T) {
 		t.Error("the plus also toggled the section")
 	}
 }
+
+// Sidebar rows, group headings and playlist rows all start on one left edge.
+func TestSidebarLeftEdgeAligned(t *testing.T) {
+	a := editTestApp()
+	tt := ui.NewTester(a.view, 1200, 800)
+	tt.Frame()
+	var left float32
+	for i, label := range []string{"为你推荐", "创建的歌单", "睡前"} {
+		r, ok := tt.Find(label)
+		if !ok {
+			t.Fatalf("no %q in the sidebar", label)
+		}
+		if i == 0 {
+			left = r.X
+			continue
+		}
+		if r.X != left {
+			t.Errorf("%q starts at x=%g, the nav's rows at %g", label, r.X, left)
+		}
+	}
+}

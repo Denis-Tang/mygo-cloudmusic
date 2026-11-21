@@ -72,17 +72,15 @@ func (a *app) collectDialogBody(c *ui.Context) {
 			Shadow(0, 30, 70, -20, ui.RGBA(0, 0, 0, 0.55)).
 			Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Scale: 0.94}, Exit: &ui.Motion{Scale: 0.96}})
 		panel.Children(func() {
-			// Its head: what it is, and its closing, the cross a square
-			// beside the title that the title centers on.
-			ui.Row(c).Height(56).Padding(0, 14).Gap(10).AlignItems(ui.Center).Children(func() {
-				ui.Box(c).Width(31)
-				ui.Text(c, "收藏到歌单").FontSize(18).FontWeight(700).Grow(1).TextAlign(ui.Center).TextColor(p.text).SingleLine()
+			// Its head: what it is, and its closing on the right.
+			ui.Row(c).Height(56).Padding(0, 24).Gap(10).AlignItems(ui.Center).Children(func() {
+				ui.Text(c, "收藏到歌单").FontSize(20).FontWeight(700).Grow(1).TextColor(p.text).SingleLine()
 				if iconButton(c.Key("close-collect"), iconX, 15, p.muted, "关闭").Clicked() {
 					d.open = false
 				}
 			})
 			// The playlists, the ones made first, as NetEase lists them.
-			ui.Scroll(c.Key("collect-list")).Grow(1).TrackScroll(&d.scroll).Padding(4, 8, 14, 8).Gap(2).Children(func() {
+			ui.Scroll(c.Key("collect-list")).Grow(1).TrackScroll(&d.scroll).Padding(4, 18, 14, 18).Gap(2).Children(func() {
 				a.collectCreateRow(c, d)
 				for i := range a.mine {
 					if a.mine[i].ID != d.exclude {
@@ -97,7 +95,7 @@ func (a *app) collectDialogBody(c *ui.Context) {
 // collectRow is the look of a row of the playlists: the tile at its left
 // and its words.
 func collectRow(c *ui.Context, p palette, key any, label string) ui.Element {
-	row := ui.ButtonBase(c.Key(key)).Height(56).Padding(4, 6).Radius(radiusRow).Gap(12).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(label)
+	row := ui.ButtonBase(c.Key(key)).Height(48).Padding(4, 6).Radius(radiusRow).Gap(12).AlignItems(ui.Center).Justify(ui.Start).FocusRing(false).Label(label)
 	rg := ui.Transparent
 	if row.Hovered() {
 		rg = p.hover
@@ -143,7 +141,7 @@ func (a *app) collectPlaylistRow(c *ui.Context, pl *netease.Playlist, d *collect
 		ui.Column(c).Grow(1).MinWidth(0).Gap(1).Children(func() {
 			ui.Text(c, pl.Name).FontSize(17).FontWeight(600).TextColor(p.text).SingleLine()
 			if n := pl.TrackCount; n > 0 {
-				ui.Text(c, count(n)+"首").FontSize(14).TextColor(p.muted).SingleLine()
+				ui.Text(c, count(n)+"首").FontSize(14).TextColor(p.faint).SingleLine()
 			}
 		})
 	})

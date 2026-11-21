@@ -44,6 +44,7 @@ type palette struct {
 	press     ui.Color
 	accent    ui.Color
 	onAccent  ui.Color
+	ink       ui.Color // on a white button, in either appearance
 	cardShade ui.Color
 }
 
@@ -53,28 +54,30 @@ func paletteFor(t *ui.Theme) palette {
 			dark:      true,
 			bg:        ui.Hex("#141416"),
 			sidebar:   ui.Hex("#1c1c1f"),
-			text:      ui.Hex("#f5f5f7"),
-			muted:     ui.RGBA(235, 235, 245, 0.56),
-			faint:     ui.RGBA(235, 235, 245, 0.3),
+			text:      ui.Hex("#ffffff"),
+			muted:     ui.Hex("#d1d1d3"),
+			faint:     ui.Hex("#a3a3a3"),
 			hairline:  ui.RGBA(255, 255, 255, 0.07),
 			hover:     ui.RGBA(255, 255, 255, 0.06),
 			press:     ui.RGBA(255, 255, 255, 0.1),
 			accent:    ui.Oklch(0.66, 0.2, 22),
 			onAccent:  ui.Hex("#ffffff"),
+			ink:       ui.Hex("#1d1d1f"),
 			cardShade: ui.RGBA(0, 0, 0, 0.45),
 		}
 	}
 	return palette{
 		bg:        ui.Hex("#ffffff"),
 		sidebar:   ui.Hex("#f4f4f6"),
-		text:      ui.Hex("#1d1d1f"),
-		muted:     ui.RGBA(60, 60, 67, 0.62),
-		faint:     ui.RGBA(60, 60, 67, 0.32),
+		text:      ui.Hex("#283248"),
+		muted:     ui.Hex("#515769"),
+		faint:     ui.Hex("#7b808e"),
 		hairline:  ui.RGBA(0, 0, 0, 0.07),
 		hover:     ui.RGBA(0, 0, 0, 0.04),
 		press:     ui.RGBA(0, 0, 0, 0.08),
 		accent:    ui.Oklch(0.6, 0.21, 24),
 		onAccent:  ui.Hex("#ffffff"),
+		ink:       ui.Hex("#1d1d1f"),
 		cardShade: ui.RGBA(0, 0, 0, 0.16),
 	}
 }
@@ -97,7 +100,7 @@ func (a *app) statusToast(c *ui.Context) {
 				Shadow(0, 4, 16, -4, p.cardShade).
 				Transition(ui.ElementTransition{Animation: &ui.Snappy, Enter: &ui.Motion{Y: 6}, Exit: &ui.Motion{Y: 4}}).
 				Children(func() {
-					ui.Text(c, t.Title).FontSize(13).FontWeight(500).MaxLines(2)
+					ui.Text(c, t.Title).FontSize(14).MaxLines(2)
 				})
 		}
 	})
@@ -194,7 +197,7 @@ func (a *app) cover(c *ui.Context, url string, px int, size, radius float32) ui.
 	}
 	box.Children(func() {
 		if in < 1 {
-			ui.Icon(c, iconNote).Size(size*0.3, size*0.3).TextColor(p.faint).Opacity(1 - in)
+			ui.Icon(c, iconNote).Size(size*0.3, size*0.3).TextColor(p.muted).Opacity(1 - in)
 		}
 		artImage(c, bmp, radius, in)
 	})
@@ -333,9 +336,47 @@ func drawBars(p *ui.Painter, r ui.Rect, st *barState, n int, color ui.Color, min
 // slides to the next as it changes. It reports whether the user chose
 // another.
 func segmented(c *ui.Context, selected *int, labels ...string) bool {
+	return segmentedIn(c, selected, 36, 16, labels, nil, false)
+}
+
+// segmentedWide is segmented across the width its parent gives it: the
+// segments share that width equally, and the capsule is a segment wide. It
+// is for a bar that heads a page, where nothing else shares the row.
+func segmentedWide(c *ui.Context, selected *int, labels ...string) bool {
+	return segmentedIn(c, selected, 36, 16, labels, nil, true)
+}
+
+// paneMotion brings in what a tab of a page shows as the tab changes: the
+// pane fades and rises a little under its tabs, so that a switch reads as
+// one motion with the capsule above it, not a snap.
+var paneMotion = ui.ElementTransition{
+	Colors:   true,
+	Enter:    &ui.Motion{Y: 6},
+	Duration: 180 * time.Millisecond,
+}
+
+// pane is what a tab of a page shows, keyed by the tab: where the key
+// changes the pane that was goes and the new one comes in with paneMotion.
+func pane(c *ui.Context, key any, fn func()) {
+	ui.Column(c.Key(key)).Transition(paneMotion).Children(fn)
+}
+
+// segmentedStyled is segmented in a height and a type size of its caller's,
+// its segments named for a screen reader by a11yLabels where given.
+func segmentedStyled(c *ui.Context, selected *int, height, fontSize float32, labels, a11yLabels []string) bool {
+	return segmentedIn(c, selected, height, fontSize, labels, a11yLabels, false)
+}
+
+// segmentedIn builds a segmented control: as wide as its widest label, or,
+// where fill is set, as wide as the parent gives it, its segments sharing
+// that width equally.
+func segmentedIn(c *ui.Context, selected *int, height, fontSize float32, labels, a11yLabels []string, fill bool) bool {
 	t := c.Theme()
-	const inset, radius = 3, radiusRow
-	height, fontSize := float32(36), float32(16)
+	const inset = 3
+	radius := float32(radiusRow)
+	if height <= 30 {
+		radius = radiusTile
+	}
 	width := float32(0)
 	for _, l := range labels {
 		w, _ := c.MeasureText(0, ui.Span{Text: l, Size: fontSize})
@@ -349,8 +390,17 @@ func segmented(c *ui.Context, selected *int, labels ...string) bool {
 	parts := ui.SegmentedBase(c, selected, len(labels))
 	at := parts.Track.AnimateTo("at", float32(*selected), ui.Animation{Spring: ui.SpringOptions{Duration: 280 * time.Millisecond, Bounce: 0.08}})
 	dark := t.Dark
-	parts.Track.Height(height).Shrink(0).Padding(inset).Radius(radius).Background(track).Draw(func(p *ui.Painter, r ui.Rect) {
-		pill := ui.Rect{X: r.X + inset + at*width, Y: r.Y + inset, W: width, H: r.H - 2*inset}
+	parts.Track.Height(height).Shrink(0).Padding(inset).Radius(radius).Background(track)
+	if !fill {
+		parts.Track.Width(width*float32(len(labels)) + 2*inset)
+	}
+	parts.Track.Draw(func(p *ui.Painter, r ui.Rect) {
+		// A segment's width: measured, or a share of the track.
+		one := width
+		if fill {
+			one = (r.W - 2*inset) / float32(len(labels))
+		}
+		pill := ui.Rect{X: r.X + inset + at*one, Y: r.Y + inset, W: one, H: r.H - 2*inset}
 		if !dark {
 			p.Shadow(pill, radius-1, 0, 0.5, 1, 0, ui.RGBA(0, 0, 0, 0.2))
 			p.Shadow(pill, radius-1, 0, 1, 3, 0, ui.RGBA(0, 0, 0, 0.06))
@@ -358,14 +408,45 @@ func segmented(c *ui.Context, selected *int, labels ...string) bool {
 		p.Fill(pill, capsule, radius-1)
 	}).Children(func() {
 		for i, l := range labels {
-			seg := parts.Segment(i).Width(width).Height(height - 2*inset).Center().Radius(radius - 1)
+			seg := parts.Segment(i).Height(height - 2*inset).Center().Radius(radius - 1)
+			if fill {
+				seg = seg.Grow(1)
+			} else {
+				seg = seg.Width(width)
+			}
+			if len(a11yLabels) == len(labels) {
+				seg = seg.Label(a11yLabels[i])
+			}
 			if seg.Pressed() && i != *selected {
 				seg.Background(pressed)
 			}
-			seg.Children(func() { ui.Text(c, l).FontSize(fontSize).FontWeight(500).TextColor(t.Text).SingleLine() })
+			seg.Children(func() {
+				ink := t.TextMuted
+				if i == *selected {
+					ink = t.Text
+				}
+				txt := ui.Text(c, l).FontSize(fontSize).FontWeight(600).SingleLine()
+				txt.TextColor(txt.AnimateColor("ink", ink, ui.Animation{Duration: 160 * time.Millisecond}))
+			})
 		}
 	})
 	return *selected != before
+}
+
+// emptyState is what a page says where it has nothing to show: what is
+// missing, a hint of where to find it, and a way there.
+func (a *app) emptyState(c *ui.Context, title, hint, btnLabel string, action func()) {
+	ui.Column(c).Center().Padding(56, 0, 40, 0).Gap(10).Children(func() {
+		ui.Text(c, title).FontSize(20).FontWeight(600)
+		if hint != "" {
+			ui.Text(c, hint).FontSize(14).TextColor(a.pal.muted)
+		}
+		if btnLabel != "" && action != nil {
+			if pillButton(c.Key("empty-action"), nil, btnLabel, a.pal.hover.Over(a.pal.bg), a.pal.text).Clicked() {
+				action()
+			}
+		}
+	})
 }
 
 // paged is how a list loaded a page at a time is coming along.
@@ -384,9 +465,9 @@ func (a *app) pageFoot(c *ui.Context, pg *paged, next func()) {
 	foot.Children(func() {
 		switch {
 		case pg.loading:
-			ui.Text(c, "正在加载…").FontSize(12.5).TextColor(a.pal.muted)
+			ui.Text(c, "正在加载…").FontSize(12).TextColor(a.pal.muted)
 		case pg.err != "":
-			ui.Text(c, pg.err).FontSize(12.5).TextColor(a.pal.muted)
+			ui.Text(c, pg.err).FontSize(12).TextColor(a.pal.muted)
 			if ui.Button(c.Key("retry"), "重试").Clicked() {
 				next()
 			}

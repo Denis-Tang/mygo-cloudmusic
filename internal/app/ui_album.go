@@ -63,7 +63,7 @@ func (a *app) albumPage(c *ui.Context) {
 
 func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 	p := a.pal
-	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 26, 0).Children(func() {
+	ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 24, 0).Children(func() {
 		ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 			a.coverFill(c, al.PicURL, 600, radiusCard)
 		})
@@ -114,7 +114,7 @@ func (a *app) albumHeader(c *ui.Context, al *netease.AlbumProfile) {
 
 // albumGrid shows albums as cards, each opening its page.
 func (a *app) albumGrid(c *ui.Context, albums []netease.AlbumProfile) {
-	ui.Grid(c).Columns(a.columns(c, 156)).GapX(20).GapY(28).Children(func() {
+	ui.Grid(c).Columns(a.columns(c, 156)).GapX(20).GapY(24).Children(func() {
 		for i := range albums {
 			a.albumCard(c.Key(albums[i].ID), &albums[i])
 		}
@@ -138,7 +138,7 @@ func (a *app) albumCard(c *ui.Context, al *netease.AlbumProfile) {
 		}
 		art.AnimatePose(lift, ui.Snappy)
 		art.Children(func() { a.coverFill(c, al.PicURL, 400, radiusCover) })
-		ui.Text(c, al.Name).FontSize(16).FontWeight(500).MaxLines(2).LineHeight(1.35)
+		ui.Text(c, al.Name).FontSize(16).FontWeight(600).MaxLines(2).LineHeight(1.35)
 		var meta []string
 		if a.route.page != pageArtist {
 			meta = append(meta, al.ArtistNames())
@@ -146,7 +146,7 @@ func (a *app) albumCard(c *ui.Context, al *netease.AlbumProfile) {
 		if al.PublishTime > 0 {
 			meta = append(meta, time.UnixMilli(al.PublishTime).Format("2006"))
 		}
-		ui.Text(c, strings.Join(meta, " · ")).FontSize(14).TextColor(p.muted).SingleLine().Margin(-6, 0, 0, 0)
+		ui.Text(c, strings.Join(meta, " · ")).FontSize(14).TextColor(p.faint).SingleLine().Margin(-6, 0, 0, 0)
 	})
 	if card.Clicked() {
 		a.open(route{page: pageAlbum, id: al.ID})

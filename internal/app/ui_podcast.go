@@ -187,7 +187,7 @@ func (a *app) podcastPage(c *ui.Context) {
 	pod := d.podcast
 	cur := a.pl.Current()
 	a.scrollPage(c, func() {
-		ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 8, 0).Children(func() {
+		ui.Row(c).Gap(28).AlignItems(ui.End).Padding(0, 0, 24, 0).Children(func() {
 			ui.Box(c).Size(212, 212).Radius(radiusCard).Shadow(0, 18, 40, -10, p.cardShade).Children(func() {
 				a.coverFill(c, pod.PicURL, 600, radiusCard)
 			})
@@ -238,7 +238,7 @@ func (a *app) programRow(c *ui.Context, d *podcastData, i int, cur *netease.Trac
 	p := a.pal
 	pr := &d.programs[i]
 	playing := cur != nil && cur.ProgramID == pr.ID
-	row := ui.ButtonBase(c).Height(60).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).
+	row := ui.ButtonBase(c).Height(64).PaddingX(12).Gap(14).Radius(radiusRow).AlignItems(ui.Center).FocusRing(false).
 		Label(pr.Name).Disabled(pr.MainSong.ID == 0)
 	bg := ui.Transparent
 	switch {
@@ -255,11 +255,11 @@ func (a *app) programRow(c *ui.Context, d *podcastData, i int, cur *netease.Trac
 		}
 		a.cover(c, cover, 96, 40, radiusTile)
 		ui.Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(3).Children(func() {
-			title := ui.Text(c, pr.Name).FontSize(17).FontWeight(500).SingleLine()
+			title := ui.Text(c, pr.Name).FontSize(17).FontWeight(600).SingleLine()
 			if playing {
 				title.TextColor(p.accent)
 			}
-			ui.Text(c, time.UnixMilli(pr.CreateTime).Format("2006-01-02")).FontSize(14).TextColor(p.muted)
+			ui.Text(c, time.UnixMilli(pr.CreateTime).Format("2006-01-02")).FontSize(14).TextColor(p.faint)
 		})
 		if playing {
 			a.nowPlayingBars(c)
@@ -271,7 +271,7 @@ func (a *app) programRow(c *ui.Context, d *podcastData, i int, cur *netease.Trac
 				a.likeButton(c.Key("like"), &tr, 15, p.muted)
 			}
 		})
-		ui.Text(c, clock(time.Duration(pr.Duration)*time.Millisecond)).FontSize(14).FontFeatures("tnum").TextColor(p.muted)
+		ui.Text(c, clock(time.Duration(pr.Duration)*time.Millisecond)).FontSize(14).FontFeatures("tnum").TextColor(p.faint)
 	})
 	if row.Clicked() {
 		a.playProgram(d, i)
@@ -295,7 +295,7 @@ func (a *app) podcastRow(c *ui.Context, pod *netease.Podcast) {
 			if pod.DJ.Nickname != "" {
 				meta = append([]string{pod.DJ.Nickname}, meta...)
 			}
-			ui.Text(c, strings.Join(meta, " · ")).FontSize(15).TextColor(p.muted).SingleLine()
+			ui.Text(c, strings.Join(meta, " · ")).FontSize(15).TextColor(p.faint).SingleLine()
 			if pod.Description != "" {
 				ui.Text(c, pod.Description).FontSize(15).TextColor(p.muted).SingleLine()
 			}
@@ -314,7 +314,7 @@ func (a *app) programPane(c *ui.Context, tr *netease.Track) {
 		if desc == "" {
 			desc = "这期节目没有简介"
 		}
-		ui.Text(c, desc).FontSize(18).LineHeight(1.7).TextColor(white.Alpha(0.75))
+		ui.Text(c, desc).FontSize(14).LineHeight(1.7).TextColor(white.Alpha(0.82))
 	})
 }
 
@@ -417,7 +417,7 @@ func (a *app) podcastsPage(c *ui.Context) {
 		return
 	}
 	top, bottom := a.insets(c)
-	ui.Scroll(c.Key("podcasts")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, pagePad, bottom+48, pagePad).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
+	ui.Scroll(c.Key("podcasts")).TrackScroll(&a.pageScroll).Grow(1).Padding(top+pageGap, a.pagePadX(c), bottom+48, a.pagePadX(c)).ScrollbarInsets(top, 0, bottom, 0).Children(func() {
 		a.startMark(c)
 		a.heading(c, "播客", "")
 		cols := a.columns(c, 150)
@@ -439,7 +439,7 @@ func (a *app) podcastsPage(c *ui.Context) {
 				s.Margin(0, 0, 14, 0)
 			}
 			first = false
-			ui.Grid(c.Key(title)).Columns(cols).GapX(20).GapY(28).Children(func() {
+			ui.Grid(c.Key(title)).Columns(cols).GapX(20).GapY(24).Children(func() {
 				for i := range pods {
 					a.podcastCard(c.Key(pods[i].ID), &pods[i])
 				}

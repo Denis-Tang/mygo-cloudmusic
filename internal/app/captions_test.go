@@ -112,7 +112,7 @@ func TestDownloadModelFromCaptions(t *testing.T) {
 	tt.Move(600, 300) // over the picture: the bar of it rises
 	tt.Advance(300 * time.Millisecond)
 	tt.Frame()
-	if err := tt.Click("字幕"); err != nil {
+	if err := tt.Click("字幕面板"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
